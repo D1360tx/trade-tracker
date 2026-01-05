@@ -1,73 +1,174 @@
-# React + TypeScript + Vite
+# Trade Tracker Pro
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A comprehensive trading journal and analytics platform with AI-powered insights, supporting multiple exchanges including Schwab, HeroFX/TradeLocker, and more.
 
-Currently, two official plugins are available:
+## 🚀 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Import & Data Management
+- **Quick Paste Import**: Direct paste support for TradeLocker/HeroFX multi-line format
+- **CSV Import**: Support for Schwab, MEXC, and other exchanges
+- **Schwab API Integration**: OAuth-based direct data import
+- **Trade Management**: Edit, delete, and manage trades with inline editing
 
-## React Compiler
+### Analytics & Visualization
+- **Performance Dashboard**: Real-time P&L, win rate, and profit factor
+- **Equity Curve**: Visual representation of account growth
+- **Calendar View**: Daily performance heatmap with detailed breakdowns
+- **Advanced Charts**:
+  - Monthly performance analysis
+  - Symbol performance comparison
+  - Win/Loss distribution
+  - Drawdown analysis
+  - Hold time scatter plots
+  - Streak analysis
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### AI-Powered Insights
+- **Pattern Recognition**: Identify trading patterns and mistakes
+- **Strategy Analysis**: AI-generated insights on trade performance
+- **Mistake Tracking**: Learn from past errors with categorization
+- **Playbook**: Document and refine trading strategies
 
-## Expanding the ESLint configuration
+### Trading Tools
+- **Trade Journal**: Detailed trade logs with images and notes
+- **Strategy Manager**: Organize trades by strategy
+- **Risk Analysis**: Track position sizing and risk metrics
+- **Bot Dashboard**: Monitor automated trading performance
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 🛠️ Technology Stack
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- **Frontend**: React 18 + TypeScript + Vite
+- **Styling**: Tailwind CSS
+- **Charts**: Recharts
+- **Backend**: Vercel Serverless Functions
+- **APIs**: Schwab API, OpenAI GPT-4
+- **Storage**: LocalStorage (client-side)
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## 📦 Installation
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/trade-tracker.git
+
+# Navigate to project directory
+cd trade-tracker
+
+# Install dependencies
+npm install
+
+# Create .env file
+cp .env.example .env
+
+# Add your API keys to .env
+VITE_OPENAI_API_KEY=your_openai_key
+SCHWAB_CLIENT_ID=your_schwab_client_id
+SCHWAB_CLIENT_SECRET=your_schwab_client_secret
+SCHWAB_CALLBACK_URL=http://localhost:5173/schwab/callback
+
+# Start development server
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 🔧 Configuration
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Schwab API Setup
+1. Register at [Schwab Developer Portal](https://developer.schwab.com)
+2. Create an app and get your Client ID and Secret
+3. Add callback URL: `http://localhost:5173/schwab/callback`
+4. Update `.env` with your credentials
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### OpenAI API
+1. Get API key from [OpenAI Platform](https://platform.openai.com)
+2. Add to `.env` as `VITE_OPENAI_API_KEY`
+
+## 📖 Usage
+
+### Quick Paste Import (TradeLocker/HeroFX)
+1. Go to **Import** page
+2. Copy trades from TradeLocker (select rows and Ctrl+C)
+3. Paste into the "Quick Paste Import" textarea
+4. Click **Import Pasted Data**
+5. Trades will be parsed with correct P&L and ROI
+
+### CSV Import
+1. Go to **Import** page
+2. Select exchange from dropdown
+3. Upload CSV file
+4. Data will be automatically parsed and imported
+
+### Schwab API Import
+1. Go to **Import** page
+2. Click **Connect to Schwab**
+3. Authorize the app
+4. Import trades from your account
+
+## 🎯 Key Features Explained
+
+### TradeLocker/HeroFX Parser
+- Handles multi-line paste format (instrument on separate line)
+- Automatically merges broken rows with multi-line SL/TP values
+- Calculates ROI with 100x leverage and proper contract sizes:
+  - XAGUSD: 5,000 oz per lot
+  - XAUUSD: 100 oz per lot
+- Prevents column misalignment with smart tab handling
+
+### Trade Management
+- **Inline Editing**: Click edit icon to modify trades
+- **Bulk Operations**: Select multiple trades for deletion
+- **Filtering**: Filter by exchange, symbol, date range
+- **Sorting**: Sort by any column
+
+### Analytics
+- **Real-time Calculations**: All metrics update instantly
+- **Time Range Filters**: Daily, Weekly, Monthly, YTD, All Time
+- **Exchange Filtering**: Analyze performance per exchange
+- **Strategy Breakdown**: Compare different trading strategies
+
+## 🚢 Deployment
+
+### Vercel (Recommended)
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+vercel
+
+# Set environment variables in Vercel dashboard
 ```
+
+### Build for Production
+```bash
+npm run build
+```
+
+## 📝 License
+
+MIT
+
+## 🤝 Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request.
+
+## 🐛 Known Issues
+
+- LocalStorage has size limits (~5-10MB)
+- Large trade histories may impact performance
+- Schwab API rate limits apply
+
+## 🔮 Roadmap
+
+- [ ] Database integration (MongoDB/PostgreSQL)
+- [ ] Multi-user support
+- [ ] Mobile app (React Native)
+- [ ] Real-time trade alerts
+- [ ] Advanced backtesting
+- [ ] Social trading features
+- [ ] More exchange integrations
+
+## 📞 Support
+
+For issues and questions, please open a GitHub issue or contact support@example.com.
+
+---
+
+**Built with ❤️ for traders by traders**
