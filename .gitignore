@@ -42,3 +42,6 @@ lerna-debug.log*
 /data
 *.db
 *.sqlite
+
+# CSV files (may contain sensitive trade data)
+*.csv
