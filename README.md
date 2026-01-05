@@ -1,5 +1,10 @@
 # Trade Tracker Pro
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![React](https://img.shields.io/badge/React-18.3-blue.svg)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-6.0-purple.svg)](https://vitejs.dev/)
+
 A comprehensive trading journal and analytics platform with AI-powered insights, supporting multiple exchanges including Schwab, HeroFX/TradeLocker, and more.
 
 ## 🚀 Features
