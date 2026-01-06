@@ -128,17 +128,12 @@ const Journal = () => {
 
                 <div className="flex gap-4">
                     <button
-                        onClick={async () => {
-                            await Promise.all([
-                                fetchTradesFromAPI('MEXC'),
-                                fetchTradesFromAPI('ByBit')
-                            ]);
-                        }}
+                        onClick={() => fetchTradesFromAPI('MEXC')}
                         disabled={isLoading}
                         className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-primary)] text-white rounded-lg hover:bg-[var(--accent-primary)]/90 disabled:opacity-50 transition-colors"
                     >
                         <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
-                        <span>{isLoading ? 'Syncing...' : 'Sync'}</span>
+                        <span>{isLoading ? 'Syncing MEXC...' : 'Sync MEXC'}</span>
                     </button>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" size={18} />
