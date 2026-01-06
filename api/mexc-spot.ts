@@ -30,26 +30,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log('[MEXC Spot] Request:', reqUrl.pathname);
         console.log('[MEXC Spot] Forwarding to:', targetUrl);
 
-        // Forward authentication headers
+        // Forward authentication headers (HTTP headers are case-insensitive, Node normalizes to lowercase)
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
         };
 
-        const apiKey = req.headers['apikey'];
-        const requestTime = req.headers['request-time'];
-        const signature = req.headers['signature'];
-        const mexcApiKey = req.headers['x-mexc-apikey'];
+        // Read headers (lowercase because Node.js normalizes them)
+        const apiKey = req.headers['apikey'] as string;
+        const requestTime = req.headers['request-time'] as string;
+        const signature = req.headers['signature'] as string;
 
-        if (apiKey) headers['ApiKey'] = apiKey as string;
-        if (requestTime) headers['Request-Time'] = requestTime as string;
-        if (signature) headers['Signature'] = signature as string;
-        if (mexcApiKey) headers['X-MEXC-APIKEY'] = mexcApiKey as string;
+        // Forward with MEXC's expected casing
+        if (apiKey) headers['ApiKey'] = apiKey;
+        if (requestTime) headers['Request-Time'] = requestTime;
+        if (signature) headers['Signature'] = signature;
 
-        console.log('[MEXC Spot] Auth headers:', {
-            apiKey: !!apiKey,
-            requestTime: !!requestTime,
-            signature: !!signature
+        console.log('[MEXC Spot] Headers received:', {
+            apiKey: apiKey ? `${apiKey.substring(0, 8)}...` : 'missing',
+            requestTime: requestTime || 'missing',
+            signature: signature ? `${signature.substring(0, 16)}...` : 'missing'
         });
+        console.log('[MEXC Spot] Query params:', reqUrl.search);
 
         // Forward request to MEXC
         const response = await fetch(targetUrl, {
