@@ -39,11 +39,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const apiKey = req.headers['apikey'] as string;
         const requestTime = req.headers['request-time'] as string;
         const signature = req.headers['signature'] as string;
+        const recvWindow = req.headers['recv-window'] as string;
 
         // Forward with MEXC's expected casing
         if (apiKey) headers['ApiKey'] = apiKey;
         if (requestTime) headers['Request-Time'] = requestTime;
         if (signature) headers['Signature'] = signature;
+        if (recvWindow) headers['Recv-Window'] = recvWindow;
 
         console.log('[MEXC Futures] Headers received:', {
             apiKey: apiKey ? `${apiKey.substring(0, 8)}...` : 'missing',

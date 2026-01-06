@@ -36,6 +36,7 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
                 'ApiKey': apiKey,
                 'Request-Time': timestamp,
                 'Signature': signature,
+                'Recv-Window': '60000',
                 'Content-Type': 'application/json'
             };
 
