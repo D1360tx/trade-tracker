@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 /**
- * MEXC Futures API Proxy
- * Forwards requests to MEXC Futures API v1 with proper authentication
+ * MEXC Spot API Proxy (Single File)
+ * Handles all MEXC Spot API requests by parsing the URL path
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Enable CORS
@@ -15,27 +15,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        // Extract the full request URL and parse it
+        // Extract the full request URL
         const reqUrl = new URL(req.url!, `https://${req.headers.host}`);
 
-        // Get the path after /api/mexc-futures/
-        const fullPath = reqUrl.pathname.replace('/api/mexc-futures/', '');
+        // Remove /api/mexc-spot from the path to get the MEXC API path
+        const mexcPath = reqUrl.pathname.replace('/api/mexc-spot', '');
 
-        // MEXC Futures base URL
-        const MEXC_FUTURES_BASE = 'https://contract.mexc.com';
+        // MEXC Spot base URL
+        const MEXC_SPOT_BASE = 'https://api.mexc.com';
 
-        // Forward query parameters
-        const targetUrl = `${MEXC_FUTURES_BASE}/${fullPath}${reqUrl.search}`;
+        // Construct target URL with original query parameters
+        const targetUrl = `${MEXC_SPOT_BASE}${mexcPath}${reqUrl.search}`;
 
-        console.log('[MEXC Futures Proxy] Request URL:', reqUrl.href);
-        console.log('[MEXC Futures Proxy] Forwarding to:', targetUrl);
+        console.log('[MEXC Spot] Request:', reqUrl.pathname);
+        console.log('[MEXC Spot] Forwarding to:', targetUrl);
 
-        // Forward the request to MEXC with all authentication headers
+        // Forward authentication headers
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
         };
 
-        // Forward all MEXC authentication headers
         const apiKey = req.headers['apikey'];
         const requestTime = req.headers['request-time'];
         const signature = req.headers['signature'];
@@ -46,8 +45,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (signature) headers['Signature'] = signature as string;
         if (mexcApiKey) headers['X-MEXC-APIKEY'] = mexcApiKey as string;
 
-        console.log('[MEXC Futures Proxy] Headers:', { apiKey: !!apiKey, requestTime: !!requestTime, signature: !!signature });
+        console.log('[MEXC Spot] Auth headers:', {
+            apiKey: !!apiKey,
+            requestTime: !!requestTime,
+            signature: !!signature
+        });
 
+        // Forward request to MEXC
         const response = await fetch(targetUrl, {
             method: req.method,
             headers,
@@ -59,29 +63,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             data = await response.json();
         } catch (e) {
             const text = await response.text();
-            console.error('[MEXC Futures Proxy] Failed to parse JSON. Response:', text);
+            console.error('[MEXC Spot] Failed to parse JSON:', text);
             return res.status(response.status).json({
-                error: 'Invalid JSON response from MEXC',
+                error: 'Invalid JSON from MEXC',
                 status: response.status,
                 body: text
             });
         }
 
-        console.log('[MEXC Futures Proxy] Response status:', response.status);
+        console.log('[MEXC Spot] Response:', response.status);
 
         if (!response.ok) {
-            console.error('[MEXC Futures Proxy] API Error:', {
-                status: response.status,
-                data
-            });
+            console.error('[MEXC Spot] Error:', data);
         }
 
-        // Forward the response
         res.status(response.status).json(data);
     } catch (error: any) {
-        console.error('[MEXC Futures Proxy] Error:', error);
+        console.error('[MEXC Spot] Exception:', error);
         res.status(500).json({
-            error: 'Failed to fetch from MEXC Futures API',
+            error: 'Proxy error',
             message: error.message,
         });
     }
