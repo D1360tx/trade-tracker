@@ -35,20 +35,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             'Content-Type': 'application/json',
         };
 
-        // Read headers (lowercase because Node.js normalizes them)
+        // MEXC Spot V3 uses X-MEXC-APIKEY header (signature is in query string)
+        const mexcApiKey = req.headers['x-mexc-apikey'] as string;
+
+        // Also support Futures-style headers for compatibility
         const apiKey = req.headers['apikey'] as string;
         const requestTime = req.headers['request-time'] as string;
         const signature = req.headers['signature'] as string;
 
-        // Forward with MEXC's expected casing
+        // Forward Spot V3 header
+        if (mexcApiKey) headers['X-MEXC-APIKEY'] = mexcApiKey;
+
+        // Forward Futures-style headers (if present)
         if (apiKey) headers['ApiKey'] = apiKey;
         if (requestTime) headers['Request-Time'] = requestTime;
         if (signature) headers['Signature'] = signature;
 
         console.log('[MEXC Spot] Headers received:', {
+            mexcApiKey: mexcApiKey ? `${mexcApiKey.substring(0, 8)}...` : 'missing',
             apiKey: apiKey ? `${apiKey.substring(0, 8)}...` : 'missing',
-            requestTime: requestTime || 'missing',
-            signature: signature ? `${signature.substring(0, 16)}...` : 'missing'
+            signatureInQuery: reqUrl.search.includes('signature')
         });
         console.log('[MEXC Spot] Query params:', reqUrl.search);
 
