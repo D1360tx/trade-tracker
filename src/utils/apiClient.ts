@@ -51,12 +51,29 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
             }
 
             const data = await response.json();
+
+            // Log full response for debugging
+            console.log('[MEXC Futures] Page', page, 'full response:', data);
+
             console.log('[MEXC Futures] Page', page, 'response structure:', {
                 hasData: !!data.data,
                 dataType: Array.isArray(data.data) ? 'array' : typeof data.data,
                 dataLength: Array.isArray(data.data) ? data.data.length : 'N/A',
-                topLevelKeys: Object.keys(data)
+                topLevelKeys: Object.keys(data),
+                success: data.success,
+                code: data.code,
+                message: data.message
             });
+
+            // Check for error responses
+            if (data.success === false || data.code !== 0) {
+                console.error('[MEXC Futures] API Error:', {
+                    code: data.code,
+                    message: data.message,
+                    fullResponse: data
+                });
+                throw new Error(`MEXC API Error: ${data.message || 'Unknown error'}`);
+            }
 
             const pageTrades = data.data || [];
 
