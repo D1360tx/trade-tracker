@@ -26,7 +26,7 @@ const Journal = () => {
     const [selectedExchanges, setSelectedExchanges] = useState<string[]>([]); // Multi-select exchanges
     const [filterStrategy, setFilterStrategy] = useState(''); // Strategy ID
     const [filterMistake, setFilterMistake] = useState(''); // Mistake ID
-    const [timeRange, setTimeRange] = useState<TimeRange>('this_month');
+    const [timeRange, setTimeRange] = useState<TimeRange>('30d');
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
 
