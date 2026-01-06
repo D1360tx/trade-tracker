@@ -40,8 +40,13 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
                 'Content-Type': 'application/json'
             };
 
-            // Switch BACK to history_orders
-            const response = await fetch(`${MEXC_FUTURES_PROXY}/api/v1/private/order/list/history_orders?${queryRange}`, {
+            // Build URL correctly - don't add ? if no params
+            const queryString = queryRange ? `?${queryRange}` : '';
+            const url = `${MEXC_FUTURES_PROXY}/api/v1/private/order/list/history_orders${queryString}`;
+
+            console.log('[MEXC Futures] Calling URL:', url);
+
+            const response = await fetch(url, {
                 method: 'GET',
                 headers
             });
