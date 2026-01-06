@@ -43,6 +43,13 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
             }
 
             const data = await response.json();
+            console.log('[MEXC Futures] Page', page, 'response structure:', {
+                hasData: !!data.data,
+                dataType: Array.isArray(data.data) ? 'array' : typeof data.data,
+                dataLength: Array.isArray(data.data) ? data.data.length : 'N/A',
+                topLevelKeys: Object.keys(data)
+            });
+
             const pageTrades = data.data || [];
 
             if (pageTrades.length === 0) {
@@ -53,6 +60,10 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
                 page++;
             }
         }
+
+        console.log('[MEXC Futures] Total raw trades fetched:', allTrades.length);
+        console.log('[MEXC Futures] First raw trade:', allTrades[0]);
+        console.log('[MEXC Futures] Sample trade keys:', allTrades[0] ? Object.keys(allTrades[0]) : []);
 
         // Map standard Orders to Trade interface
         const trades: Trade[] = allTrades.map((t: any) => {
