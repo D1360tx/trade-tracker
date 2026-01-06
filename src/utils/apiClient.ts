@@ -24,6 +24,14 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
             const signString = apiKey + timestamp + queryRange;
             const signature = CryptoJS.HmacSHA256(signString, apiSecret).toString(CryptoJS.enc.Hex);
 
+            console.log('[MEXC Futures] Signature Debug:', {
+                timestamp,
+                queryRange,
+                signStringPreview: `${signString.substring(0, 50)}...`,
+                signaturePreview: `${signature.substring(0, 20)}...`,
+                apiKeyPreview: `${apiKey.substring(0, 8)}...`
+            });
+
             const headers = {
                 'ApiKey': apiKey,
                 'Request-Time': timestamp,
