@@ -52,9 +52,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined,
         });
 
-        const data = await response.json();
+        let data;
+        try {
+            data = await response.json();
+        } catch (e) {
+            const text = await response.text();
+            console.error('[MEXC Futures Proxy] Failed to parse JSON. Response:', text);
+            return res.status(response.status).json({
+                error: 'Invalid JSON response from MEXC',
+                status: response.status,
+                body: text
+            });
+        }
 
         console.log('[MEXC Futures Proxy] Response status:', response.status);
+
+        if (!response.ok) {
+            console.error('[MEXC Futures Proxy] API Error:', {
+                status: response.status,
+                data
+            });
+        }
 
         // Forward the response
         res.status(response.status).json(data);
