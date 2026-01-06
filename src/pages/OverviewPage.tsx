@@ -9,7 +9,7 @@ import type { TimeRange } from '../components/TimeRangeFilter';
 const OverviewPage = () => {
     const { trades } = useTrades();
     const [selectedExchanges, setSelectedExchanges] = useState<string[]>([]);
-    const [timeRange, setTimeRange] = useState<TimeRange>('this_month');
+    const [timeRange, setTimeRange] = useState<TimeRange>('all');
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
 
