@@ -1,10 +1,17 @@
 {
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "vite",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    }
   ],
   "functions": {
     "api/**/*.ts": {
-      "runtime": "@vercel/node@3.0.0"
+      "runtime": "nodejs18.x"
     }
   }
 }
