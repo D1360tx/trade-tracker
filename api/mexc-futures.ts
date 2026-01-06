@@ -51,6 +51,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             signature: signature ? `${signature.substring(0, 16)}...` : 'missing'
         });
         console.log('[MEXC Futures] Query params:', reqUrl.search);
+        console.log('[MEXC Futures] Full request details:', {
+            targetUrl,
+            method: req.method,
+            headersToSend: {
+                ApiKey: apiKey ? `${apiKey.substring(0, 8)}...` : undefined,
+                'Request-Time': requestTime,
+                Signature: signature ? `${signature.substring(0, 16)}...` : undefined
+            }
+        });
 
         // Forward request to MEXC
         const response = await fetch(targetUrl, {

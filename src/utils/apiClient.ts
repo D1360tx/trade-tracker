@@ -15,12 +15,12 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
 
         while (hasMore && page <= MAX_PAGES) {
             const timestamp = Date.now().toString();
-            const params: Record<string, string> = {
-                page_num: page.toString(),
-                page_size: '100'
-            };
+            // Test with minimal params first
+            const params: Record<string, string> = {};
 
-            const queryRange = Object.keys(params).sort().map(key => `${key}=${params[key]}`).join('&');
+            // If no params, queryRange is empty string
+            const queryRange = Object.keys(params).length === 0 ? '' :
+                Object.keys(params).sort().map(key => `${key}=${params[key]}`).join('&');
             const signString = apiKey + timestamp + queryRange;
             const signature = CryptoJS.HmacSHA256(signString, apiSecret).toString(CryptoJS.enc.Hex);
 
