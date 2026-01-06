@@ -427,11 +427,18 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             }
 
             setLastDebugData(raw);
+            console.log(`[${exchange}] Raw API response sample:`, raw);
+            console.log(`[${exchange}] API Trades before aggregation:`, apiTrades.length);
+
             const trades = aggregateTrades(apiTrades, exchange);
+            console.log(`[${exchange}] Trades after aggregation:`, trades.length);
+            console.log(`[${exchange}] Sample aggregated trade:`, trades[0]);
 
             // deduplication logic is now inside mergeTrades (called by addTrades)
             addTrades(trades);
             setLastUpdated(Date.now());
+
+            console.log(`[${exchange}] Sync complete - added ${trades.length} trades`);
 
             if (!silent) {
                 // We use a small timeout to let the state update so we can count? 
