@@ -15,17 +15,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        // Extract the path after /api/mexc-spot/
-        const path = (req.query.path as string[])?.join('/') || '';
+        // Extract the full request URL and parse it
+        const reqUrl = new URL(req.url!, `https://${req.headers.host}`);
+
+        // Get the path after /api/mexc-spot/
+        const fullPath = reqUrl.pathname.replace('/api/mexc-spot/', '');
 
         // MEXC Spot base URL
         const MEXC_SPOT_BASE = 'https://api.mexc.com';
 
-        // Remove 'path' from query params before forwarding
-        const { path: _, ...queryParams } = req.query;
-        const queryString = new URLSearchParams(queryParams as Record<string, string>).toString();
-        const targetUrl = `${MEXC_SPOT_BASE}/${path}${queryString ? `?${queryString}` : ''}`;
+        // Forward query parameters
+        const targetUrl = `${MEXC_SPOT_BASE}/${fullPath}${reqUrl.search}`;
 
+        console.log('[MEXC Spot Proxy] Request URL:', reqUrl.href);
         console.log('[MEXC Spot Proxy] Forwarding to:', targetUrl);
 
         // Forward the request to MEXC with all authentication headers
