@@ -8,7 +8,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Enable CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-MEXC-APIKEY');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-MEXC-APIKEY, ApiKey, Request-Time, Signature');
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -21,22 +21,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // MEXC Spot base URL
         const MEXC_SPOT_BASE = 'https://api.mexc.com';
 
-        // Construct the full URL with query parameters
-        const queryString = new URLSearchParams(req.query as Record<string, string>).toString();
+        // Remove 'path' from query params before forwarding
+        const { path: _, ...queryParams } = req.query;
+        const queryString = new URLSearchParams(queryParams as Record<string, string>).toString();
         const targetUrl = `${MEXC_SPOT_BASE}/${path}${queryString ? `?${queryString}` : ''}`;
 
         console.log('[MEXC Spot Proxy] Forwarding to:', targetUrl);
 
-        // Forward the request to MEXC
+        // Forward the request to MEXC with all authentication headers
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
         };
 
-        // Forward API key header if present
-        const apiKey = req.headers['x-mexc-apikey'];
-        if (apiKey) {
-            headers['X-MEXC-APIKEY'] = apiKey as string;
-        }
+        // Forward all MEXC authentication headers
+        const apiKey = req.headers['apikey'];
+        const requestTime = req.headers['request-time'];
+        const signature = req.headers['signature'];
+        const mexcApiKey = req.headers['x-mexc-apikey'];
+
+        if (apiKey) headers['ApiKey'] = apiKey as string;
+        if (requestTime) headers['Request-Time'] = requestTime as string;
+        if (signature) headers['Signature'] = signature as string;
+        if (mexcApiKey) headers['X-MEXC-APIKEY'] = mexcApiKey as string;
+
+        console.log('[MEXC Spot Proxy] Headers:', { apiKey: !!apiKey, requestTime: !!requestTime, signature: !!signature });
 
         const response = await fetch(targetUrl, {
             method: req.method,
@@ -45,6 +53,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         const data = await response.json();
+
+        console.log('[MEXC Spot Proxy] Response status:', response.status);
 
         // Forward the response
         res.status(response.status).json(data);
