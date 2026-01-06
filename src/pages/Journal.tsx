@@ -128,12 +128,27 @@ const Journal = () => {
 
                 <div className="flex gap-4">
                     <button
-                        onClick={() => fetchTradesFromAPI('MEXC')}
+                        onClick={async () => {
+                            // Smart sync: only sync exchanges with API keys configured
+                            const exchanges: Array<'MEXC' | 'ByBit'> = ['MEXC', 'ByBit'];
+                            const toSync = exchanges.filter(ex => {
+                                const apiKey = localStorage.getItem(`${ex.toLowerCase()}_api_key`);
+                                const apiSecret = localStorage.getItem(`${ex.toLowerCase()}_api_secret`);
+                                return apiKey && apiSecret;
+                            });
+
+                            if (toSync.length === 0) {
+                                alert('No exchange API keys configured. Please add API keys in Settings first.');
+                                return;
+                            }
+
+                            await Promise.all(toSync.map(ex => fetchTradesFromAPI(ex)));
+                        }}
                         disabled={isLoading}
                         className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-primary)] text-white rounded-lg hover:bg-[var(--accent-primary)]/90 disabled:opacity-50 transition-colors"
                     >
                         <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
-                        <span>{isLoading ? 'Syncing MEXC...' : 'Sync MEXC'}</span>
+                        <span>{isLoading ? 'Syncing...' : 'Sync Exchanges'}</span>
                     </button>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" size={18} />
