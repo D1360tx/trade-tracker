@@ -5,6 +5,10 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-6.0-purple.svg)](https://vitejs.dev/)
 
+## 🌐 Live Demo
+
+**Production**: [https://trade-tracker-eight.vercel.app](https://trade-tracker-eight.vercel.app)
+
 A comprehensive trading journal and analytics platform with AI-powered insights, supporting multiple exchanges including Schwab, HeroFX/TradeLocker, and more.
 
 ## 🚀 Features
