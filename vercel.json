@@ -3,6 +3,14 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/mexc-futures/:path*",
+      "destination": "/api/mexc-futures"
+    },
+    {
+      "source": "/api/mexc-spot/:path*",
+      "destination": "/api/mexc-spot"
+    },
+    {
       "source": "/((?!api).*)",
       "destination": "/index.html"
     }
