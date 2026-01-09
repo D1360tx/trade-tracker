@@ -270,21 +270,30 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 ['MEXC', 'ByBit'].forEach(ex => fetchTradesFromAPI(ex as any, true));
             }
 
-            // Schwab Smart Schedule: Mon-Fri after 3:30 PM (15:30)
+            // Schwab Smart Schedule: 
+            // 1. Daily Close: Mon-Fri after 3:30 PM (15:30)
             const isWeekday = day >= 1 && day <= 5;
             const isAfterMarketClose = hours > 15 || (hours === 15 && minutes >= 30);
 
-            if (isWeekday && isAfterMarketClose) {
-                // Check if we have already synced TODAY after 15:30
-                // If lastUpdated was before today 15:30, we need to sync
-                const marketCloseToday = new Date(now);
-                marketCloseToday.setHours(15, 30, 0, 0);
+            // 2. Monday Morning: Monday after 8:31 AM (08:31) to catch weekend/Friday after-hours
+            const isMondayMorning = day === 1 && (hours > 8 || (hours === 8 && minutes >= 31));
+
+            if ((isWeekday && isAfterMarketClose) || isMondayMorning) {
+                // Determine the "Threshold Time" for today
+                // If it's the Monday morning check, threshold is Today 08:31
+                // If it's the Daily Close check, threshold is Today 15:30
+                const threshold = new Date(now);
+                if (isMondayMorning && hours < 15) { // Prioritize morning check if it's Monday morning (before market close)
+                    threshold.setHours(8, 31, 0, 0);
+                } else {
+                    threshold.setHours(15, 30, 0, 0);
+                }
 
                 const lastUpdateDate = lastUpdatedRef.current ? new Date(lastUpdatedRef.current) : new Date(0);
 
-                // If we haven't synced since today's market close, trigger it
-                if (lastUpdateDate.getTime() < marketCloseToday.getTime()) {
-                    console.log('[AutoSync] Triggering daily Schwab sync (post-market)');
+                // If we haven't synced since the threshold time, trigger it
+                if (lastUpdateDate.getTime() < threshold.getTime()) {
+                    console.log(`[AutoSync] Triggering Schwab sync (Schedule: ${isMondayMorning && hours < 15 ? 'Mon Morning' : 'Market Close'})`);
                     fetchTradesFromAPI('Schwab' as any, true);
                 }
             }
