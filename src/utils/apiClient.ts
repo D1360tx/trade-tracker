@@ -3,7 +3,32 @@ import type { Trade } from '../types';
 
 const MEXC_FUTURES_PROXY = '/api/mexc-futures';
 
-// MEXC Futures: Standard User History Endpoint (Reverted)
+// Helper to check MEXC server time and get time drift
+const getMEXCServerTime = async (): Promise<{ serverTime: number, drift: number }> => {
+    try {
+        const localTime = Date.now();
+        const response = await fetch(`${MEXC_FUTURES_PROXY}/api/v1/contract/ping`);
+        const data = await response.json();
+
+        if (data.success && data.data) {
+            const serverTime = data.data;
+            const drift = localTime - serverTime;
+            console.log('[MEXC Time Check]', {
+                localTime,
+                serverTime,
+                drift: `${drift}ms`,
+                driftSeconds: `${(drift / 1000).toFixed(2)}s`
+            });
+            return { serverTime, drift };
+        }
+        return { serverTime: localTime, drift: 0 };
+    } catch (e) {
+        console.warn('[MEXC Time Check] Failed:', e);
+        return { serverTime: Date.now(), drift: 0 };
+    }
+};
+
+// MEXC Futures: Standard User History Endpoint (Enhanced)
 export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): Promise<{ trades: Trade[], raw: any }> => {
     let allTrades: any[] = [];
     let page = 1;
@@ -11,32 +36,53 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
     const MAX_PAGES = 5; // Limit for safety
 
     try {
-        if (!apiKey || !apiSecret) return { trades: [], raw: null };
+        if (!apiKey || !apiSecret) {
+            console.error('[MEXC] Missing API credentials');
+            return { trades: [], raw: { error: 'Missing API key or secret' } };
+        }
+
+        // Validate API key and secret format
+        console.log('[MEXC] API Key length:', apiKey.length);
+        console.log('[MEXC] Secret length:', apiSecret.length);
+        console.log('[MEXC] API Key preview:', `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`);
+
+        // Check server time first
+        const { serverTime, drift } = await getMEXCServerTime();
 
         while (hasMore && page <= MAX_PAGES) {
-            const timestamp = Date.now().toString();
-            // Test with minimal params first
+            // Use server time if drift is significant (> 1 second)
+            const useServerTime = Math.abs(drift) > 1000;
+            const timestamp = useServerTime ? (serverTime + (Date.now() - (serverTime - drift))).toString() : Date.now().toString();
+
+            // Test with minimal params first (no query parameters for history_orders)
             const params: Record<string, string> = {};
 
-            // If no params, queryRange is empty string
+            // Build query string (empty for no params)
             const queryRange = Object.keys(params).length === 0 ? '' :
                 Object.keys(params).sort().map(key => `${key}=${params[key]}`).join('&');
+
+            // Build signature string: apiKey + timestamp + queryString
             const signString = apiKey + timestamp + queryRange;
             const signature = CryptoJS.HmacSHA256(signString, apiSecret).toString(CryptoJS.enc.Hex);
 
-            console.log('[MEXC Futures] Signature Debug:', {
+            console.log('[MEXC Futures] Request Details:', {
+                page,
                 timestamp,
-                queryRange,
-                signStringPreview: `${signString.substring(0, 50)}...`,
-                signaturePreview: `${signature.substring(0, 20)}...`,
-                apiKeyPreview: `${apiKey.substring(0, 8)}...`
+                timestampSource: useServerTime ? 'server-adjusted' : 'local',
+                timeDrift: `${drift}ms`,
+                queryRange: queryRange || '(empty)',
+                signStringLength: signString.length,
+                signStringPreview: `${signString.substring(0, 60)}...`,
+                signatureFull: signature,
+                apiKeyLength: apiKey.length,
+                secretKeyLength: apiSecret.length
             });
 
             const headers = {
                 'ApiKey': apiKey,
                 'Request-Time': timestamp,
                 'Signature': signature,
-                'Recv-Window': '60000',
+                'Recv-Window': '60000', // 60 second window
                 'Content-Type': 'application/json'
             };
 
@@ -44,48 +90,79 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
             const queryString = queryRange ? `?${queryRange}` : '';
             const url = `${MEXC_FUTURES_PROXY}/api/v1/private/order/list/history_orders${queryString}`;
 
-            console.log('[MEXC Futures] Calling URL:', url);
+            console.log('[MEXC Futures] Full Request URL:', url);
+            console.log('[MEXC Futures] Request Headers:', {
+                ApiKey: `${apiKey.substring(0, 8)}...`,
+                'Request-Time': timestamp,
+                Signature: `${signature.substring(0, 20)}...${signature.substring(signature.length - 10)}`,
+                'Recv-Window': '60000'
+            });
 
             const response = await fetch(url, {
                 method: 'GET',
                 headers
             });
 
+            // Capture full response for debugging
+            const responseText = await response.text();
+            console.log('[MEXC Futures] Raw Response:', {
+                status: response.status,
+                statusText: response.statusText,
+                headers: Object.fromEntries(response.headers.entries()),
+                bodyPreview: responseText.substring(0, 500)
+            });
+
             if (!response.ok) {
-                console.error("MEXC Fetch Error:", await response.text());
-                break;
+                console.error('[MEXC Futures] HTTP Error:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    body: responseText
+                });
+
+                // Try to parse error as JSON
+                try {
+                    const errorData = JSON.parse(responseText);
+                    throw new Error(`MEXC API Error (${response.status}): ${errorData.message || errorData.msg || JSON.stringify(errorData)}`);
+                } catch (parseError) {
+                    throw new Error(`MEXC API Error (${response.status}): ${responseText}`);
+                }
             }
 
-            const data = await response.json();
+            // Parse response
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('[MEXC Futures] JSON Parse Error:', responseText);
+                throw new Error('Invalid JSON response from MEXC');
+            }
 
-            // Log full response for debugging
-            console.log('[MEXC Futures] Page', page, 'full response:', data);
-
-            console.log('[MEXC Futures] Page', page, 'response structure:', {
-                hasData: !!data.data,
-                dataType: Array.isArray(data.data) ? 'array' : typeof data.data,
-                dataLength: Array.isArray(data.data) ? data.data.length : 'N/A',
-                topLevelKeys: Object.keys(data),
+            console.log('[MEXC Futures] Parsed Response:', {
                 success: data.success,
                 code: data.code,
-                message: data.message
+                message: data.message,
+                hasData: !!data.data,
+                dataType: Array.isArray(data.data) ? 'array' : typeof data.data,
+                dataLength: Array.isArray(data.data) ? data.data.length : 'N/A'
             });
 
             // Check for error responses
             if (data.success === false || data.code !== 0) {
-                console.error('[MEXC Futures] API Error:', {
+                console.error('[MEXC Futures] API Error Response:', {
                     code: data.code,
                     message: data.message,
                     fullResponse: data
                 });
-                throw new Error(`MEXC API Error: ${data.message || 'Unknown error'}`);
+                throw new Error(`MEXC API Error (Code ${data.code}): ${data.message || 'Unknown error'}`);
             }
 
             const pageTrades = data.data || [];
 
             if (pageTrades.length === 0) {
+                console.log('[MEXC Futures] No more trades on page', page);
                 hasMore = false;
             } else {
+                console.log(`[MEXC Futures] Page ${page}: fetched ${pageTrades.length} trades`);
                 allTrades = [...allTrades, ...pageTrades];
                 if (pageTrades.length < 100) hasMore = false;
                 page++;
@@ -93,8 +170,10 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
         }
 
         console.log('[MEXC Futures] Total raw trades fetched:', allTrades.length);
-        console.log('[MEXC Futures] First raw trade:', allTrades[0]);
-        console.log('[MEXC Futures] Sample trade keys:', allTrades[0] ? Object.keys(allTrades[0]) : []);
+        if (allTrades.length > 0) {
+            console.log('[MEXC Futures] First raw trade:', allTrades[0]);
+            console.log('[MEXC Futures] Sample trade keys:', Object.keys(allTrades[0]));
+        }
 
         // Map standard Orders to Trade interface
         const trades: Trade[] = allTrades.map((t: any) => {
@@ -132,9 +211,12 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
 
         return { trades, raw: allTrades.slice(0, 5) };
 
-    } catch (error) {
-        console.error("Failed to fetch MEXC history", error);
-        return { trades: [], raw: null };
+    } catch (error: any) {
+        console.error('[MEXC Futures] Fatal Error:', {
+            error: error.message,
+            stack: error.stack
+        });
+        return { trades: [], raw: { error: error.message } };
     }
 };
 
