@@ -59,15 +59,15 @@ const ImportPage = () => {
         setSuccessCount(null);
 
         try {
-            // Fetch last 60 days of transactions (Schwab API documented limit)
+            // Fetch last 90 days of transactions (testing extended range with ISO 8601 format)
             const endDate = new Date().toISOString().split('T')[0];
-            const startDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
             const transactions = await fetchSchwabTransactions(startDate, endDate);
             const trades = mapSchwabTransactionsToTrades(transactions);
 
             if (trades.length === 0) {
-                setError('No completed trades found in the last 60 days.');
+                setError('No completed trades found in the last 90 days.');
             } else {
                 addTrades(trades);
                 setSuccessCount(trades.length);
@@ -319,7 +319,7 @@ px - 4 py - 2 rounded - lg text - sm border transition - all
                                     {isSyncingSchwab ? 'Syncing Trades...' : 'Sync Trades from Schwab'}
                                 </button>
                                 <p className="text-xs text-[var(--text-tertiary)] text-center">
-                                    Fetches last 60 days of trade history
+                                    Fetches last 90 days of trade history
                                 </p>
                             </div>
                         ) : (
