@@ -52,7 +52,8 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
         while (hasMore && page <= MAX_PAGES) {
             // Use server time if drift is significant (> 1 second)
             const useServerTime = Math.abs(drift) > 1000;
-            const timestamp = useServerTime ? (serverTime + (Date.now() - (serverTime - drift))).toString() : Date.now().toString();
+            // Drift = Local - Server. So Server = Local - Drift.
+            const timestamp = (Date.now() - (useServerTime ? drift : 0)).toString();
 
             // Test with minimal params first (no query parameters for history_orders)
             const params: Record<string, string> = {};
