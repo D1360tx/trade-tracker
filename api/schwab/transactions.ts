@@ -47,12 +47,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             const accounts = await accountsResponse.json();
-            if (!accounts || accounts.length === 0) {
+
+            // Log the accounts response for debugging
+            console.log('[Schwab] Accounts response:', JSON.stringify(accounts, null, 2));
+
+            if (!accounts || (Array.isArray(accounts) && accounts.length === 0)) {
                 return res.status(404).json({ error: 'No accounts found' });
             }
 
-            // Use first account
-            targetAccountId = accounts[0].accountNumber || accounts[0].hashValue;
+            // Extract account ID - try multiple possible field names
+            const firstAccount = Array.isArray(accounts) ? accounts[0] : accounts;
+            console.log('[Schwab] First account structure:', JSON.stringify(firstAccount, null, 2));
+
+            targetAccountId =
+                firstAccount.accountNumber ||
+                firstAccount.hashValue ||
+                firstAccount.accountId ||
+                firstAccount.encryptedAccountId ||
+                (firstAccount.securitiesAccount && firstAccount.securitiesAccount.accountNumber) ||
+                (firstAccount.securitiesAccount && firstAccount.securitiesAccount.accountId);
+
+            if (!targetAccountId) {
+                console.error('[Schwab] Could not extract account ID from:', firstAccount);
+                return res.status(400).json({
+                    error: 'Could not determine account ID from Schwab response',
+                    accountStructure: Object.keys(firstAccount)
+                });
+            }
+
+            console.log('[Schwab] Using account ID:', targetAccountId);
         }
 
         // Build transactions URL
@@ -66,6 +89,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         transactionsUrl.searchParams.set('startDate', new Date(start.setHours(0, 0, 0, 0)).toISOString());
         transactionsUrl.searchParams.set('endDate', new Date(end.setHours(23, 59, 59, 999)).toISOString());
         transactionsUrl.searchParams.set('types', 'TRADE'); // Only get trade transactions
+
+        console.log('[Schwab] Requesting transactions from:', transactionsUrl.toString());
+        console.log('[Schwab] Account ID being used:', targetAccountId);
 
         const transactionsResponse = await fetch(transactionsUrl.toString(), {
             headers: {
