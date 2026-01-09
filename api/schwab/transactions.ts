@@ -116,6 +116,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const transactions = await transactionsResponse.json();
 
+        // Log the full response for debugging
+        console.log('[Schwab] Transaction response status:', transactionsResponse.status);
+        console.log('[Schwab] Transaction response type:', typeof transactions);
+        console.log('[Schwab] Transaction response:', JSON.stringify(transactions, null, 2));
+        console.log('[Schwab] Transaction count:', Array.isArray(transactions) ? transactions.length : 'Not an array');
+
         return res.status(200).json({
             accountId: targetAccountId,
             transactions: transactions,
