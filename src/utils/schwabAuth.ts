@@ -177,11 +177,27 @@ export const fetchSchwabTransactions = async (startDate?: string, endDate?: stri
 
     if (!response.ok) {
         const error = await response.json();
+
+        // Log full error details for debugging
+        console.error('[Schwab Client] Transaction fetch failed:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: error,
+            url: url.toString()
+        });
+
         if (error.requiresRefresh) {
             // Token expired mid-request, try once more
             return fetchSchwabTransactions(startDate, endDate);
         }
-        throw new Error(error.message || 'Failed to fetch transactions');
+
+        // Include full error details in the thrown error
+        const errorMessage = error.message || 'Failed to fetch transactions';
+        const fullError = error.accountStructure
+            ? `${errorMessage}\n\nAccount structure fields: ${error.accountStructure.join(', ')}`
+            : errorMessage;
+
+        throw new Error(fullError);
     }
 
     const data = await response.json();
