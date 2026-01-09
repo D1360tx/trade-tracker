@@ -29,7 +29,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let targetAccountId = accountId as string;
 
         if (!targetAccountId) {
-            const accountsResponse = await fetch('https://api.schwabapi.com/trader/v1/accounts', {
+            // Use accountNumbers endpoint to get hash values
+            const accountsResponse = await fetch('https://api.schwabapi.com/trader/v1/accounts/accountNumbers', {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`,
                     'Accept': 'application/json'
