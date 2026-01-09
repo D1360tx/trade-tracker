@@ -7,32 +7,32 @@
 
 import type { Trade } from '../types';
 
+export interface SchwabTransferItem {
+    instrument: {
+        assetType: 'EQUITY' | 'OPTION' | 'MUTUAL_FUND' | 'ETF' | 'FIXED_INCOME' | 'INDEX' | 'CURRENCY';
+        symbol: string;
+        description?: string;
+        cusip?: string;
+        putCall?: 'PUT' | 'CALL';
+        strikePrice?: number;
+        underlyingSymbol?: string;
+    };
+    amount: number;
+    cost?: number;
+    price?: number;
+    positionEffect?: 'OPENING' | 'CLOSING';
+    feeType?: 'COMMISSION' | 'SEC_FEE' | 'OPT_REG_FEE' | 'TAF_FEE' | 'INDEX_OPTION_FEE';
+}
+
 export interface SchwabTransaction {
-    transactionId: string;
+    activityId: number;
     accountNumber?: string;
-    transactionDate: string;
-    settlementDate?: string;
-    type: 'TRADE' | 'DIVIDEND' | 'INTEREST' | 'FEE' | 'CASH_RECEIPT' | 'TRANSFER';
-    description?: string;
+    time: string;  // Schwab uses "time" not "transactionDate"
+    tradeDate?: string;
+    type: 'TRADE' | 'DIVIDEND_OR_INTEREST' | 'JOURNAL' | 'RECEIVE_AND_DELIVER';
+    status?: 'VALID' | 'INVALID';
     netAmount: number;
-    transactionItem?: {
-        instrument: {
-            symbol: string;
-            assetType: 'EQUITY' | 'OPTION' | 'MUTUAL_FUND' | 'ETF' | 'FIXED_INCOME';
-            cusip?: string;
-        };
-        instruction: 'BUY' | 'SELL' | 'SELL_SHORT' | 'BUY_TO_COVER';
-        positionEffect?: 'OPENING' | 'CLOSING';
-        amount: number;
-        price: number;
-        cost?: number;
-    };
-    fees?: {
-        commission?: number;
-        optRegFee?: number;
-        secFee?: number;
-        additionalFee?: number;
-    };
+    transferItems?: SchwabTransferItem[];  // Array of items including trades and fees
 }
 
 interface OpenPosition {
@@ -49,91 +49,130 @@ interface OpenPosition {
  * Uses FIFO matching to pair opening and closing transactions
  */
 export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[]): Trade[] => {
-    // Filter to only trade transactions
-    const tradeTransactions = transactions.filter(t => t.type === 'TRADE' && t.transactionItem);
+    console.log('[Schwab Mapper] Processing', transactions.length, 'transactions');
+
+    // Filter to only TRADE type transactions with transferItems
+    const tradeTransactions = transactions.filter(t =>
+        t.type === 'TRADE' && t.transferItems && t.transferItems.length > 0
+    );
+
+    console.log('[Schwab Mapper] Found', tradeTransactions.length, 'trade transactions');
 
     // Sort by date (oldest first for FIFO)
     const sorted = [...tradeTransactions].sort((a, b) =>
-        new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime()
+        new Date(a.time).getTime() - new Date(b.time).getTime()
     );
 
     const trades: Trade[] = [];
     const openPositions: Map<string, OpenPosition[]> = new Map();
 
     for (const tx of sorted) {
-        const item = tx.transactionItem!;
-        const symbol = item.instrument.symbol;
-        const instruction = item.instruction;
+        // Find the trade item (non-fee item with price)
+        const tradeItem = tx.transferItems?.find(
+            item => item.price !== undefined && !item.feeType && item.instrument.assetType !== 'CURRENCY'
+        );
 
-        // Calculate total fees
-        const fees = (tx.fees?.commission || 0) +
-            (tx.fees?.optRegFee || 0) +
-            (tx.fees?.secFee || 0) +
-            (tx.fees?.additionalFee || 0);
+        if (!tradeItem) {
+            console.log('[Schwab Mapper] No trade item found in transaction:', tx.activityId);
+            continue;
+        }
 
-        // Determine if this is an opening or closing transaction
-        const isOpening = item.positionEffect === 'OPENING' ||
-            instruction === 'BUY' ||
-            instruction === 'SELL_SHORT';
+        // Calculate total fees from fee items
+        const fees = tx.transferItems?.filter(item => item.feeType)
+            .reduce((sum, item) => sum + Math.abs(item.cost || 0), 0) || 0;
 
-        // Direction is set inline in the openPositions.push call below
+        const symbol = tradeItem.instrument.underlyingSymbol || tradeItem.instrument.symbol;
+        const positionEffect = tradeItem.positionEffect;
+        const isOpening = positionEffect === 'OPENING';
+        const price = tradeItem.price || 0;
+        const quantity = Math.abs(tradeItem.amount);
 
-        if (isOpening && (instruction === 'BUY' || instruction === 'SELL_SHORT')) {
+        // For options, use the underlying symbol for grouping
+        const positionKey = symbol;
+
+        console.log('[Schwab Mapper] Processing:', {
+            activityId: tx.activityId,
+            symbol,
+            positionEffect,
+            price,
+            quantity,
+            assetType: tradeItem.instrument.assetType
+        });
+
+        if (isOpening) {
+            // Determine direction from amount sign or putCall
+            const direction: 'LONG' | 'SHORT' = tradeItem.amount > 0 ? 'LONG' : 'SHORT';
+
             // Add to open positions
-            if (!openPositions.has(symbol)) {
-                openPositions.set(symbol, []);
+            if (!openPositions.has(positionKey)) {
+                openPositions.set(positionKey, []);
             }
-            openPositions.get(symbol)!.push({
-                transactionId: tx.transactionId,
-                date: tx.transactionDate,
-                price: item.price,
-                quantity: item.amount,
-                direction: instruction === 'BUY' ? 'LONG' : 'SHORT',
+            openPositions.get(positionKey)!.push({
+                transactionId: String(tx.activityId),
+                date: tx.time,
+                price,
+                quantity,
+                direction,
                 fees
             });
         } else {
-            // Closing transaction - match with open position (FIFO)
-            const positions = openPositions.get(symbol) || [];
-            let remainingQty = item.amount;
+            // CLOSING transaction - match with open position (FIFO)
+            const positions = openPositions.get(positionKey) || [];
+            let remainingQty = quantity;
 
             while (remainingQty > 0 && positions.length > 0) {
                 const openPos = positions[0];
                 const matchQty = Math.min(remainingQty, openPos.quantity);
 
-                // Calculate P&L
+                // Calculate P&L using the multiplier for options (usually 100)
+                const multiplier = tradeItem.instrument.assetType === 'OPTION' ? 100 : 1;
                 let pnl: number;
                 if (openPos.direction === 'LONG') {
-                    pnl = (item.price - openPos.price) * matchQty;
+                    pnl = (price - openPos.price) * matchQty * multiplier;
                 } else {
-                    pnl = (openPos.price - item.price) * matchQty;
+                    pnl = (openPos.price - price) * matchQty * multiplier;
                 }
 
-                const entryValue = openPos.price * matchQty;
+                const entryValue = openPos.price * matchQty * multiplier;
                 const pnlPercentage = entryValue > 0 ? (pnl / entryValue) * 100 : 0;
 
                 // Determine asset type
                 let assetType: Trade['type'] = 'STOCK';
-                if (item.instrument.assetType === 'OPTION') assetType = 'OPTION';
-                else if (item.instrument.assetType === 'ETF') assetType = 'STOCK';
-                else if (item.instrument.assetType === 'MUTUAL_FUND') assetType = 'STOCK';
+                if (tradeItem.instrument.assetType === 'OPTION') assetType = 'OPTION';
+                else if (tradeItem.instrument.assetType === 'INDEX') assetType = 'OPTION';
+
+                // Build the display symbol (include option details if applicable)
+                let displaySymbol = symbol;
+                if (tradeItem.instrument.assetType === 'OPTION') {
+                    const putCall = tradeItem.instrument.putCall || '';
+                    const strike = tradeItem.instrument.strikePrice || '';
+                    displaySymbol = `${symbol} ${strike}${putCall.charAt(0)}`;
+                }
 
                 trades.push({
-                    id: `${openPos.transactionId}-${tx.transactionId}`,
+                    id: `${openPos.transactionId}-${tx.activityId}`,
                     exchange: 'Schwab',
-                    ticker: symbol,
+                    ticker: displaySymbol,
                     type: assetType,
                     direction: openPos.direction,
                     entryPrice: openPos.price,
-                    exitPrice: item.price,
+                    exitPrice: price,
                     quantity: matchQty,
                     entryDate: openPos.date,
-                    exitDate: tx.transactionDate,
+                    exitDate: tx.time,
                     fees: fees + openPos.fees,
                     pnl,
                     pnlPercentage,
                     status: 'CLOSED',
                     notes: `Imported from Schwab API`,
-                    externalOid: tx.transactionId
+                    externalOid: String(tx.activityId)
+                });
+
+                console.log('[Schwab Mapper] Created trade:', {
+                    symbol: displaySymbol,
+                    pnl,
+                    entryPrice: openPos.price,
+                    exitPrice: price
                 });
 
                 // Update remaining quantities
@@ -148,6 +187,7 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
         }
     }
 
+    console.log('[Schwab Mapper] Created', trades.length, 'matched trades');
     return trades;
 };
 
@@ -155,29 +195,41 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
  * Get summary of open positions (not yet closed)
  */
 export const getOpenPositionsSummary = (transactions: SchwabTransaction[]): { symbol: string; quantity: number; direction: string }[] => {
-    const tradeTransactions = transactions.filter(t => t.type === 'TRADE' && t.transactionItem);
+    const tradeTransactions = transactions.filter(t =>
+        t.type === 'TRADE' && t.transferItems && t.transferItems.length > 0
+    );
     const sorted = [...tradeTransactions].sort((a, b) =>
-        new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime()
+        new Date(a.time).getTime() - new Date(b.time).getTime()
     );
 
     const openPositions: Map<string, { quantity: number; direction: 'LONG' | 'SHORT' }> = new Map();
 
     for (const tx of sorted) {
-        const item = tx.transactionItem!;
-        const symbol = item.instrument.symbol;
+        const tradeItem = tx.transferItems?.find(
+            item => item.price !== undefined && !item.feeType && item.instrument.assetType !== 'CURRENCY'
+        );
 
+        if (!tradeItem) continue;
+
+        const symbol = tradeItem.instrument.underlyingSymbol || tradeItem.instrument.symbol;
         const current = openPositions.get(symbol) || { quantity: 0, direction: 'LONG' as const };
 
-        if (item.instruction === 'BUY') {
-            current.quantity += item.amount;
-            current.direction = 'LONG';
-        } else if (item.instruction === 'SELL') {
-            current.quantity -= item.amount;
-        } else if (item.instruction === 'SELL_SHORT') {
-            current.quantity -= item.amount;
-            current.direction = 'SHORT';
-        } else if (item.instruction === 'BUY_TO_COVER') {
-            current.quantity += item.amount;
+        if (tradeItem.positionEffect === 'OPENING') {
+            if (tradeItem.amount > 0) {
+                current.quantity += Math.abs(tradeItem.amount);
+                current.direction = 'LONG';
+            } else {
+                current.quantity -= Math.abs(tradeItem.amount);
+                current.direction = 'SHORT';
+            }
+        } else if (tradeItem.positionEffect === 'CLOSING') {
+            if (tradeItem.amount < 0) {
+                // Closing a long position
+                current.quantity -= Math.abs(tradeItem.amount);
+            } else {
+                // Closing a short position
+                current.quantity += Math.abs(tradeItem.amount);
+            }
         }
 
         openPositions.set(symbol, current);
