@@ -59,11 +59,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const firstAccount = Array.isArray(accounts) ? accounts[0] : accounts;
             console.log('[Schwab] First account structure:', JSON.stringify(firstAccount, null, 2));
 
+            // Schwab API requires hashValue for transaction queries, not raw accountNumber
             targetAccountId =
-                firstAccount.accountNumber ||
                 firstAccount.hashValue ||
-                firstAccount.accountId ||
                 firstAccount.encryptedAccountId ||
+                (firstAccount.securitiesAccount && firstAccount.securitiesAccount.hashValue) ||
+                firstAccount.accountNumber ||
+                firstAccount.accountId ||
                 (firstAccount.securitiesAccount && firstAccount.securitiesAccount.accountNumber) ||
                 (firstAccount.securitiesAccount && firstAccount.securitiesAccount.accountId);
 
