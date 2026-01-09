@@ -91,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Set dates to start/end of day in UTC for ISO 8601 format
         transactionsUrl.searchParams.set('startDate', new Date(start.setHours(0, 0, 0, 0)).toISOString());
         transactionsUrl.searchParams.set('endDate', new Date(end.setHours(23, 59, 59, 999)).toISOString());
-        transactionsUrl.searchParams.set('types', 'TRADE'); // Only get trade transactions
+        // Note: Not filtering by type to get all transactions (stocks, options, etc.)
 
         console.log('[Schwab] Requesting transactions from:', transactionsUrl.toString());
         console.log('[Schwab] Account ID being used:', targetAccountId);
