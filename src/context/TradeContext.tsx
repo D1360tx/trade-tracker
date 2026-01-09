@@ -254,19 +254,42 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
     const lastUpdatedRef = useRef(lastUpdated);
     useEffect(() => { lastUpdatedRef.current = lastUpdated; }, [lastUpdated]);
 
-    // Hourly Auto-Sync - single interval using ref to avoid stale closure
+    // Hourly & Scheduled Auto-Sync
     useEffect(() => {
         const checkTimeAndSync = () => {
             const now = new Date();
-            const isTopHour = now.getMinutes() === 0;
-            const msSinceLast = lastUpdatedRef.current ? now.getTime() - lastUpdatedRef.current : Infinity;
-            const hasNotSyncedRecently = msSinceLast > 50 * 60 * 1000; // 50 mins
+            const minutes = now.getMinutes();
+            const hours = now.getHours(); // 0-23
+            const day = now.getDay(); // 0=Sun, 1=Mon... 6=Sat
 
-            if (isTopHour && hasNotSyncedRecently) {
-                // Silent auto-sync for configured exchanges
+            // Standard Hourly Sync (for crypto exchanges)
+            const isTopHour = minutes === 0;
+            const msSinceLast = lastUpdatedRef.current ? now.getTime() - lastUpdatedRef.current : Infinity;
+
+            if (isTopHour && msSinceLast > 50 * 60 * 1000) {
                 ['MEXC', 'ByBit'].forEach(ex => fetchTradesFromAPI(ex as any, true));
             }
+
+            // Schwab Smart Schedule: Mon-Fri after 3:30 PM (15:30)
+            const isWeekday = day >= 1 && day <= 5;
+            const isAfterMarketClose = hours > 15 || (hours === 15 && minutes >= 30);
+
+            if (isWeekday && isAfterMarketClose) {
+                // Check if we have already synced TODAY after 15:30
+                // If lastUpdated was before today 15:30, we need to sync
+                const marketCloseToday = new Date(now);
+                marketCloseToday.setHours(15, 30, 0, 0);
+
+                const lastUpdateDate = lastUpdatedRef.current ? new Date(lastUpdatedRef.current) : new Date(0);
+
+                // If we haven't synced since today's market close, trigger it
+                if (lastUpdateDate.getTime() < marketCloseToday.getTime()) {
+                    console.log('[AutoSync] Triggering daily Schwab sync (post-market)');
+                    fetchTradesFromAPI('Schwab' as any, true);
+                }
+            }
         };
+        // Check every minute (60000ms) instead of 10s to save resources, but 10s is fine too
         const interval = setInterval(checkTimeAndSync, 10000);
         return () => clearInterval(interval);
     }, []);
@@ -422,6 +445,29 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 const result = await fetchByBitTradeHistory(apiKey, apiSecret);
                 apiTrades = result.trades;
                 raw = result.raw;
+            } else if (exchange === 'Schwab') {
+                // Dynamically import Schwab utils
+                const { fetchSchwabTransactions } = await import('../utils/schwabAuth');
+                const { mapSchwabTransactionsToTrades } = await import('../utils/schwabTransactions');
+
+                // Use 90 day window
+                const endDate = new Date().toISOString().split('T')[0];
+                const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+                const transactions = await fetchSchwabTransactions(startDate, endDate);
+                const mappedTrades = mapSchwabTransactionsToTrades(transactions);
+
+                // Add exchange field if missing (mapper should hande it but safety first)
+                const tradesWithExchange = mappedTrades.map(t => ({ ...t, exchange: 'Schwab' as const }));
+
+                // Directly add trades (bypassing generic aggregateTrades since mapper handles it)
+                addTrades(tradesWithExchange as Trade[]);
+                setLastUpdated(Date.now());
+                if (!silent) alert(`Schwab Sync Complete: ${mappedTrades.length} trades processed.`);
+
+                // Return early as we handled everything
+                if (!silent) setIsLoading(false);
+                return;
             } else {
                 throw new Error('Simulation_Mode');
             }
