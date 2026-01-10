@@ -61,6 +61,9 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
         const pnl = parseFloat(t.pnl || t.profit || t.closedPnl || t.realised_pnl || t.realisedPnl || '0');
         const fees = parseFloat(t.fee || t.commission || t.execFee || '0');
         const leverage = parseFloat(t.leverage || '1');
+        const incomingNotional = parseFloat(t.notional || '0');
+        // If notional is provided (Futures), calc per-unit. Else default to price (Spot).
+        const notionalPerUnit = incomingNotional > 0 ? incomingNotional / qty : price;
 
         // Handle varied timestamp formats (MEXC number vs ByBit string)
         const rawTime = t.createTime || t.time || t.entryDate || Date.now();
@@ -92,11 +95,13 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                 const openRow = openPositions[symbol][matchIndex];
                 openPositions[symbol].splice(matchIndex, 1);
 
-                const entryValue = openRow.price * qty;
-                const margin = entryValue / (openRow.leverage || 1);
-                const pnlPercentage = margin > 0 ? (pnl / margin) * 100 : 0;
+                const tradeNotional = qty * (openRow.notionalPerUnit || openRow.price);
+                const tradeMargin = tradeNotional / (openRow.leverage || 1);
+                const pnlPercentage = tradeMargin > 0 ? (pnl / tradeMargin) * 100 : 0;
 
                 mappedTrades.push({
+                    notional: tradeNotional,
+                    margin: tradeMargin,
                     id: openRow.id, // KEEP STABLE ID FROM OPENING ORDER
                     exchange: exchangeName as any,
                     ticker: symbol,
@@ -178,10 +183,12 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     exitDate: new Date(time).toISOString(),
                     fees: fees + (openRow.fees || 0),
                     pnl: calculatedPnl,
-                    pnlPercentage: ((entryValue, lev) => {
-                        const margin = entryValue / (lev || 1);
+                    pnlPercentage: ((notionalVal, lev) => {
+                        const margin = notionalVal / (lev || 1);
                         return margin > 0 ? (calculatedPnl / margin) * 100 : 0;
-                    })(openRow.price * qty, openRow.leverage),
+                    })(qty * (openRow.notionalPerUnit || openRow.price), openRow.leverage),
+                    notional: qty * (openRow.notionalPerUnit || openRow.price),
+                    margin: (qty * (openRow.notionalPerUnit || openRow.price)) / (openRow.leverage || 1),
                     status: 'CLOSED',
                     notes: `Imported via ${exchangeName} API (Auto-Netted)`,
                     leverage: openRow.leverage,
@@ -198,6 +205,7 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     direction,
                     fees,
                     leverage,
+                    notionalPerUnit,
                     isBot
                 });
             }

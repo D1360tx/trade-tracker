@@ -37,6 +37,8 @@ export interface Trade {
     isBot?: boolean; // True if identified as an automated trade
     externalOid?: string; // Original Exchange Order ID (useful for bot detection)
     leverage?: number;
+    notional?: number; // Total position value (e.g. $6,637)
+    margin?: number;   // Invested amount (notional / leverage, e.g. $221)
 }
 
 export interface KPI {
