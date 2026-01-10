@@ -24,8 +24,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // MEXC Spot base URL
         const MEXC_SPOT_BASE = 'https://api.mexc.com';
 
-        // Construct target URL with original query parameters
-        const targetUrl = `${MEXC_SPOT_BASE}${mexcPath}${reqUrl.search}`;
+        // CRITICAL: Remove the 'path' parameter that Vercel adds during URL rewrite
+        // This was corrupting our signature by adding unexpected query params!
+        reqUrl.searchParams.delete('path');
+        const cleanSearch = reqUrl.searchParams.toString();
+        const queryString = cleanSearch ? `?${cleanSearch}` : '';
+
+        // Construct target URL with cleaned query parameters
+        const targetUrl = `${MEXC_SPOT_BASE}${mexcPath}${queryString}`;
 
         console.log('[MEXC Spot] Request:', reqUrl.pathname);
         console.log('[MEXC Spot] Forwarding to:', targetUrl);

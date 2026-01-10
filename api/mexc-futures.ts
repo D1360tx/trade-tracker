@@ -24,8 +24,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // MEXC Futures base URL
         const MEXC_FUTURES_BASE = 'https://contract.mexc.com';
 
-        // Construct target URL with original query parameters
-        const targetUrl = `${MEXC_FUTURES_BASE}${mexcPath}${reqUrl.search}`;
+        // CRITICAL: Remove the 'path' parameter that Vercel adds during URL rewrite
+        // This was corrupting our signature by adding unexpected query params!
+        reqUrl.searchParams.delete('path');
+        const cleanSearch = reqUrl.searchParams.toString();
+        const queryString = cleanSearch ? `?${cleanSearch}` : '';
+
+        // Construct target URL with cleaned query parameters
+        const targetUrl = `${MEXC_FUTURES_BASE}${mexcPath}${queryString}`;
 
         console.log('[MEXC Futures] Request:', reqUrl.pathname);
         console.log('[MEXC Futures] Forwarding to:', targetUrl);
