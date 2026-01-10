@@ -47,7 +47,7 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
         console.log('[MEXC] API Key preview:', `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`);
 
         // Check server time first
-        const { serverTime, drift } = await getMEXCServerTime();
+        const { drift } = await getMEXCServerTime();
 
         while (hasMore && page <= MAX_PAGES) {
             // Use server time if drift is significant (> 1 second)
@@ -83,7 +83,7 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
                 'ApiKey': apiKey,
                 'Request-Time': timestamp,
                 'Signature': signature,
-                'Recv-Window': '60000', // 60 second window
+                'Recv-Window': '5000', // 5 second window (standard)
                 'Content-Type': 'application/json'
             };
 
@@ -96,7 +96,7 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
                 ApiKey: `${apiKey.substring(0, 8)}...`,
                 'Request-Time': timestamp,
                 Signature: `${signature.substring(0, 20)}...${signature.substring(signature.length - 10)}`,
-                'Recv-Window': '60000'
+                'Recv-Window': '5000'
             });
 
             const response = await fetch(url, {
