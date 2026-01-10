@@ -209,6 +209,65 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
         }
     }
 
+    // Handle expired options that were never closed (expired worthless)
+    const now = new Date();
+    for (const [positionKey, positions] of openPositions.entries()) {
+        for (const openPos of positions) {
+            // Check if this is an option with an expiration date
+            // Schwab option format: "SYMBOL  YYMMDDCPSTRIKE000"
+            // Example: "ISRG  251031C00600000" = ISRG expiring 2025-10-31, Call, $600
+            const optionMatch = positionKey.match(/(\w+)\s+(\d{6})([CP])(\d{8})/);
+
+            if (optionMatch) {
+                const [, baseSymbol, dateStr, putCall, strikeStr] = optionMatch;
+
+                // Parse expiration date (YYMMDD format)
+                const year = 2000 + parseInt(dateStr.substring(0, 2));
+                const month = parseInt(dateStr.substring(2, 4)) - 1; // JS months are 0-indexed
+                const day = parseInt(dateStr.substring(4, 6));
+                const expirationDate = new Date(year, month, day);
+
+                // If expired, create a loss trade
+                if (expirationDate < now) {
+                    const strike = parseInt(strikeStr) / 1000; // Strike is in thousandths
+                    const putCallLabel = putCall === 'C' ? 'CALL' : 'PUT';
+                    const displaySymbol = `${baseSymbol} ${strike}${putCallLabel.charAt(0)}`;
+
+                    // For expired options, exit price is $0 and we lost the full premium paid
+                    const multiplier = 100; // Options multiplier
+                    const pnl = -(openPos.price * openPos.quantity * multiplier) - openPos.fees;
+                    const pnlPercentage = -100; // Total loss
+
+                    trades.push({
+                        id: `${openPos.transactionId}-expired`,
+                        exchange: 'Schwab',
+                        ticker: displaySymbol,
+                        type: 'OPTION',
+                        direction: openPos.direction,
+                        entryPrice: openPos.price,
+                        exitPrice: 0, // Expired worthless
+                        quantity: openPos.quantity,
+                        entryDate: openPos.date,
+                        exitDate: expirationDate.toISOString(),
+                        fees: openPos.fees,
+                        pnl,
+                        pnlPercentage,
+                        status: 'CLOSED',
+                        notes: `Imported from Schwab API (Expired Worthless)`,
+                        externalOid: openPos.transactionId
+                    });
+
+                    console.log('[Schwab Mapper] Created expired option trade:', {
+                        symbol: displaySymbol,
+                        expiration: expirationDate.toISOString().split('T')[0],
+                        pnl,
+                        entryPrice: openPos.price
+                    });
+                }
+            }
+        }
+    }
+
     console.log('[Schwab Mapper] Created', trades.length, 'matched trades');
     return trades;
 };
