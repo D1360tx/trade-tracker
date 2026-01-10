@@ -127,12 +127,14 @@ const processSchwabRealizedGains = (rows: any[]): ParseResult => {
         const symbol = safeGet(row, ['Symbol']);
         const name = safeGet(row, ['Name', 'Description']);
         const closedDate = safeGet(row, ['Closed Date', 'Transaction Closed Date']);
+        // NEW: Try to get Opened Date from Details CSV format
+        const openedDate = safeGet(row, ['Opened Date', 'Open Date', 'Opening Date']);
         const quantity = Math.abs(parseNumber(safeGet(row, ['Quantity', 'Qty'])));
         const closingPrice = parseSchwabMoney(safeGet(row, ['Closing Price', 'Close Price']));
         const proceeds = parseSchwabMoney(safeGet(row, ['Proceeds']));
         const costBasis = parseSchwabMoney(safeGet(row, ['Cost Basis (CB)', 'Cost Basis']));
-        const totalGainLoss = parseSchwabMoney(safeGet(row, ['Total Gain/Loss ($)', 'Total Gain/Loss']));
-        const gainLossPercent = parseFloat(safeGet(row, ['Total Gain/Loss (%)', 'Total Gain/Loss Pct']).replace('%', '')) || 0;
+        const totalGainLoss = parseSchwabMoney(safeGet(row, ['Total Gain/Loss ($)', 'Total Gain/Loss', 'Gain/Loss ($)']));
+        const gainLossPercent = parseFloat(safeGet(row, ['Total Gain/Loss (%)', 'Total Gain/Loss Pct', 'Gain/Loss (%)']).replace('%', '')) || 0;
 
         // Detect if this is an options trade
         // Options have format like "ORCL 12/26/2025 202.50 C" or "SPY 11/26/2025 680.00 P"
@@ -162,8 +164,14 @@ const processSchwabRealizedGains = (rows: any[]): ParseResult => {
             direction = 'SHORT';
         }
 
-        // Parse the date
+        // Parse dates - use Opened Date if available (Details CSV), otherwise use Closed Date
         const exitDate = safeParseDateString(closedDate);
+        const entryDate = openedDate ? safeParseDateString(openedDate) : exitDate;
+
+        // Log if we're using Details format (has Opened Date)
+        if (openedDate && !logs.some(l => l.includes('Details format detected'))) {
+            logs.push('✅ Details format detected - using Opened Date and Closed Date');
+        }
 
         // Create the trade
         trades.push({
@@ -175,15 +183,15 @@ const processSchwabRealizedGains = (rows: any[]): ParseResult => {
             entryPrice,
             exitPrice,
             quantity,
-            entryDate: exitDate, // Entry date not available in realized gains, use exit date
+            entryDate, // Now uses Opened Date if available!
             exitDate,
             fees: Math.abs(costBasis - entryPrice * quantity), // Fees embedded in cost basis
             pnl,
             pnlPercentage,
             status: 'CLOSED',
             notes: isOption
-                ? `${isCall ? 'CALL' : 'PUT'} Option - Imported from Schwab Realized Gain/Loss`
-                : 'Imported from Schwab Realized Gain/Loss'
+                ? `${isCall ? 'CALL' : 'PUT'} Option - Imported from Schwab ${openedDate ? 'Details' : 'Summary'} CSV`
+                : `Imported from Schwab ${openedDate ? 'Details' : 'Summary'} CSV`
         });
     });
 
