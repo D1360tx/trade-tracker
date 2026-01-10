@@ -110,6 +110,7 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     fees: fees + (openRow.fees || 0),
                     pnl: pnl,
                     pnlPercentage: pnlPercentage,
+                    leverage: openRow.leverage,
                     status: 'CLOSED',
                     notes: `Imported via ${exchangeName} API`
                 });
@@ -183,6 +184,7 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     })(openRow.price * qty, openRow.leverage),
                     status: 'CLOSED',
                     notes: `Imported via ${exchangeName} API (Auto-Netted)`,
+                    leverage: openRow.leverage,
                     isBot: isBot
                 });
             } else {

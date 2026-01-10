@@ -188,6 +188,10 @@ const TradeDetailsModal = ({ trade, onClose, onUpdate }: TradeDetailsModalProps)
                             <span className="font-medium">{trade.quantity}</span>
                         </div>
                         <div className="flex justify-between">
+                            <span className="text-[var(--text-secondary)]">Leverage</span>
+                            <span className="font-medium">{trade.leverage ? `${trade.leverage}x` : '1x'}</span>
+                        </div>
+                        <div className="flex justify-between">
                             <span className="text-[var(--text-secondary)]">Entry Price</span>
                             <span className="font-medium font-mono">${trade.entryPrice.toFixed(2)}</span>
                         </div>
