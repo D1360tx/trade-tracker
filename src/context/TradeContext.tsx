@@ -9,7 +9,7 @@ interface TradeContextType {
     deleteTrades: (ids: string[]) => void;
     clearTrades: () => void;
     clearTradesByExchange: (exchange: string) => void;
-    fetchTradesFromAPI: (exchange: any) => Promise<void>;
+    fetchTradesFromAPI: (exchange: any, silent?: boolean) => Promise<number>;
     hasTrades: boolean;
     isLoading: boolean;
     lastUpdated: number | null;
@@ -400,13 +400,13 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
         setTrades(prev => prev.filter(t => !ids.includes(t.id)));
     };
 
-    const fetchTradesFromAPI = async (exchange: 'MEXC' | 'Binance' | 'ByBit' | 'Coinbase' | 'BloFin' | 'Schwab' | 'Interactive Brokers', silent = false) => {
+    const fetchTradesFromAPI = async (exchange: 'MEXC' | 'Binance' | 'ByBit' | 'Coinbase' | 'BloFin' | 'Schwab' | 'Interactive Brokers', silent = false): Promise<number> => {
         const apiKey = localStorage.getItem(`${exchange.toLowerCase()}_api_key`);
         const apiSecret = localStorage.getItem(`${exchange.toLowerCase()}_api_secret`);
 
         if (!apiKey || !apiSecret) {
             if (!silent) alert(`Please configure ${exchange} API keys in Settings first.`);
-            return;
+            return 0;
         }
 
         if (!silent) setIsLoading(true);
@@ -485,11 +485,8 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 // Directly add trades (bypassing generic aggregateTrades since mapper handles it)
                 addTrades(tradesWithExchange as Trade[]);
                 setLastUpdated(Date.now());
-                if (!silent) alert(`Schwab Sync Complete: ${mappedTrades.length} trades processed.`);
-
-                // Return early as we handled everything
                 if (!silent) setIsLoading(false);
-                return;
+                return mappedTrades.length;
             } else {
                 throw new Error('Simulation_Mode');
             }
@@ -509,8 +506,9 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             console.log(`[${exchange}] Sync complete - added ${trades.length} trades`);
 
             if (!silent) {
-                alert(`Successfully processed ${trades.length} trades from ${exchange}!`);
+                // Return count instead of alerting
             }
+            return trades.length;
 
         } catch (error: any) {
             if (error.message === 'Simulation_Mode') {
@@ -524,14 +522,16 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                     notes: `Imported via ${exchange} API (Simulated)`
                 }));
                 addTrades(mockTrades);
-                if (!silent) alert(`Fetched ${mockTrades.length} trades from ${exchange} (Simulated).`);
+                addTrades(mockTrades);
+                return mockTrades.length;
             } else {
                 console.error(error);
                 // Suppress ByBit 403 (CloudFront Block)
                 const isByBit403 = exchange === 'ByBit' && (error.message.includes('403') || error.message.includes('CloudFront') || error.message.includes('HTML'));
                 if (!silent && !isByBit403) {
-                    alert(`Failed to fetch trades: ${error.message || 'Unknown error'}`);
+                    throw error;
                 }
+                return 0;
             }
         } finally {
             if (!silent) setIsLoading(false);

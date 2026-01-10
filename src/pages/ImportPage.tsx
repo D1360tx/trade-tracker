@@ -86,7 +86,16 @@ const ImportPage = () => {
         setError(null);
         setSuccessCount(null);
 
-        await fetchTradesFromAPI(selectedExchange);
+        try {
+            const count = await fetchTradesFromAPI(selectedExchange);
+            if (count > 0) {
+                setSuccessCount(count);
+            } else {
+                setError('No new trades processed.');
+            }
+        } catch (err: any) {
+            setError(`API Sync failed: ${err.message}`);
+        }
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
