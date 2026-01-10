@@ -185,7 +185,7 @@ const processSchwabRealizedGains = (rows: any[]): ParseResult => {
             quantity,
             entryDate, // Now uses Opened Date if available!
             exitDate,
-            fees: Math.abs(costBasis - entryPrice * quantity), // Fees embedded in cost basis
+            fees: 0, // Fees are already embedded in Schwab's P&L calculation - setting to 0 to avoid double-counting
             pnl,
             pnlPercentage,
             status: 'CLOSED',

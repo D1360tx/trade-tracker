@@ -123,12 +123,14 @@ const TimeRangeFilter: React.FC<TimeRangeFilterProps> = ({
                                 value={customStartDate || ''}
                                 onChange={(e) => onCustomDateChange(e.target.value, customEndDate || '')}
                                 className="w-full px-2 py-1 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded text-xs text-[var(--text-primary)]"
+                                style={{ colorScheme: 'dark' }}
                             />
                             <input
                                 type="date"
                                 value={customEndDate || ''}
                                 onChange={(e) => onCustomDateChange(customStartDate || '', e.target.value)}
                                 className="w-full px-2 py-1 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded text-xs text-[var(--text-primary)]"
+                                style={{ colorScheme: 'dark' }}
                             />
                         </div>
                     )}
