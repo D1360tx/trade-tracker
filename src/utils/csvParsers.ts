@@ -207,6 +207,23 @@ const processSchwabRealizedGains = (rows: any[]): ParseResult => {
 
     logs.push(`Generated ${trades.length} trades from Schwab Realized Gain/Loss CSV`);
 
+    // Debug: Show date range of trades
+    if (trades.length > 0) {
+        const dates = trades.map(t => new Date(t.exitDate || t.entryDate)).sort((a, b) => a.getTime() - b.getTime());
+        const earliest = dates[0].toISOString().split('T')[0];
+        const latest = dates[dates.length - 1].toISOString().split('T')[0];
+        logs.push(`📅 Trade date range: ${earliest} to ${latest}`);
+
+        // Log a few recent trades for verification
+        const recentTrades = trades.filter(t => {
+            const exitDate = new Date(t.exitDate || t.entryDate);
+            return exitDate.getFullYear() === 2026 && exitDate.getMonth() === 0; // January 2026
+        });
+        if (recentTrades.length > 0) {
+            logs.push(`✅ Found ${recentTrades.length} January 2026 trades in CSV`);
+        }
+    }
+
     return { trades, logs };
 };
 

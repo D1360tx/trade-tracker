@@ -127,7 +127,8 @@ const ImportPage = () => {
                 setSuccessCount(trades.length);
                 setFile(null);
                 if (logs.length > 0) {
-                    // Import logs available for debugging if needed
+                    console.log('📊 CSV Import Diagnostic Logs:');
+                    logs.forEach(log => console.log(log));
                 }
             }
         } catch (err: any) {
