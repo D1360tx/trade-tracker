@@ -270,18 +270,23 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 ['MEXC', 'ByBit'].forEach(ex => fetchTradesFromAPI(ex as any, true));
             }
 
-            // Schwab Smart Schedule: 
-            // 1. Daily Close: Mon-Fri after 3:30 PM (15:30)
+            // Schwab Aggressive Schedule (for active day traders):
+            // 1. Hourly During Market Hours: Mon-Fri 9 AM - 3 PM (9:00, 10:00, 11:00, 12:00, 13:00, 14:00, 15:00)
+            // 2. After Market Close: Mon-Fri after 3:30 PM (15:30)
+            // 3. Monday Morning: Monday after 8:31 AM (08:31) to catch weekend/Friday after-hours
             const isWeekday = day >= 1 && day <= 5;
+            const isMarketHours = hours >= 9 && hours <= 15; // 9 AM - 3 PM CST
             const isAfterMarketClose = hours > 15 || (hours === 15 && minutes >= 30);
-
-            // 2. Monday Morning: Monday after 8:31 AM (08:31) to catch weekend/Friday after-hours
             const isMondayMorning = day === 1 && (hours > 8 || (hours === 8 && minutes >= 31));
 
-            if ((isWeekday && isAfterMarketClose) || isMondayMorning) {
+            // Hourly sync during market hours (on the hour)
+            if (isWeekday && isMarketHours && isTopHour && msSinceLast > 50 * 60 * 1000) {
+                console.log(`[AutoSync] Triggering Schwab hourly sync (Market Hours: ${hours}:00)`);
+                fetchTradesFromAPI('Schwab' as any, true);
+            }
+            // After-hours and Monday morning sync (scheduled times)
+            else if ((isWeekday && isAfterMarketClose) || isMondayMorning) {
                 // Determine the "Threshold Time" for today
-                // If it's the Monday morning check, threshold is Today 08:31
-                // If it's the Daily Close check, threshold is Today 15:30
                 const threshold = new Date(now);
                 if (isMondayMorning && hours < 15) { // Prioritize morning check if it's Monday morning (before market close)
                     threshold.setHours(8, 31, 0, 0);
@@ -298,7 +303,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 }
             }
         };
-        // Check every minute (60000ms) instead of 10s to save resources, but 10s is fine too
+        // Check every 10 seconds to catch sync times accurately
         const interval = setInterval(checkTimeAndSync, 10000);
         return () => clearInterval(interval);
     }, []);
