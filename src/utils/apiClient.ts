@@ -167,12 +167,12 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
                 status: isClose ? 'CLOSED' : 'OPEN',
                 // Only CLOSE orders should have PnL, OPEN orders get 0 for proper FIFO matching
                 pnl: isClose ? parseFloat(t.profit || 0) : 0,
-                fees: parseFloat(t.fee || 0),
+                fees: parseFloat(t.totalFee || t.takerFee || t.makerFee || t.fee || 0),
                 leverage: t.leverage ? parseFloat(t.leverage) : 1,
                 notional: parseFloat(t.orderMargin || t.usedMargin || t.amount || 0) * (t.leverage ? parseFloat(t.leverage) : 1),
                 margin: parseFloat(t.orderMargin || t.usedMargin || t.amount || 0),
                 type: 'FUTURES',
-                notes: `Imported via MEXC API`,
+                notes: `Imported via MEXC API | DEBUG_FEES: totalFee=${t.totalFee} takerFee=${t.takerFee} makerFee=${t.makerFee} fee=${t.fee} profit=${t.profit}`,
                 isBot: false, // Handled by Context heuristics
                 externalOid: t.externalOid || t.external_oid,
                 pnlPercentage: 0 // Placeholder
