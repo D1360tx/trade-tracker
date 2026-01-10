@@ -192,7 +192,7 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     margin: (qty * (openRow.notionalPerUnit || openRow.price)) / (openRow.leverage || 1),
                     status: 'CLOSED',
 
-                    notes: `Imported via ${exchangeName} API (Auto-Netted)` + (openRow.notes ? ` | ${openRow.notes}` : ''),
+                    notes: `Imported via ${exchangeName} API (Auto-Netted) | OPEN_FEES=${openRow.fees || 0} CLOSE_FEES=${fees} TOTAL=${fees + (openRow.fees || 0)}` + (openRow.notes ? ` | OPEN_NOTES: ${openRow.notes}` : ''),
                     leverage: openRow.leverage,
                     isBot: isBot
                 });
