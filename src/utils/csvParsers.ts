@@ -130,7 +130,6 @@ const processSchwabRealizedGains = (rows: any[]): ParseResult => {
         // NEW: Try to get Opened Date from Details CSV format
         const openedDate = safeGet(row, ['Opened Date', 'Open Date', 'Opening Date']);
         const quantity = Math.abs(parseNumber(safeGet(row, ['Quantity', 'Qty'])));
-        const closingPrice = parseSchwabMoney(safeGet(row, ['Closing Price', 'Close Price']));
         const proceeds = parseSchwabMoney(safeGet(row, ['Proceeds']));
         const costBasis = parseSchwabMoney(safeGet(row, ['Cost Basis (CB)', 'Cost Basis']));
         const totalGainLoss = parseSchwabMoney(safeGet(row, ['Total Gain/Loss ($)', 'Total Gain/Loss', 'Gain/Loss ($)']));
@@ -148,10 +147,21 @@ const processSchwabRealizedGains = (rows: any[]): ParseResult => {
             tradeType = 'OPTION';
         }
 
-        // Calculate entry price from cost basis (cost basis already includes fees for options)
+        // Calculate entry/exit prices
+        // Priority 1: Use direct per-share columns (available in Details CSV)
+        let entryPrice = parseSchwabMoney(safeGet(row, ['Cost Per Share', 'Average Cost', 'Price']));
+        let exitPrice = parseSchwabMoney(safeGet(row, ['Proceeds Per Share', 'Average Price', 'Closing Price']));
+
+        // Priority 2: Calculate from totals if per-share not found (Summary CSV)
         // For options, cost basis is per contract (100 shares), but quantity is in contracts
-        const entryPrice = quantity > 0 ? costBasis / quantity : 0;
-        const exitPrice = quantity > 0 ? proceeds / quantity : closingPrice;
+        if (entryPrice === 0 && quantity > 0) {
+            const basis = costBasis / quantity;
+            entryPrice = isOption ? basis / 100 : basis;
+        }
+        if (exitPrice === 0 && quantity > 0) {
+            const totalProceeds = proceeds / quantity;
+            exitPrice = isOption ? totalProceeds / 100 : totalProceeds;
+        }
 
         // P&L is already calculated in the CSV - no need to recalculate
         const pnl = totalGainLoss;
