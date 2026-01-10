@@ -116,8 +116,9 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     pnl: pnl,
                     pnlPercentage: pnlPercentage,
                     leverage: openRow.leverage,
+
                     status: 'CLOSED',
-                    notes: `Imported via ${exchangeName} API`
+                    notes: `Imported via ${exchangeName} API` + (openRow.notes ? ` | ${openRow.notes}` : '')
                 });
             } else {
                 // Orphan Close
@@ -136,7 +137,7 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     pnl: pnl,
                     pnlPercentage: 0,
                     status: 'CLOSED',
-                    notes: `Imported via ${exchangeName} API (Orphan)`
+                    notes: `Imported via ${exchangeName} API (Orphan)` + (t.notes ? ` | ${t.notes}` : '')
                 });
             }
         } else {
@@ -190,7 +191,8 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     notional: qty * (openRow.notionalPerUnit || openRow.price),
                     margin: (qty * (openRow.notionalPerUnit || openRow.price)) / (openRow.leverage || 1),
                     status: 'CLOSED',
-                    notes: `Imported via ${exchangeName} API (Auto-Netted)`,
+
+                    notes: `Imported via ${exchangeName} API (Auto-Netted)` + (openRow.notes ? ` | ${openRow.notes}` : ''),
                     leverage: openRow.leverage,
                     isBot: isBot
                 });
@@ -207,7 +209,8 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     leverage,
                     notionalPerUnit,
                     type: t.type || 'CRYPTO',
-                    isBot
+                    isBot,
+                    notes: t.notes // Capture notes for Open Positions too
                 });
             }
         }
