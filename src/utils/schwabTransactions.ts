@@ -87,8 +87,9 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
         const price = tradeItem.price || 0;
         const quantity = Math.abs(tradeItem.amount);
 
-        // For options, use the underlying symbol for grouping
-        const positionKey = symbol;
+        // For position tracking, we MUST use the unique instrument symbol match specific options contracts
+        // ignoring underlyingSymbol for the key, otherwise COIN calls and puts get mixed in the same FIFO queue!
+        const positionKey = tradeItem.instrument.symbol || symbol;
 
         console.log('[Schwab Mapper] Processing:', {
             activityId: tx.activityId,
