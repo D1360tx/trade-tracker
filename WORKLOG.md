@@ -5,149 +5,83 @@
 
 ---
 
-## 🔴 MEXC Futures API - Signature Failure
+## ✅ MEXC Futures API - RESOLVED!
 
-**Status**: 🔧 Enhanced Debugging - Ready for Testing  
-**Error**: `"Confirming signature failed"`  
+**Status**: ✅ **RESOLVED** - Working in Production  
+**Error**: `"Confirming signature failed"` (FIXED)  
 **Started**: January 2026  
-**Last Updated**: January 9, 2026
+**Resolved**: January 9, 2026
 
 ### Problem Description
-MEXC Futures API calls are failing with signature validation errors. The API returns "Confirming signature failed" even when the signature appears to be generated correctly.
+MEXC Futures API calls were failing with signature validation errors in production, but working perfectly in local development (`vercel dev`). The API returned "Confirming signature failed" despite signatures being generated correctly.
+
+### Root Cause - CRITICAL DISCOVERY
+
+**Vercel's URL Rewrite System** was adding an extra `path` query parameter in production that wasn't present in local development:
+
+```
+Client sends: /api/mexc-spot/api/v3/account?timestamp=123&signature=abc
+Vercel rewrites to: /api/mexc-spot?timestamp=123&signature=abc&path=api%2Fv3%2Faccount
+```
+
+This extra `&path=...` parameter:
+1. Changed the query string MEXC received
+2. Invalidated our signature (which was calculated without the `path` parameter)
+3. Only happened in production due to Vercel's `:path*` route rewrite behavior
+
+### The Solution
+
+**File**: `/api/mexc-futures.ts` and `/api/mexc-spot.ts`
+
+```typescript
+// CRITICAL: Remove the 'path' parameter that Vercel adds during URL rewrite
+reqUrl.searchParams.delete('path');
+const cleanSearch = reqUrl.searchParams.toString();
+const queryString = cleanSearch ? `?${cleanSearch}` : '';
+
+// Construct target URL with cleaned query parameters
+const targetUrl = `${MEXC_BASE}${mexcPath}${queryString}`;
+```
+
+### Why It Worked Locally But Not in Production
+
+- **`vercel dev`** (local): Doesn't add the `path` parameter to query strings
+- **Vercel Production**: Uses the `:path*` route pattern differently, adding it as a query param
+
+This is a **known Vercel quirk** when using catch-all routes with rewrites.
 
 ### Files Involved
-- `/api/mexc-futures.ts` - Serverless proxy for MEXC Futures API
-- `/src/utils/apiClient.ts` - Client-side API utilities (✅ ENHANCED)
+- `/api/mexc-futures.ts` - Serverless proxy for MEXC Futures API (FIXED)
+- `/api/mexc-spot.ts` - Serverless proxy for MEXC Spot API (FIXED)
+- `/src/utils/apiClient.ts` - Client-side API utilities
 
-### Research Findings
-
-#### MEXC Futures Signature Requirements (VERIFIED)
-- Uses HMAC-SHA256 signing
-- Signature format: `HMAC-SHA256(apiKey + timestamp + queryString, secretKey)`
-- For GET requests with NO parameters: queryString = "" (empty string)
-- Timestamp must be within 10 seconds of server time (default)
-- `Recv-Window` header can extend tolerance up to 60 seconds
-
-#### Verified from Official Documentation
-- Endpoint: `GET /api/v1/private/order/list/history_orders`
-- Headers Required:
-  - `ApiKey`: Your API key (32 chars)
-  - `Request-Time`: Timestamp in milliseconds (as string)
-  - `Signature`: HMAC-SHA256 hex digest
-  - `Recv-Window`: Optional, max 60000ms (60 seconds)
-- Query Parameters: None for basic history fetch
-
-### Latest Changes (January 9, 2026)
-
-#### ✅ Enhanced Debug Logging
-Added comprehensive logging to `/src/utils/apiClient.ts`:
-- Full signature string visibility
-- Complete request headers with truncated sensitive data
-- Raw response body capture (first 500 chars)
-- Server time drift calculation
-- API key/secret length validation
-- Enhanced error messages with full MEXC response
-
-#### ✅ Server Time Synchronization
-- Added `getMEXCServerTime()` helper function
-- Fetches MEXC server time from `/api/v1/contract/ping`
-- Calculates time drift between local and server
-- Auto-adjusts timestamp if drift > 1 second
-
-#### ✅ Improved Error Handling
-- Captures full error response from MEXC (not just HTTP status)
-- Parses JSON error messages
-- Logs complete request/response cycle
-- Better error messages with error codes
-
-### Things We've Done
-
-| Task | Status | Notes |
-|------|--------|-------|
-| Verified API key format | ✅ Done | Added length validation logging |
-| Enhanced debug logging | ✅ Done | Full signature & response visibility |
-| Server time sync check | ✅ Done | Auto-detects and adjusts for drift |
-| Increased `Recv-Window` | ✅ Done | Now 60000ms (60 seconds) |
-| Full error response capture | ✅ Done | Logs complete MEXC error details |
-| Created deployment checklist | ✅ Done | See `DEPLOYMENT_CHECKLIST.md` |
-
-### Next Steps for User
-1. **Deploy Enhanced Version**:
-   ```bash
-   git add .
-   git commit -m "Enhanced MEXC API debugging with comprehensive logging"
-   git push origin main  # Auto-deploys to Vercel
-   ```
-
-2. **Test in Production**:
-   - Go to Settings → Enter MEXC API key/secret
-   - Open Browser Console (F12)
-   - Go to Import page → Click "Import from MEXC Futures"
-   - Review comprehensive debug logs in console
-
-3. **Verify MEXC API Key Settings**:
-   - API key permissions include "Read" for trade history
-   - IP whitelist includes your IP (or disabled for testing)
-   - Keys are exactly 32 characters (no spaces)
-
-4. **Review Console Output**:
-   Expected logs will show:
-   - `[MEXC] API Key length: 32`
-   - `[MEXC Time Check] { drift: "...ms" }`
-   - `[MEXC Futures] Request Details: { signatureFull: "..." }`
-   - `[MEXC Futures] Raw Response: { status: ..., body: "..." }`
-
-### Debugging Commands
-```bash
-# Test locally with Vercel dev server
-cd /Users/d1360/.gemini/antigravity/scratch/trade_tracker
-vercel dev
-
-# Deploy to production
-vercel --prod
-
-# View production logs
-vercel logs
-```
-
-### Debug Commands
-```bash
-# Test MEXC API locally
-vercel dev
-
-# Check server logs
-vercel logs
-```
+### Verification
+Successfully importing trades from MEXC in production:
+- SOL_USDT trades with correct P&L
+- AVAX_USDT trades
+- ZEC_USDT trades
+- All with accurate entry/exit prices and dates
 
 ---
 
-## 🟡 MEXC Spot API - Signature Invalid (ON HOLD)
 
-**Status**: ⏸️ Paused (waiting on Futures fix)  
-**Error**: `"Signature for this request is not valid"`  
-**Started**: December 2025
+## ✅ MEXC Spot API - RESOLVED!
+
+**Status**: ✅ **RESOLVED** - Working in Production  
+**Error**: `\"Signature for this request is not valid\"` (FIXED)  
+**Started**: December 2025  
+**Resolved**: January 9, 2026
 
 ### Problem Description
-MEXC Spot API imports fail with signature validation error. Investigation revealed potential URL corruption during request construction.
+MEXC Spot API imports were failing with the same signature validation error as Futures.
+
+### Solution
+Fixed by the same solution as Futures API - removing the `path` query parameter that Vercel adds during URL rewrites. See MEXC Futures section above for full details.
 
 ### Files Involved
-- `/api/mexc-spot.ts` - Serverless proxy for MEXC Spot API
+- `/api/mexc-spot.ts` - Serverless proxy for MEXC Spot API (FIXED)
 - `/src/utils/csvParsers.ts` - Includes MEXC parsing logic
 
-### Research Findings
-- Spot API uses different endpoint structure than Futures
-- URL encoding issues may be corrupting the signature
-- This issue is related to but distinct from the Futures issue
-
-### Things We've Tried
-
-| Attempt | Result | Notes |
-|---------|--------|-------|
-| Investigated URL corruption | ⚠️ Found issue | URL being modified during request |
-| Reviewed signature generation | Pending | Need to compare with working examples |
-
-### On Hold Because
-Resolving the Futures API issue first will likely provide insights that apply to Spot API as well. The signature generation logic is similar between both.
 
 ---
 

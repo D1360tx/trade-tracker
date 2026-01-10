@@ -168,22 +168,17 @@ npm run lint
 
 > For detailed debugging notes, research findings, and attempted solutions, see **[WORKLOG.md](./WORKLOG.md)**
 
-### 🔴 High Priority
+### ✅ Recently Resolved
 
-| Issue | Status | Summary |
-|-------|--------|---------|
-| **MEXC Futures Signature** | 🔧 In Progress | "Confirming signature failed" error on API calls |
-
-### 🟡 On Hold
-
-| Issue | Status | Summary |
-|-------|--------|---------|
-| **MEXC Spot Signature** | ⏸️ Paused | URL corruption issues; waiting on Futures fix |
+| Issue | Resolution Date | Summary |
+|-------|-----------------|---------|
+| **MEXC Futures & Spot API** | Jan 9, 2026 | Vercel URL rewrite was adding `path` parameter, breaking signatures. Fixed by explicitly removing it. |
+| **Schwab OAuth Integration** | Jan 9, 2026 | Full 90-day sync with auto-refresh, scheduled daily syncs. |
 
 ### ✅ Recently Completed
 
 | Feature | Date | Summary |
-|---------|------|---------|
+|---------|------|------------|
 | Schwab CSV Import | Jan 2026 | Realized Gain/Loss parsing, Put direction fix |
 | P&L Calendar Modal | Jan 2026 | Daily performance summary with trade breakdown |
 | Duplicate Detection | Jan 2026 | Content-based deduplication for all CSV imports |
