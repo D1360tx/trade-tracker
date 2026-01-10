@@ -179,6 +179,20 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
             };
         });
 
+        // Debug: Log all ZEC orders to see if we're getting both OPEN and CLOSE
+        const zecOrders = trades.filter(t => t.ticker?.includes('ZEC'));
+        if (zecOrders.length > 0) {
+            console.log('=== ZEC ORDERS FROM MEXC API ===', zecOrders.map(t => ({
+                id: t.id,
+                side: t.notes?.match(/side=(\d+)/)?.[1],
+                isClose: t.notes?.includes('isClose=true'),
+                fees: t.fees,
+                profit: t.pnl,
+                status: t.status
+            })));
+        }
+
+
         return { trades, raw: allTrades.slice(0, 5) };
 
     } catch (error: any) {
