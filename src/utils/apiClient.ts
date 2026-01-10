@@ -172,26 +172,12 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
                 notional: parseFloat(t.orderMargin || t.usedMargin || t.amount || 0) * (t.leverage ? parseFloat(t.leverage) : 1),
                 margin: parseFloat(t.orderMargin || t.usedMargin || t.amount || 0),
                 type: 'FUTURES',
-                notes: `MEXC API | state=${t.state} side=${t.side} isClose=${isClose} | FEES: total=${t.totalFee} taker=${t.takerFee} maker=${t.makerFee} fee=${t.fee} | profit=${t.profit}`,
+                notes: `Imported via MEXC API`,
                 isBot: false, // Handled by Context heuristics
                 externalOid: t.externalOid || t.external_oid,
                 pnlPercentage: 0 // Placeholder
             };
         });
-
-        // Debug: Log all ZEC orders to see if we're getting both OPEN and CLOSE
-        const zecOrders = trades.filter(t => t.ticker?.includes('ZEC'));
-        if (zecOrders.length > 0) {
-            console.log('=== ZEC ORDERS FROM MEXC API ===', zecOrders.map(t => ({
-                id: t.id,
-                side: t.notes?.match(/side=(\d+)/)?.[1],
-                isClose: t.notes?.includes('isClose=true'),
-                fees: t.fees,
-                profit: t.pnl,
-                status: t.status
-            })));
-        }
-
 
         return { trades, raw: allTrades.slice(0, 5) };
 
