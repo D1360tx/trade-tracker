@@ -501,10 +501,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             console.log(`[${exchange}] Sync complete - added ${trades.length} trades`);
 
             if (!silent) {
-                // We use a small timeout to let the state update so we can count? 
-                // Actually mergeTrades is sync but state update is async.
-                // Just generic success message.
-                // alert(`Sync complete for ${exchange}.`);
+                alert(`Successfully processed ${trades.length} trades from ${exchange}!`);
             }
 
         } catch (error: any) {
