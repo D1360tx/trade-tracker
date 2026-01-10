@@ -26,7 +26,7 @@ const Layout = () => {
         { icon: BookOpen, label: 'Playbook', path: '/playbook' },
         { icon: BarChart2, label: 'Analytics', path: '/analytics' },
         { icon: FileText, label: 'Reports', path: '/reports' },
-        { icon: Brain, label: 'AI Coach', path: '/insights' },
+        { icon: Brain, label: 'AI Coach', path: '/ai-insights' },
         { icon: Bot, label: 'Bot Performance', path: '/bots' },
         { icon: Upload, label: 'Import Data', path: '/import' },
         { icon: Wallet, label: 'Accounts', path: '/accounts' }, // Placeholder
