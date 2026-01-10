@@ -30,6 +30,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log('[MEXC Futures] Request:', reqUrl.pathname);
         console.log('[MEXC Futures] Forwarding to:', targetUrl);
 
+        // DEBUG: Log ALL received headers to diagnose Vercel header stripping
+        console.log('[MEXC Futures] ALL HEADERS RECEIVED:', JSON.stringify(req.headers, null, 2));
+
         // Forward authentication headers (HTTP headers are case-insensitive, Node normalizes to lowercase)
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
@@ -48,9 +51,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (recvWindow) headers['Recv-Window'] = recvWindow;
 
         console.log('[MEXC Futures] Headers received:', {
-            apiKey: apiKey ? `${apiKey.substring(0, 8)}...` : 'missing',
-            requestTime: requestTime || 'missing',
-            signature: signature ? `${signature.substring(0, 16)}...` : 'missing'
+            apiKey: apiKey ? `${apiKey.substring(0, 8)}...` : 'MISSING - HEADER STRIPPED?',
+            requestTime: requestTime || 'MISSING - HEADER STRIPPED?',
+            signature: signature ? `${signature.substring(0, 16)}...` : 'MISSING - HEADER STRIPPED?'
         });
         console.log('[MEXC Futures] Query params:', reqUrl.search);
         console.log('[MEXC Futures] Full request details:', {
