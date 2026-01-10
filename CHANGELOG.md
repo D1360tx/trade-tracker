@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FEATURE**: Now reads both "Opened Date" and "Closed Date" columns
 - **BENEFIT**: Accurate entry and exit dates for each trade (previously used same date for both)
 - **Auto-Detection**: Parser automatically detects if using Summary or Details format
+- **FIX**: Improved Option pricing precision by prioritizing "Per Share" columns from Details CSV (fixes entry/exit price display)
 
 #### Schwab API Data Window Extended
 - **CHANGED**: Extended API fetch window from 90 → 180 days
