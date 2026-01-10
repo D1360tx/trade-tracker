@@ -287,6 +287,9 @@ const Journal = () => {
                                     <th onClick={() => handleSort('direction')} className="cursor-pointer hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)] font-medium text-sm transition-colors relative z-10 w-[10%]">
                                         <div className="flex items-center">Direction <SortIcon columnKey="direction" /></div>
                                     </th>
+                                    <th onClick={() => handleSort('quantity')} className="cursor-pointer hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)] font-medium text-sm text-right transition-colors relative z-10 w-[8%]">
+                                        <div className="flex items-center justify-end">Quantity <SortIcon columnKey="quantity" /></div>
+                                    </th>
                                     <th onClick={() => handleSort('entryPrice')} className="cursor-pointer hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)] font-medium text-sm text-right transition-colors relative z-10 w-[10%]">
                                         <div className="flex items-center justify-end">Entry <SortIcon columnKey="entryPrice" /></div>
                                     </th>
@@ -437,6 +440,11 @@ const Journal = () => {
                                             >
                                                 {trade.direction}
                                             </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-sm text-[var(--text-secondary)]">
+                                            {trade.type === 'CRYPTO' || trade.type === 'FOREX'
+                                                ? trade.quantity.toFixed(4)
+                                                : trade.quantity.toFixed(0)}
                                         </td>
                                         <td className="px-6 py-4 text-right text-sm">${trade.entryPrice.toFixed(2)}</td>
                                         <td className="px-6 py-4 text-right text-sm">${trade.exitPrice.toFixed(2)}</td>
