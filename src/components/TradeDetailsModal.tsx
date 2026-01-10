@@ -193,11 +193,11 @@ const TradeDetailsModal = ({ trade, onClose, onUpdate }: TradeDetailsModalProps)
                         </div>
                         <div className="flex justify-between">
                             <span className="text-[var(--text-secondary)]">Notional Value</span>
-                            <span className="font-medium">{trade.notional ? `$${trade.notional.toFixed(2)}` : '-'}</span>
+                            <span className="font-medium">{trade.notional ? `$${trade.notional.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-[var(--text-secondary)]">Margin Used</span>
-                            <span className="font-medium">{trade.margin ? `$${trade.margin.toFixed(2)}` : '-'}</span>
+                            <span className="font-medium">{trade.margin ? `$${trade.margin.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-[var(--text-secondary)]">Entry Price</span>

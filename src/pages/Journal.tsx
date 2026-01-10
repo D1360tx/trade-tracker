@@ -443,12 +443,12 @@ const Journal = () => {
                                         </td>
                                         <td className="px-6 py-4 text-right text-sm text-[var(--text-secondary)]">
                                             {trade.type === 'FUTURES' && trade.margin
-                                                ? `$${trade.margin.toFixed(2)}`
+                                                ? `$${trade.margin.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                                                 : trade.type === 'FOREX'
-                                                    ? trade.quantity.toFixed(2)
+                                                    ? trade.quantity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                                                     : trade.type === 'CRYPTO' || trade.type === 'FUTURES' || trade.type === 'SPOT'
-                                                        ? trade.quantity.toFixed(4)
-                                                        : trade.quantity.toFixed(0)}
+                                                        ? trade.quantity.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+                                                        : trade.quantity.toLocaleString('en-US', { maximumFractionDigits: 0 })}
                                         </td>
                                         <td className="px-6 py-4 text-right text-sm">${trade.entryPrice.toFixed(2)}</td>
                                         <td className="px-6 py-4 text-right text-sm">${trade.exitPrice.toFixed(2)}</td>
