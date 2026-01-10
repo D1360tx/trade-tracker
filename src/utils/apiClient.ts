@@ -83,7 +83,6 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
                 'ApiKey': apiKey,
                 'Request-Time': timestamp,
                 'Signature': signature,
-                'Recv-Window': '5000', // 5 second window (standard)
                 'Content-Type': 'application/json'
             };
 
@@ -95,8 +94,7 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
             console.log('[MEXC Futures] Request Headers:', {
                 ApiKey: `${apiKey.substring(0, 8)}...`,
                 'Request-Time': timestamp,
-                Signature: `${signature.substring(0, 20)}...${signature.substring(signature.length - 10)}`,
-                'Recv-Window': '5000'
+                Signature: `${signature.substring(0, 20)}...${signature.substring(signature.length - 10)}`
             });
 
             const response = await fetch(url, {
