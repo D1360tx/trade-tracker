@@ -206,7 +206,7 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
                 // Only CLOSE orders should have PnL, OPEN orders get 0 for proper FIFO matching
                 pnl: isClose ? parseFloat(t.profit || 0) : 0,
                 fees: parseFloat(t.fee || 0),
-                leverage: t.leverage || 10,
+                leverage: t.leverage ? parseFloat(t.leverage) : 1,
                 type: 'FUTURES',
                 notes: `MEXC Order Side: ${t.side}`,
                 isBot: false, // Handled by Context heuristics
