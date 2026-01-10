@@ -118,7 +118,7 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     leverage: openRow.leverage,
 
                     status: 'CLOSED',
-                    notes: `Imported via ${exchangeName} API` + (openRow.notes ? ` | ${openRow.notes}` : '')
+                    notes: `Imported via ${exchangeName} API | OPEN: ${openRow.notes || 'no notes'} | CLOSE: fees=${fees} from side=${side}`
                 });
             } else {
                 // Orphan Close
