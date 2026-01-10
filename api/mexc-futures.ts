@@ -36,9 +36,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log('[MEXC Futures] Request:', reqUrl.pathname);
         console.log('[MEXC Futures] Forwarding to:', targetUrl);
 
-        // DEBUG: Log ALL received headers to diagnose Vercel header stripping
-        console.log('[MEXC Futures] ALL HEADERS RECEIVED:', JSON.stringify(req.headers, null, 2));
-
         // Forward authentication headers (HTTP headers are case-insensitive, Node normalizes to lowercase)
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
