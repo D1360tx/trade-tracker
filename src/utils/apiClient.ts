@@ -64,7 +64,14 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
 
             // Build signature string: apiKey + timestamp + queryString
             const signString = apiKey + timestamp + queryRange;
-            const signature = CryptoJS.HmacSHA256(signString, apiSecret).toString(CryptoJS.enc.Hex);
+
+            // Check if secret is Hex (32 chars usually)
+            // If strictly hex, we parse it. If not, treat as string.
+            // MEXC secrets are typically 32-char Hex strings.
+            const isHexSecret = /^[0-9a-fA-F]+$/.test(apiSecret);
+            const secretKey = isHexSecret ? CryptoJS.enc.Hex.parse(apiSecret) : apiSecret;
+
+            const signature = CryptoJS.HmacSHA256(signString, secretKey).toString(CryptoJS.enc.Hex);
 
             console.log('[MEXC Futures] Request Details:', {
                 page,
@@ -248,7 +255,9 @@ export const fetchMEXCSpotHistory = async (apiKey: string, apiSecret: string): P
     // Format: HmacSHA256(queryString, secret)
 
     // Helper to sign
-    const signV3 = (queryString: string) => CryptoJS.HmacSHA256(queryString, apiSecret).toString(CryptoJS.enc.Hex);
+    const isHexSecret = /^[0-9a-fA-F]+$/.test(apiSecret);
+    const secretKey = isHexSecret ? CryptoJS.enc.Hex.parse(apiSecret) : apiSecret;
+    const signV3 = (queryString: string) => CryptoJS.HmacSHA256(queryString, secretKey).toString(CryptoJS.enc.Hex);
 
     // 1. Get Account Info to find active symbols (Optimization)
     // URL: /api/v3/account
