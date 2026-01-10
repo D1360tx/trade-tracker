@@ -31,9 +31,17 @@ const getMEXCServerTime = async (): Promise<{ serverTime: number, drift: number 
 // MEXC Futures: Standard User History Endpoint (Enhanced)
 export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): Promise<{ trades: Trade[], raw: any }> => {
     let allTrades: any[] = [];
-    let page = 1;
-    let hasMore = true;
-    const MAX_PAGES = 20; // Increased to 20 pages * 100 trades = 2000 trades
+    const MAX_TOTAL_PAGES = 50;
+    let totalPagesFetched = 0;
+
+    // Time Window Config
+    const HISTORY_DAYS = 365;
+    const CHUNK_DAYS = 85; // < 90 days to satisfy API limit
+    const WINDOW_MS = CHUNK_DAYS * 24 * 60 * 60 * 1000;
+    const END_TIME_MS = Date.now();
+    const START_TIME_MS = END_TIME_MS - (HISTORY_DAYS * 24 * 60 * 60 * 1000);
+
+    let currentWindowEnd = END_TIME_MS;
 
     try {
         if (!apiKey || !apiSecret) {
@@ -41,138 +49,92 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
             return { trades: [], raw: { error: 'Missing API key or secret' } };
         }
 
-        // Validate API key and secret format
-        console.log('[MEXC] API Key length:', apiKey.length);
-        console.log('[MEXC] Secret length:', apiSecret.length);
-        console.log('[MEXC] API Key preview:', `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`);
-
         // Check server time first
         const { drift } = await getMEXCServerTime();
 
-        while (hasMore && page <= MAX_PAGES) {
-            // Use server time if drift is significant (> 1 second)
-            const useServerTime = Math.abs(drift) > 1000;
-            // Drift = Local - Server. So Server = Local - Drift.
-            const timestamp = (Date.now() - (useServerTime ? drift : 0)).toString();
+        // Iterate backwards in time chunks
+        while (currentWindowEnd > START_TIME_MS && totalPagesFetched < MAX_TOTAL_PAGES) {
+            let currentWindowStart = currentWindowEnd - WINDOW_MS;
+            if (currentWindowStart < START_TIME_MS) currentWindowStart = START_TIME_MS;
 
-            // Params for pagination and time window
-            const params: Record<string, string> = {
-                page_num: page.toString(),
-                page_size: '100',
-                start_time: (Date.now() - 365 * 24 * 60 * 60 * 1000).toString() // Last 365 days
-            };
+            console.log(`[MEXC Futures] Fetching Window: ${new Date(currentWindowStart).toISOString()} to ${new Date(currentWindowEnd).toISOString()}`);
 
-            // Build query string (empty for no params)
-            const queryRange = Object.keys(params).length === 0 ? '' :
-                Object.keys(params).sort().map(key => `${key}=${params[key]}`).join('&');
+            let page = 1;
+            let hasMoreInWindow = true;
 
-            // Build signature string: apiKey + timestamp + queryString
-            // Build signature string: apiKey + timestamp + queryString
-            const signString = apiKey + timestamp + queryRange;
+            // Pagination within the window
+            while (hasMoreInWindow && totalPagesFetched < MAX_TOTAL_PAGES) {
+                // Use server time if drift is significant (> 1 second)
+                const useServerTime = Math.abs(drift) > 1000;
+                const authTimestamp = (Date.now() - (useServerTime ? drift : 0)).toString();
 
-            // Revert Hex parsing. Treat as string. Ensure no whitespace (including invisible chars).
-            const cleanSecret = apiSecret.replace(/\s/g, '');
-            const signature = CryptoJS.HmacSHA256(signString, cleanSecret).toString(CryptoJS.enc.Hex);
+                const params: Record<string, string> = {
+                    page_num: page.toString(),
+                    page_size: '100',
+                    start_time: currentWindowStart.toString(),
+                    end_time: currentWindowEnd.toString()
+                };
 
-            console.log('[MEXC Futures] Request Details:', {
-                page,
-                timestamp,
-                timestampSource: useServerTime ? 'server-adjusted' : 'local',
-                timeDrift: `${drift}ms`,
-                queryRange: queryRange || '(empty)',
-                signStringLength: signString.length,
-                signStringPreview: `${signString.substring(0, 20)}...`,
-                signatureFull: signature,
-                apiKeyLength: apiKey.length
-            });
+                // Build query string
+                const queryRange = Object.keys(params).sort().map(key => `${key}=${params[key]}`).join('&');
+                const signString = apiKey + authTimestamp + queryRange;
+                const cleanSecret = apiSecret.replace(/\s/g, '');
+                const signature = CryptoJS.HmacSHA256(signString, cleanSecret).toString(CryptoJS.enc.Hex);
 
-            const headers = {
-                'ApiKey': apiKey,
-                'Request-Time': timestamp,
-                'Signature': signature,
-                'Content-Type': 'application/json'
-            };
+                const url = `${MEXC_FUTURES_PROXY}/api/v1/private/order/list/history_orders?${queryRange}`;
 
-            // Build URL correctly - don't add ? if no params
-            const queryString = queryRange ? `?${queryRange}` : '';
-            const url = `${MEXC_FUTURES_PROXY}/api/v1/private/order/list/history_orders${queryString}`;
-
-            console.log('[MEXC Futures] Full Request URL:', url);
-            console.log('[MEXC Futures] Request Headers:', {
-                ApiKey: `${apiKey.substring(0, 8)}...`,
-                'Request-Time': timestamp,
-                Signature: `${signature.substring(0, 20)}...${signature.substring(signature.length - 10)}`
-            });
-
-            const response = await fetch(url, {
-                method: 'GET',
-                headers
-            });
-
-            // Capture full response for debugging
-            const responseText = await response.text();
-            console.log('[MEXC Futures] Raw Response:', {
-                status: response.status,
-                statusText: response.statusText,
-                headers: Object.fromEntries(response.headers.entries()),
-                bodyPreview: responseText.substring(0, 500)
-            });
-
-            if (!response.ok) {
-                console.error('[MEXC Futures] HTTP Error:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    body: responseText
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'ApiKey': apiKey,
+                        'Request-Time': authTimestamp,
+                        'Signature': signature,
+                        'Content-Type': 'application/json'
+                    }
                 });
 
-                // Try to parse error as JSON
-                try {
-                    const errorData = JSON.parse(responseText);
-                    throw new Error(`MEXC API Error (${response.status}): ${errorData.message || errorData.msg || JSON.stringify(errorData)}`);
-                } catch (parseError) {
-                    throw new Error(`MEXC API Error (${response.status}): ${responseText}`);
+                if (!response.ok) {
+                    const txt = await response.text();
+                    console.error('[MEXC Futures] Window Error:', txt);
+                    // If error is 6003 (Time Range) despite our logic, break window
+                    if (txt.includes('6003')) {
+                        hasMoreInWindow = false;
+                        break;
+                    }
+                    // For other errors, maybe retry or skip? throwing stops everything.
+                    // Let's log and try next window? Or fail?
+                    // Fail logic:
+                    if (response.status === 401 || response.status === 403) throw new Error(`MEXC Auth Error: ${txt}`);
+                    // Non-fatal (maybe temporary), wait and break window
+                    await new Promise(r => setTimeout(r, 1000));
+                    hasMoreInWindow = false;
+                    continue;
                 }
+
+                const data = await response.json();
+                if (data.success === false || data.code !== 0) {
+                    console.error('[MEXC API Error]', data);
+                    hasMoreInWindow = false;
+                    continue;
+                }
+
+                const pageTrades = data.data || [];
+                if (pageTrades.length === 0) {
+                    hasMoreInWindow = false;
+                } else {
+                    allTrades = [...allTrades, ...pageTrades];
+                    totalPagesFetched++;
+                    // If page is full (100), maybe more? If less, done with window.
+                    if (pageTrades.length < 100) hasMoreInWindow = false;
+                    else page++;
+                }
+
+                // Rate limit safety
+                await new Promise(r => setTimeout(r, 100));
             }
 
-            // Parse response
-            let data;
-            try {
-                data = JSON.parse(responseText);
-            } catch (parseError) {
-                console.error('[MEXC Futures] JSON Parse Error:', responseText);
-                throw new Error('Invalid JSON response from MEXC');
-            }
-
-            console.log('[MEXC Futures] Parsed Response:', {
-                success: data.success,
-                code: data.code,
-                message: data.message,
-                hasData: !!data.data,
-                dataType: Array.isArray(data.data) ? 'array' : typeof data.data,
-                dataLength: Array.isArray(data.data) ? data.data.length : 'N/A'
-            });
-
-            // Check for error responses
-            if (data.success === false || data.code !== 0) {
-                console.error('[MEXC Futures] API Error Response:', {
-                    code: data.code,
-                    message: data.message,
-                    fullResponse: data
-                });
-                throw new Error(`MEXC API Error (Code ${data.code}): ${data.message || 'Unknown error'}`);
-            }
-
-            const pageTrades = data.data || [];
-
-            if (pageTrades.length === 0) {
-                console.log('[MEXC Futures] No more trades on page', page);
-                hasMore = false;
-            } else {
-                console.log(`[MEXC Futures] Page ${page}: fetched ${pageTrades.length} trades`);
-                allTrades = [...allTrades, ...pageTrades];
-                if (pageTrades.length < 100) hasMore = false;
-                page++;
-            }
+            // Move to next (older) window
+            currentWindowEnd = currentWindowStart;
         }
 
         console.log('[MEXC Futures] Total raw trades fetched:', allTrades.length);
