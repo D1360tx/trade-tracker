@@ -105,7 +105,7 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     id: openRow.id, // KEEP STABLE ID FROM OPENING ORDER
                     exchange: exchangeName as any,
                     ticker: symbol,
-                    type: 'CRYPTO',
+                    type: (openRow.type || 'CRYPTO') as any,
                     direction: openRow.direction,
                     entryPrice: openRow.price,
                     exitPrice: price,
@@ -125,7 +125,7 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     id: currentId,
                     exchange: exchangeName as any,
                     ticker: symbol,
-                    type: 'CRYPTO',
+                    type: (t.type || 'CRYPTO') as any,
                     direction: direction,
                     entryPrice: price,
                     exitPrice: price,
@@ -174,7 +174,7 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     id: openRow.id, // KEEP STABLE ID
                     exchange: exchangeName as any,
                     ticker: symbol,
-                    type: 'CRYPTO',
+                    type: (openRow.type || 'CRYPTO') as any,
                     direction: openRow.direction,
                     entryPrice: openRow.price,
                     exitPrice: price,
@@ -206,6 +206,7 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     fees,
                     leverage,
                     notionalPerUnit,
+                    type: t.type || 'CRYPTO',
                     isBot
                 });
             }
