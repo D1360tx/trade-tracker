@@ -33,7 +33,7 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
     let allTrades: any[] = [];
     let page = 1;
     let hasMore = true;
-    const MAX_PAGES = 5; // Limit for safety
+    const MAX_PAGES = 20; // Increased to 20 pages * 100 trades = 2000 trades
 
     try {
         if (!apiKey || !apiSecret) {
@@ -55,8 +55,12 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
             // Drift = Local - Server. So Server = Local - Drift.
             const timestamp = (Date.now() - (useServerTime ? drift : 0)).toString();
 
-            // Test with minimal params first (no query parameters for history_orders)
-            const params: Record<string, string> = {};
+            // Params for pagination and time window
+            const params: Record<string, string> = {
+                page_num: page.toString(),
+                page_size: '100',
+                start_time: (Date.now() - 365 * 24 * 60 * 60 * 1000).toString() // Last 365 days
+            };
 
             // Build query string (empty for no params)
             const queryRange = Object.keys(params).length === 0 ? '' :
