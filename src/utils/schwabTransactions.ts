@@ -126,12 +126,17 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
 
                 // Calculate P&L using the multiplier for options (usually 100)
                 const multiplier = tradeItem.instrument.assetType === 'OPTION' ? 100 : 1;
-                let pnl: number;
+                const totalFees = fees + openPos.fees; // Total fees for both entry and exit
+
+                let grossPnl: number;
                 if (openPos.direction === 'LONG') {
-                    pnl = (price - openPos.price) * matchQty * multiplier;
+                    grossPnl = (price - openPos.price) * matchQty * multiplier;
                 } else {
-                    pnl = (openPos.price - price) * matchQty * multiplier;
+                    grossPnl = (openPos.price - price) * matchQty * multiplier;
                 }
+
+                // Subtract fees to get NET P&L (matching Schwab's Realized Gain/Loss report)
+                const pnl = grossPnl - totalFees;
 
                 const entryValue = openPos.price * matchQty * multiplier;
                 const pnlPercentage = entryValue > 0 ? (pnl / entryValue) * 100 : 0;
@@ -160,8 +165,8 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
                     quantity: matchQty,
                     entryDate: openPos.date,
                     exitDate: tx.time,
-                    fees: fees + openPos.fees,
-                    pnl,
+                    fees: totalFees,
+                    pnl, // Now NET P&L (gross - fees)
                     pnlPercentage,
                     status: 'CLOSED',
                     notes: `Imported from Schwab API`,
