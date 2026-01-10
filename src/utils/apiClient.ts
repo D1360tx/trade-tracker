@@ -74,9 +74,13 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
                 queryRange: queryRange || '(empty)',
                 signStringLength: signString.length,
                 signStringPreview: `${signString.substring(0, 60)}...`,
+                signStringExact: signString, // TEMPORARY DEBUG: See exactly what we sign
                 signatureFull: signature,
                 apiKeyLength: apiKey.length,
-                secretKeyLength: apiSecret.length
+                secretKeyLength: apiSecret.length,
+                secretIsHex: /^[0-9a-fA-F]+$/.test(apiSecret), // Check if secret is hex
+                secretFirstChar: apiSecret.charAt(0),
+                secretLastChar: apiSecret.charAt(apiSecret.length - 1)
             });
 
             const headers = {
