@@ -169,10 +169,10 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
                 pnl: isClose ? parseFloat(t.profit || 0) : 0,
                 fees: parseFloat(t.fee || 0),
                 leverage: t.leverage ? parseFloat(t.leverage) : 1,
-                notional: parseFloat(t.amount || t.turnover || t.dealAmount || 0),
-                margin: (parseFloat(t.amount || t.turnover || t.dealAmount || 0) / (t.leverage ? parseFloat(t.leverage) : 1)),
+                notional: parseFloat(t.orderMargin || t.usedMargin || t.amount || 0) * (t.leverage ? parseFloat(t.leverage) : 1),
+                margin: parseFloat(t.orderMargin || t.usedMargin || t.amount || 0),
                 type: 'FUTURES',
-                notes: `MEXC Order Side: ${t.side} | Keys: ${Object.keys(t).join(', ')}`,
+                notes: `MEXC Order Side: ${t.side}`,
                 isBot: false, // Handled by Context heuristics
                 externalOid: t.externalOid || t.external_oid,
                 pnlPercentage: 0 // Placeholder
