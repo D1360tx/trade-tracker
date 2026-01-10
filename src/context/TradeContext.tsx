@@ -60,6 +60,7 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
 
         const pnl = parseFloat(t.pnl || t.profit || t.closedPnl || t.realised_pnl || t.realisedPnl || '0');
         const fees = parseFloat(t.fee || t.commission || t.execFee || '0');
+        const leverage = parseFloat(t.leverage || '1');
 
         // Handle varied timestamp formats (MEXC number vs ByBit string)
         const rawTime = t.createTime || t.time || t.entryDate || Date.now();
@@ -92,7 +93,8 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                 openPositions[symbol].splice(matchIndex, 1);
 
                 const entryValue = openRow.price * qty;
-                const pnlPercentage = entryValue > 0 ? (pnl / entryValue) * 100 : 0;
+                const margin = entryValue / (openRow.leverage || 1);
+                const pnlPercentage = margin > 0 ? (pnl / margin) * 100 : 0;
 
                 mappedTrades.push({
                     id: openRow.id, // KEEP STABLE ID FROM OPENING ORDER
@@ -175,7 +177,10 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     exitDate: new Date(time).toISOString(),
                     fees: fees + (openRow.fees || 0),
                     pnl: calculatedPnl,
-                    pnlPercentage: (entryValue => entryValue > 0 ? (calculatedPnl / entryValue) * 100 : 0)(openRow.price * qty),
+                    pnlPercentage: ((entryValue, lev) => {
+                        const margin = entryValue / (lev || 1);
+                        return margin > 0 ? (calculatedPnl / margin) * 100 : 0;
+                    })(openRow.price * qty, openRow.leverage),
                     status: 'CLOSED',
                     notes: `Imported via ${exchangeName} API (Auto-Netted)`,
                     isBot: isBot
@@ -190,6 +195,7 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     qty,
                     direction,
                     fees,
+                    leverage,
                     isBot
                 });
             }
