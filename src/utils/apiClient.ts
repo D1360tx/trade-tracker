@@ -172,7 +172,7 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
                 notional: parseFloat(t.orderMargin || t.usedMargin || t.amount || 0) * (t.leverage ? parseFloat(t.leverage) : 1),
                 margin: parseFloat(t.orderMargin || t.usedMargin || t.amount || 0),
                 type: 'FUTURES',
-                notes: `Imported via MEXC API | DEBUG_FEES: totalFee=${t.totalFee} takerFee=${t.takerFee} makerFee=${t.makerFee} fee=${t.fee} profit=${t.profit}`,
+                notes: `MEXC API | state=${t.state} side=${t.side} isClose=${isClose} | FEES: total=${t.totalFee} taker=${t.takerFee} maker=${t.makerFee} fee=${t.fee} | profit=${t.profit}`,
                 isBot: false, // Handled by Context heuristics
                 externalOid: t.externalOid || t.external_oid,
                 pnlPercentage: 0 // Placeholder
