@@ -100,6 +100,22 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
             assetType: tradeItem.instrument.assetType
         });
 
+        // Debug ISRG trades specifically
+        if (symbol.includes('ISRG')) {
+            console.log('[ISRG DEBUG]', {
+                activityId: tx.activityId,
+                symbol,
+                fullInstrumentSymbol: tradeItem.instrument.symbol,
+                positionKey,
+                positionEffect,
+                price,
+                quantity,
+                strike: tradeItem.instrument.strikePrice,
+                putCall: tradeItem.instrument.putCall,
+                date: tx.time
+            });
+        }
+
         if (isOpening) {
             // Determine direction from amount sign or putCall
             const direction: 'LONG' | 'SHORT' = tradeItem.amount > 0 ? 'LONG' : 'SHORT';
