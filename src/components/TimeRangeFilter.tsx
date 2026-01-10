@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Calendar } from 'lucide-react';
-import { startOfDay, subDays, startOfWeek, addDays, startOfYear, startOfMonth, subMonths, endOfMonth } from 'date-fns';
+import { startOfDay, subDays, startOfWeek, addDays, startOfYear, startOfMonth, subMonths, endOfMonth, subYears, endOfYear } from 'date-fns';
 
 export type TimeRange = 'today' | 'yesterday' | 'this_week' | 'last_week' |
-    'this_month' | 'last_month' | '30d' | '60d' | '90d' | 'ytd' | 'all' | 'custom';
+    'this_month' | 'last_month' | '30d' | '60d' | '90d' | 'ytd' | 'last_year' | 'all' | 'custom';
 
 interface TimeRangeFilterProps {
     selectedRange: TimeRange;
@@ -24,6 +24,7 @@ const timeRangeOptions: { value: TimeRange; label: string }[] = [
     { value: '60d', label: 'Last 60 Days' },
     { value: '90d', label: 'Last 90 Days' },
     { value: 'ytd', label: 'Year to Date' },
+    { value: 'last_year', label: 'Last Year' },
     { value: 'all', label: 'All Time' },
     { value: 'custom', label: 'Custom' },
 ];
@@ -55,6 +56,9 @@ export const getDateRangeForFilter = (range: TimeRange): { start: Date; end: Dat
             return { start: subDays(now, 90), end: now };
         case 'ytd':
             return { start: startOfYear(now), end: now };
+        case 'last_year':
+            const lastYearStart = startOfYear(subYears(now, 1));
+            return { start: lastYearStart, end: endOfYear(lastYearStart) };
         case 'all':
             return { start: new Date(0), end: now };
         case 'custom':

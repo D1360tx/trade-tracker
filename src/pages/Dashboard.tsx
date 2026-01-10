@@ -19,7 +19,7 @@ import { useTrades } from '../context/TradeContext';
 
 const Dashboard = () => {
     const { trades } = useTrades();
-    const [timeRange, setTimeRange] = useState<TimeRange>('30d');
+    const [timeRange, setTimeRange] = useState<TimeRange>('this_week');
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
     const [selectedExchanges, setSelectedExchanges] = useState<string[]>([]);

@@ -21,7 +21,7 @@ const ReportsPage = () => {
     const { mistakes } = useMistakes();
 
     // Filter state
-    const [timeRange, setTimeRange] = useState<TimeRange>('30d');
+    const [timeRange, setTimeRange] = useState<TimeRange>('this_week');
     const [filterStartDate, setFilterStartDate] = useState('');
     const [filterEndDate, setFilterEndDate] = useState('');
     const [filterStrategy, setFilterStrategy] = useState('');
