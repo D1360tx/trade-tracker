@@ -169,37 +169,42 @@ const RiskMetricsDashboard: React.FC<RiskMetricsDashboardProps> = ({ trades }) =
             {positionSizeMetrics.length > 0 && (
                 <div className="bg-[var(--bg-tertiary)] rounded-lg p-6">
                     <h4 className="text-lg font-bold mb-4">Win Rate by Position Size</h4>
-                    <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={positionSizeMetrics}>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={positionSizeMetrics} margin={{ top: 20, right: 30, bottom: 60, left: 20 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
                             <XAxis
                                 dataKey="bucket"
                                 stroke="var(--text-tertiary)"
-                                fontSize={11}
-                                angle={-45}
-                                textAnchor="end"
-                                height={80}
+                                fontSize={13}
+                                angle={0}
+                                textAnchor="middle"
+                                height={60}
+                                tick={{ fill: 'var(--text-secondary)' }}
                             />
                             <YAxis
                                 stroke="var(--text-tertiary)"
-                                fontSize={11}
+                                fontSize={13}
                                 tickFormatter={(val) => `${val}%`}
+                                tick={{ fill: 'var(--text-secondary)' }}
                             />
                             <Tooltip
                                 content={({ active, payload }) => {
                                     if (!active || !payload || !payload[0]) return null;
                                     const data = payload[0].payload;
                                     return (
-                                        <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded p-3 shadow-xl text-xs">
-                                            <p className="font-bold mb-1">{data.bucket}</p>
-                                            <p className="text-green-500">Win Rate: {data.winRate.toFixed(1)}%</p>
-                                            <p className="text-[var(--text-secondary)]">Trades: {data.trades}</p>
-                                            <p className="text-[var(--text-secondary)]">Avg P&L: ${data.avgPnL.toFixed(2)}</p>
+                                        <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded p-3 shadow-xl text-sm">
+                                            <p className="font-bold mb-2 text-[var(--text-primary)]">{data.bucket}</p>
+                                            <p className="text-green-500 font-semibold">Win Rate: {data.winRate.toFixed(1)}%</p>
+                                            <p className="text-[var(--text-secondary)]">Total Trades: {data.trades}</p>
+                                            <p className="text-[var(--text-secondary)]">Wins: {data.wins} / Losses: {data.losses}</p>
+                                            <p className={`font-semibold ${data.avgPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                                Avg P&L: ${data.avgPnL.toFixed(2)}
+                                            </p>
                                         </div>
                                     );
                                 }}
                             />
-                            <Bar dataKey="winRate" radius={[4, 4, 0, 0]}>
+                            <Bar dataKey="winRate" radius={[6, 6, 0, 0]}>
                                 {positionSizeMetrics.map((entry, index) => (
                                     <Cell
                                         key={`cell-${index}`}
@@ -209,7 +214,7 @@ const RiskMetricsDashboard: React.FC<RiskMetricsDashboardProps> = ({ trades }) =
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>
-                    <p className="text-xs text-[var(--text-tertiary)] mt-2 text-center">
+                    <p className="text-sm text-[var(--text-secondary)] mt-3 text-center">
                         Identify your optimal position sizing sweet spot
                     </p>
                 </div>

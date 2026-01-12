@@ -62,31 +62,31 @@ const SymbolPerformanceChart = ({ trades: tradesProp }: SymbolPerformanceChartPr
                 </div>
             </div>
 
-            <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+            <ResponsiveContainer width="100%" height={400}>
+                <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" opacity={0.5} />
                     <XAxis
                         type="number"
                         stroke="var(--text-tertiary)"
-                        tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }}
+                        tick={{ fill: 'var(--text-secondary)', fontSize: 13 }}
                         tickFormatter={(val) => `$${val}`}
                     />
                     <YAxis
                         type="category"
                         dataKey="name"
                         stroke="var(--text-tertiary)"
-                        tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }}
-                        width={60}
+                        tick={{ fill: 'var(--text-secondary)', fontSize: 13 }}
+                        width={150}
                     />
                     <Tooltip
                         content={({ active, payload }) => {
                             if (active && payload && payload.length) {
                                 const d = payload[0].payload;
                                 return (
-                                    <div className="bg-[var(--bg-secondary)] border border-[var(--border)] p-2 rounded shadow-xl text-xs">
-                                        <div className="font-bold">{d.name}</div>
-                                        <div className={d.value >= 0 ? 'text-green-400' : 'text-red-400'}>
-                                            ${d.value.toFixed(2)}
+                                    <div className="bg-[var(--bg-secondary)] border border-[var(--border)] p-3 rounded shadow-xl text-sm">
+                                        <div className="font-bold text-[var(--text-primary)] mb-1">{d.name}</div>
+                                        <div className={`font-semibold ${d.value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                            {d.value >= 0 ? '+' : ''}${d.value.toFixed(2)}
                                         </div>
                                     </div>
                                 );
@@ -94,7 +94,7 @@ const SymbolPerformanceChart = ({ trades: tradesProp }: SymbolPerformanceChartPr
                             return null;
                         }}
                     />
-                    <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                    <Bar dataKey="value" radius={[0, 6, 6, 0]}>
                         {data.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.value >= 0 ? 'var(--success)' : 'var(--danger)'} />
                         ))}
