@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { format, parseISO, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
 import { Search, Filter, ArrowUpRight, ArrowDownRight, ChevronUp, ChevronDown, X, Plus, Image as ImageIcon, RefreshCw } from 'lucide-react';
 import TradeDetailsModal from '../components/TradeDetailsModal';
-import TradeDetailModal from '../components/TradeDetailModal';
+
 import ExchangeFilter from '../components/ExchangeFilter';
 import TimeRangeFilter, { getDateRangeForFilter } from '../components/TimeRangeFilter';
 import type { TimeRange } from '../components/TimeRangeFilter';
@@ -20,7 +20,6 @@ const Journal = () => {
     const [showFilters, setShowFilters] = useState(false);
     const [activeMistakeDropdown, setActiveMistakeDropdown] = useState<string | null>(null);
     const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
-    const [detailModalTrade, setDetailModalTrade] = useState<Trade | null>(null);
 
     // Advanced Filters State
     const [filterType, setFilterType] = useState('ALL'); // ALL, CRYPTO, STOCK, OPTION
@@ -314,18 +313,7 @@ const Journal = () => {
                             </thead>
                             <tbody className="divide-y divide-[var(--border)]">
                                 {sortedTrades.map((trade) => (
-                                    <tr
-                                        key={trade.id}
-                                        onClick={(e) => {
-                                            // Don't open modal if clicking on interactive elements
-                                            const target = e.target as HTMLElement;
-                                            if (target.tagName === 'SELECT' || target.tagName === 'BUTTON' || target.tagName === 'INPUT') {
-                                                return;
-                                            }
-                                            setDetailModalTrade(trade);
-                                        }}
-                                        className="hover:bg-[var(--bg-tertiary)]/50 transition-colors cursor-pointer"
-                                    >
+                                    <tr key={trade.id} className="hover:bg-[var(--bg-tertiary)]/50 transition-colors">
                                         <td className="px-6 py-4 text-[var(--text-secondary)] text-sm">
                                             {format(parseISO(trade.exitDate), 'MMM dd, yyyy HH:mm')}
                                         </td>
@@ -503,24 +491,18 @@ const Journal = () => {
             {selectedTrade && (
                 <TradeDetailsModal
                     trade={selectedTrade}
+                    allTrades={sortedTrades}
                     onClose={() => setSelectedTrade(null)}
                     onUpdate={(updates) => {
                         updateTrade(selectedTrade.id, updates);
                         setSelectedTrade(prev => prev ? { ...prev, ...updates } : null);
                     }}
-                />
-            )}
-            {detailModalTrade && (
-                <TradeDetailModal
-                    trade={detailModalTrade}
-                    allTrades={sortedTrades}
-                    onClose={() => setDetailModalTrade(null)}
                     onNavigate={(direction) => {
-                        const currentIndex = sortedTrades.findIndex(t => t.id === detailModalTrade.id);
+                        const currentIndex = sortedTrades.findIndex(t => t.id === selectedTrade.id);
                         if (direction === 'prev' && currentIndex > 0) {
-                            setDetailModalTrade(sortedTrades[currentIndex - 1]);
+                            setSelectedTrade(sortedTrades[currentIndex - 1]);
                         } else if (direction === 'next' && currentIndex < sortedTrades.length - 1) {
-                            setDetailModalTrade(sortedTrades[currentIndex + 1]);
+                            setSelectedTrade(sortedTrades[currentIndex + 1]);
                         }
                     }}
                 />

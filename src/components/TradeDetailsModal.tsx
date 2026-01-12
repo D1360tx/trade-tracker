@@ -1,20 +1,59 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Upload, Image as ImageIcon, Trash2, Plus, Maximize2 } from 'lucide-react';
+import { X, Upload, Image as ImageIcon, Trash2, Plus, Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Trade } from '../types';
 import { saveImage, getImage, deleteImage } from '../utils/imageStorage';
 import { format, parseISO } from 'date-fns';
 
 interface TradeDetailsModalProps {
     trade: Trade;
+    allTrades?: Trade[];
     onClose: () => void;
     onUpdate: (updates: Partial<Trade>) => void;
+    onNavigate?: (direction: 'prev' | 'next') => void;
 }
 
-const TradeDetailsModal = ({ trade, onClose, onUpdate }: TradeDetailsModalProps) => {
+const TradeDetailsModal = ({ trade, allTrades = [], onClose, onUpdate, onNavigate }: TradeDetailsModalProps) => {
     const [images, setImages] = useState<{ id: string; url: string }[]>([]);
     const [isDragging, setIsDragging] = useState(false);
     const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const modalRef = useRef<HTMLDivElement>(null);
+
+    const currentIndex = allTrades.findIndex(t => t.id === trade.id);
+
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                if (fullScreenImage) {
+                    setFullScreenImage(null);
+                } else {
+                    onClose();
+                }
+            } else if (e.key === 'ArrowLeft' && onNavigate && currentIndex > 0) {
+                e.preventDefault();
+                onNavigate('prev');
+            } else if (e.key === 'ArrowRight' && onNavigate && currentIndex < allTrades.length - 1) {
+                e.preventDefault();
+                onNavigate('next');
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onClose, onNavigate, currentIndex, allTrades.length, fullScreenImage]);
+
+    // Click outside to close
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+                onClose();
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [onClose]);
 
     // Load images on mount
     useEffect(() => {
@@ -93,7 +132,7 @@ const TradeDetailsModal = ({ trade, onClose, onUpdate }: TradeDetailsModalProps)
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl relative">
+            <div ref={modalRef} className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl relative">
 
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-[var(--border)]">
@@ -149,23 +188,13 @@ const TradeDetailsModal = ({ trade, onClose, onUpdate }: TradeDetailsModalProps)
 
                     {/* Detailed Info Grid */}
                     <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm border-t border-b border-[var(--border)] py-6">
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between">
                             <span className="text-[var(--text-secondary)]">Entry Date</span>
-                            <input
-                                type="datetime-local"
-                                className="bg-transparent text-right font-medium focus:outline-none focus:border-b border-[var(--accent-primary)] text-[var(--text-primary)]"
-                                value={trade.entryDate ? new Date(trade.entryDate).toISOString().slice(0, 16) : ''}
-                                onChange={(e) => onUpdate({ entryDate: new Date(e.target.value).toISOString() })}
-                            />
+                            <span className="font-medium">{format(parseISO(trade.entryDate), 'MMM dd, yyyy HH:mm')}</span>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between">
                             <span className="text-[var(--text-secondary)]">Exit Date</span>
-                            <input
-                                type="datetime-local"
-                                className="bg-transparent text-right font-medium focus:outline-none focus:border-b border-[var(--accent-primary)] text-[var(--text-primary)]"
-                                value={trade.exitDate ? new Date(trade.exitDate).toISOString().slice(0, 16) : ''}
-                                onChange={(e) => onUpdate({ exitDate: new Date(e.target.value).toISOString() })}
-                            />
+                            <span className="font-medium">{format(parseISO(trade.exitDate), 'MMM dd, yyyy HH:mm')}</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-[var(--text-secondary)]">Duration</span>
@@ -312,6 +341,33 @@ const TradeDetailsModal = ({ trade, onClose, onUpdate }: TradeDetailsModalProps)
                     </div>
 
                 </div>
+
+                {/* Navigation Footer */}
+                {allTrades.length > 0 && (
+                    <div className="flex items-center justify-between p-4 border-t border-[var(--border)] bg-[var(--bg-tertiary)]">
+                        <div className="text-sm text-[var(--text-secondary)]">
+                            Trade {currentIndex + 1} of {allTrades.length}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => onNavigate?.('prev')}
+                                disabled={currentIndex === 0}
+                                className="p-2 hover:bg-[var(--bg-primary)] rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Previous trade (Left Arrow)"
+                            >
+                                <ChevronLeft size={20} />
+                            </button>
+                            <button
+                                onClick={() => onNavigate?.('next')}
+                                disabled={currentIndex === allTrades.length - 1}
+                                className="p-2 hover:bg-[var(--bg-primary)] rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Next trade (Right Arrow)"
+                            >
+                                <ChevronRight size={20} />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Full Screen Image Modal */}
