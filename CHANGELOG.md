@@ -5,6 +5,84 @@ All notable changes to Trade Tracker Pro will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-01-10
+
+### 🎉 Major Features - AI Coach & Analytics
+
+#### AI Coach Personalized Recommendations
+- **ADDED**: 6 types of actionable coaching recommendations
+  - Psychology: Revenge trading detection, overtrading alerts
+  - Risk Management: Position sizing analysis, R/R ratio tracking
+  - Strategy: Directional bias optimization, ticker performance
+  - Timing: Day-of-week patterns, optimal trading hours
+- **FEATURE**: Priority system (High/Medium/Low) for recommendations
+- **UI**: Enhanced interface with category icons, priority badges
+- **METRICS**: Risk/Reward ratio analysis (average win vs average loss)
+- **ANALYSIS**: Overtrading detection based on frequency and win rate
+- **NAVIGATION FIX**: AI Coach menu now correctly routes to `/ai-insights`
+
+#### MEXC Futures Fee Tracking Enhancement
+- **IMPROVED**: Fee parsing now checks multiple API fields
+  - `totalFee`, `takerFee`, `makerFee`, `fee` fields
+- **FIX**: Fees from both OPEN and CLOSE orders properly aggregated
+- **READY**: Prepared for accurate fee tracking when MEXC API updates
+- **DEBUG**: Added detailed fee/profit logging for diagnostics
+
+### 🚀 New Features
+
+#### Expired Worthless Options Automation
+- **ADDED**: Auto-detection of expired options (Schwab API)
+- **FEATURE**: Parses expiration dates from option symbol format
+  - Example: "ISRG  251031C00600000" → Expires 10/31/2025
+- **LOGIC**: Creates CLOSED trades for expired positions
+  - Exit Price: $0.00
+  - P&L: -(premium paid × quantity × 100) - fees
+  - P&L %: -100%
+  - Notes: "Imported from Schwab API (Expired Worthless)"
+- **IMPACT**: Missing trades like ISRG 600C now automatically tracked
+- **NOTE**: CSV imports already include expired options from Schwab
+
+#### Time Range Filter Enhancements
+- **ADDED**: "Last Year" option to all time filters
+  - Shows Jan 1 - Dec 31 of previous year (2025)
+- **CHANGED**: Updated default time ranges
+  - Journal: **30d → All Time** (complete history view)
+  - Dashboard: **30d → This Week** (recent activity focus)  
+  - Reports: **30d → This Week** (current performance)
+- **BENEFIT**: More intuitive defaults for each page's purpose
+
+### 🔧 Improvements
+
+#### CSV Import Diagnostic Logging
+- **ADDED**: Detailed console logging for CSV imports
+  - Total rows processed
+  - Date range of imported trades
+  - January 2026 trade detection
+- **DEBUG**: Helps diagnose missing or filtered trades
+- **UI**: Logs visible in browser console during import
+
+#### Schwab CSV Import Robustness
+- **FIX**: CSV import now properly detects Schwab format
+  - Must select "Schwab" from dropdown before upload
+  - Auto-detects "Realized Gain/Loss" vs "Transactions" format
+- **IMPROVED**: Better handling of Details CSV format
+- **VERIFIED**: Correctly imports trades from 2025-2026
+
+### 📁 Files Changed (v1.3.0)
+- `src/utils/insightGenerator.ts` - AI Coach recommendations engine
+- `src/pages/AIInsights.tsx` - Enhanced UI with recommendations
+- `src/components/Layout.tsx` - Fixed AI Coach navigation
+- `src/utils/apiClient.ts` - Improved MEXC fee parsing
+- `src/utils/schwabTransactions.ts` - Expired options detection
+- `src/components/TimeRangeFilter.tsx` - Last Year filter
+- `src/pages/Journal.tsx` - Default to All Time
+- `src/pages/Dashboard.tsx` - Default to This Week
+- `src/pages/ReportsPage.tsx` - Default to This Week
+- `src/utils/csvParsers.ts` - Diagnostic logging
+- `src/pages/ImportPage.tsx` - Console log display
+
+---
+
 ## [1.2.0] - 2026-01-09
 
 ### 🎉 Major Fixes - Schwab Data Accuracy

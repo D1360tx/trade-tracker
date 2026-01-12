@@ -32,8 +32,11 @@ A comprehensive trading journal and analytics platform with AI-powered insights,
   - Streak analysis
 
 ### AI-Powered Insights
-- **Pattern Recognition**: Identify trading patterns and mistakes
+- **AI Coach**: Personalized recommendations across 4 categories (Psychology, Risk, Strategy, Timing)
+- **Pattern Recognition**: Identify trading patterns and behavioral issues
 - **Strategy Analysis**: AI-generated insights on trade performance
+- **Risk/Reward Analysis**: Track average win vs loss ratios
+- **Overtrading Detection**: Alerts when trading frequency impacts performance
 - **Mistake Tracking**: Learn from past errors with categorization
 - **Playbook**: Document and refine trading strategies
 
@@ -42,6 +45,8 @@ A comprehensive trading journal and analytics platform with AI-powered insights,
 - **Strategy Manager**: Organize trades by strategy
 - **Risk Analysis**: Track position sizing and risk metrics
 - **Bot Dashboard**: Monitor automated trading performance
+- **Expired Options Tracking**: Auto-detect and record worthless expirations (Schwab)
+- **Time Filters**: Flexible date ranges (Today, This Week, Last Year, All Time, etc.)
 
 ## 🛠️ Technology Stack
 
