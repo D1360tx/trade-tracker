@@ -4,13 +4,14 @@ import { useStrategies } from '../context/StrategyContext';
 import { useMistakes } from '../context/MistakeContext';
 import { Link } from 'react-router-dom';
 import { format, parseISO, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
-import { Search, Filter, ArrowUpRight, ArrowDownRight, ChevronUp, ChevronDown, X, Plus, Image as ImageIcon, RefreshCw } from 'lucide-react';
+import { Search, Filter, ArrowUpRight, ArrowDownRight, ChevronUp, ChevronDown, X, Plus, Image as ImageIcon, RefreshCw, RotateCcw, GripVertical } from 'lucide-react';
 import TradeDetailsModal from '../components/TradeDetailsModal';
 
 import ExchangeFilter from '../components/ExchangeFilter';
 import TimeRangeFilter, { getDateRangeForFilter } from '../components/TimeRangeFilter';
 import type { TimeRange } from '../components/TimeRangeFilter';
 import type { Trade } from '../types';
+import { useColumnOrder } from '../hooks/useColumnOrder';
 
 const Journal = () => {
     const { trades, updateTrade, fetchTradesFromAPI, isLoading } = useTrades();
@@ -20,6 +21,10 @@ const Journal = () => {
     const [showFilters, setShowFilters] = useState(false);
     const [activeMistakeDropdown, setActiveMistakeDropdown] = useState<string | null>(null);
     const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+
+    // Column ordering
+    const { columns, draggedColumn, dragOverColumn, handleDragStart, handleDragOver, handleDragEnd, resetToDefault } = useColumnOrder();
+    console.log(`Journal has ${columns.length} columns configured`); // TODO: Implement full column reordering
 
     // Advanced Filters State
     const [filterType, setFilterType] = useState('ALL'); // ALL, CRYPTO, STOCK, OPTION
@@ -151,6 +156,14 @@ const Journal = () => {
                         <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
                         <span>{isLoading ? 'Syncing...' : 'Sync Exchanges'}</span>
                     </button>
+                    <button
+                        onClick={resetToDefault}
+                        className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+                        title="Reset column order to default"
+                    >
+                        <RotateCcw size={18} />
+                        <span>Reset Columns</span>
+                    </button>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" size={18} />
                         <input
@@ -263,12 +276,30 @@ const Journal = () => {
                 </div>
             ) : (
                 <div className="glass-panel rounded-xl overflow-hidden">
+                    {/* Column reorder info */}
+                    <div className="px-6 py-3 bg-[var(--bg-tertiary)]/50 border-b border-[var(--border)] flex items-center justify-between">
+                        <p className="text-xs text-[var(--text-secondary)]">
+                            <GripVertical size={14} className="inline mr-1" />
+                            Drag column headers to reorder • <button onClick={resetToDefault} className="text-[var(--accent-primary)] hover:underline">Reset to default</button>
+                        </p>
+                    </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead>
                                 <tr className="bg-[var(--bg-tertiary)] text-left">
-                                    <th onClick={() => handleSort('exitDate')} className="cursor-pointer hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)] font-medium text-sm transition-colors relative z-10 w-[15%]">
-                                        <div className="flex items-center">Date <SortIcon columnKey="exitDate" /></div>
+                                    <th
+                                        draggable="true"
+                                        onDragStart={() => handleDragStart('date')}
+                                        onDragOver={(e) => handleDragOver(e, 'date')}
+                                        onDragEnd={handleDragEnd}
+                                        onClick={() => handleSort('exitDate')}
+                                        className={`cursor-move hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)] font-medium text-sm transition-all relative z-10 w-[15%] ${draggedColumn === 'date' ? 'opacity-50' : ''
+                                            } ${dragOverColumn === 'date' ? 'bg-[var(--accent-primary)]/10' : ''}`}
+                                    >
+                                        <div className="flex items-center">
+                                            <GripVertical size={14} className="mr-1 opacity-50" />
+                                            Date <SortIcon columnKey="exitDate" />
+                                        </div>
                                     </th>
                                     <th onClick={() => handleSort('ticker')} className="cursor-pointer hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)] font-medium text-sm transition-colors relative z-10 w-[10%]">
                                         <div className="flex items-center">Symbol <SortIcon columnKey="ticker" /></div>
