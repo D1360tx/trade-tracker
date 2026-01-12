@@ -253,43 +253,47 @@ export const TableCell: React.FC<TableCellProps> = ({
                     {trade.type === 'FUTURES' && trade.margin
                         ? `$${trade.margin.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                         : trade.type === 'FOREX'
-                            ? trade.quantity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                            : trade.type === 'CRYPTO' || trade.type === 'FUTURES' || trade.type === 'SPOT'
-                                ? trade.quantity.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
-                                : trade.quantity.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                            ? (trade.quantity || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            : ['CRYPTO', 'FUTURES', 'SPOT'].includes(trade.type)
+                                ? (trade.quantity || 0).toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+                                : (trade.quantity || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}
                 </td>
             );
 
         case 'entryPrice':
             return (
                 <td className="px-6 py-4 text-right text-sm">
-                    ${trade.entryPrice.toFixed(2)}
+                    ${(trade.entryPrice || 0).toFixed(2)}
                 </td>
             );
 
         case 'exitPrice':
             return (
                 <td className="px-6 py-4 text-right text-sm">
-                    ${trade.exitPrice.toFixed(2)}
+                    ${(trade.exitPrice || 0).toFixed(2)}
                 </td>
             );
 
-        case 'pnl':
+        case 'pnl': {
+            const pnl = trade.pnl || 0;
             return (
-                <td className={`px-6 py-4 text-right font-medium ${trade.pnl >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
-                    ${trade.pnl.toFixed(2)}
+                <td className={`px-6 py-4 text-right font-medium ${pnl >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                    ${pnl.toFixed(2)}
                 </td>
             );
+        }
 
-        case 'pnlPercentage':
+        case 'pnlPercentage': {
+            const pnlPct = trade.pnlPercentage || 0;
             return (
-                <td className={`px-6 py-4 text-right ${trade.pnlPercentage >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                <td className={`px-6 py-4 text-right ${pnlPct >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
                     <div className="flex items-center justify-end gap-1">
-                        {trade.pnlPercentage >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                        {Math.abs(trade.pnlPercentage).toFixed(2)}%
+                        {pnlPct >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                        {Math.abs(pnlPct).toFixed(2)}%
                     </div>
                 </td>
             );
+        }
 
         case 'risk':
             return (
