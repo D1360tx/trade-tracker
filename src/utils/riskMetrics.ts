@@ -150,9 +150,22 @@ export const calculateWinRateByPositionSize = (trades: Trade[]): PositionSizeMet
 
     if (validTrades.length === 0) return [];
 
-    // Calculate position sizes
+    // Calculate position sizes (actual capital risked)
     const sizes = validTrades.map(t => {
-        const entryValue = Math.abs(t.entryPrice * t.quantity * (t.type === 'OPTION' ? 100 : 1));
+        // For options: premium × quantity (already in $/share, no need for 100x)
+        // For stocks: price × quantity
+        // For futures/crypto: we use the entry value as notional, but could be adjusted
+        let entryValue: number;
+
+        if (t.type === 'OPTION') {
+            // Premium is already per share, quantity is contracts
+            // Actual cost = premium × quantity × 100 shares per contract
+            entryValue = Math.abs(t.entryPrice * t.quantity * 100);
+        } else {
+            // Stocks, crypto, futures: price × quantity
+            entryValue = Math.abs(t.entryPrice * t.quantity);
+        }
+
         return { trade: t, size: entryValue };
     });
 

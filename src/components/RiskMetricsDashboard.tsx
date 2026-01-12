@@ -171,7 +171,7 @@ const RiskMetricsDashboard: React.FC<RiskMetricsDashboardProps> = ({ trades }) =
                     <div className="mb-4">
                         <h4 className="text-lg font-bold">Win Rate by Position Size</h4>
                         <p className="text-sm text-[var(--text-secondary)] mt-1">
-                            Position Size = Entry Price × Quantity (× 100 for options)
+                            Shows actual capital risked/deployed per trade. Options: Premium × Contracts × 100. Stocks: Price × Shares.
                         </p>
                     </div>
                     <ResponsiveContainer width="100%" height={300}>
