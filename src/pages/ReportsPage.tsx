@@ -10,6 +10,7 @@ import SymbolPerformanceChart from '../components/charts/SymbolPerformanceChart'
 import DrawdownAnalysis from '../components/charts/DrawdownAnalysis';
 import MonthlyPerformance from '../components/charts/MonthlyPerformance';
 import StreakAnalysis from '../components/charts/StreakAnalysis';
+import RiskMetricsDashboard from '../components/RiskMetricsDashboard';
 import TimeRangeFilter, { getDateRangeForFilter } from '../components/TimeRangeFilter';
 import type { TimeRange } from '../components/TimeRangeFilter';
 import DayDetailModal from '../components/DayDetailModal';
@@ -368,6 +369,13 @@ const ReportsPage = () => {
             <div className="mt-6">
                 <div className="glass-panel p-6 rounded-xl">
                     <StreakAnalysis trades={filteredTrades} />
+                </div>
+            </div>
+
+            {/* Risk-Adjusted Metrics - Full Width */}
+            <div className="mt-6">
+                <div className="glass-panel p-6 rounded-xl">
+                    <RiskMetricsDashboard trades={filteredTrades} />
                 </div>
             </div>
 
