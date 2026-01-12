@@ -152,9 +152,6 @@ export const calculateWinRateByPositionSize = (trades: Trade[]): PositionSizeMet
 
     // Calculate position sizes (actual capital risked)
     const sizes = validTrades.map(t => {
-        // For options: premium × quantity (already in $/share, no need for 100x)
-        // For stocks: price × quantity
-        // For futures/crypto: we use the entry value as notional, but could be adjusted
         let entryValue: number;
 
         if (t.type === 'OPTION') {
@@ -169,11 +166,39 @@ export const calculateWinRateByPositionSize = (trades: Trade[]): PositionSizeMet
         return { trade: t, size: entryValue };
     });
 
+    // Filter out unrealistic position sizes (likely data errors or futures with notional values)
+    // Most retail traders don't have individual positions > $500k
+    const filteredSizes = sizes.filter(s => s.size > 0 && s.size <= 500000);
+
+    if (filteredSizes.length === 0) return [];
+
     // Find min/max for bucketing
-    const allSizes = sizes.map(s => s.size);
+    const allSizes = filteredSizes.map(s => s.size);
     const minSize = Math.min(...allSizes);
     const maxSize = Math.max(...allSizes);
     const range = maxSize - minSize;
+
+    // If range is too small, adjust buckets
+    if (range < 100) {
+        // Very tight range, just create one bucket
+        const allTrades = filteredSizes;
+        const wins = allTrades.filter(s => s.trade.pnl > 0);
+        const losses = allTrades.filter(s => s.trade.pnl <= 0);
+        const totalPnL = allTrades.reduce((sum, s) => sum + s.trade.pnl, 0);
+        const avgPnL = allTrades.length > 0 ? totalPnL / allTrades.length : 0;
+
+        return [{
+            bucket: `${formatBucketLabel(minSize)} - ${formatBucketLabel(maxSize)}`,
+            minSize,
+            maxSize,
+            trades: allTrades.length,
+            wins: wins.length,
+            losses: losses.length,
+            winRate: allTrades.length > 0 ? (wins.length / allTrades.length) * 100 : 0,
+            avgPnL,
+            totalPnL
+        }];
+    }
 
     // Create 5 buckets
     const bucketSize = range / 5;
@@ -183,7 +208,7 @@ export const calculateWinRateByPositionSize = (trades: Trade[]): PositionSizeMet
         const bucketMin = minSize + (i * bucketSize);
         const bucketMax = i === 4 ? maxSize : minSize + ((i + 1) * bucketSize);
 
-        const bucketTrades = sizes.filter(s => s.size >= bucketMin && s.size <= bucketMax);
+        const bucketTrades = filteredSizes.filter(s => s.size >= bucketMin && s.size <= bucketMax);
         const wins = bucketTrades.filter(s => s.trade.pnl > 0);
         const losses = bucketTrades.filter(s => s.trade.pnl <= 0);
         const totalPnL = bucketTrades.reduce((sum, s) => sum + s.trade.pnl, 0);
