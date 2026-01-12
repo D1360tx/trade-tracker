@@ -363,7 +363,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 if (idMatchIndex !== -1) {
                     // Update existing by ID match
                     const existing = next[idMatchIndex];
-                    if (existing.status !== incoming.status || existing.pnl !== incoming.pnl || existing.isBot !== incoming.isBot) {
+                    if (existing.status !== incoming.status || existing.pnl !== incoming.pnl || existing.isBot !== incoming.isBot || existing.type !== incoming.type || existing.margin !== incoming.margin) {
                         next[idMatchIndex] = {
                             ...incoming,
                             notes: existing.notes || incoming.notes,
