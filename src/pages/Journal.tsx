@@ -1,17 +1,18 @@
+
 import { useMemo, useState } from 'react';
 import { useTrades } from '../context/TradeContext';
 import { useStrategies } from '../context/StrategyContext';
 import { useMistakes } from '../context/MistakeContext';
 import { Link } from 'react-router-dom';
-import { format, parseISO, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
-import { Search, Filter, ArrowUpRight, ArrowDownRight, ChevronUp, ChevronDown, X, Plus, Image as ImageIcon, RefreshCw, RotateCcw, GripVertical } from 'lucide-react';
+import { isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
+import { Search, Filter, RefreshCw, RotateCcw, GripVertical } from 'lucide-react';
 import TradeDetailsModal from '../components/TradeDetailsModal';
-
 import ExchangeFilter from '../components/ExchangeFilter';
 import TimeRangeFilter, { getDateRangeForFilter } from '../components/TimeRangeFilter';
 import type { TimeRange } from '../components/TimeRangeFilter';
 import type { Trade } from '../types';
 import { useColumnOrder } from '../hooks/useColumnOrder';
+import { TableHeader, TableCell } from '../components/TableRenderers';
 
 const Journal = () => {
     const { trades, updateTrade, fetchTradesFromAPI, isLoading } = useTrades();
@@ -24,7 +25,6 @@ const Journal = () => {
 
     // Column ordering
     const { columns, draggedColumn, dragOverColumn, handleDragStart, handleDragOver, handleDragEnd, resetToDefault } = useColumnOrder();
-    console.log(`Journal has ${columns.length} columns configured`); // TODO: Implement full column reordering
 
     // Advanced Filters State
     const [filterType, setFilterType] = useState('ALL'); // ALL, CRYPTO, STOCK, OPTION
@@ -40,40 +40,57 @@ const Journal = () => {
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'exitDate', direction: 'desc' });
 
     const filteredTrades = useMemo(() => {
-        return trades.filter(t => {
-            const matchesTicker = (t.ticker || 'UNKNOWN').toLowerCase().includes(filterTicker.toLowerCase());
+        let result = trades;
 
-            // Only show CLOSED trades or non-zero PnL
-            const isClosed = t.status === 'CLOSED' || t.pnl !== 0;
+        // Filter by Ticker
+        if (filterTicker) {
+            result = result.filter(t => t.ticker.toLowerCase().includes(filterTicker.toLowerCase()));
+        }
 
-            const matchesType = filterType === 'ALL' || t.type === filterType;
-            const matchesDirection = filterDirection === 'ALL' || t.direction === filterDirection;
-            const matchesExchange = selectedExchanges.length === 0 || selectedExchanges.includes(t.exchange);
+        // Filter by Type
+        if (filterType !== 'ALL') {
+            result = result.filter(t => t.type === filterType);
+        }
 
-            // Time range filter
-            let matchesDate = true;
-            if (timeRange !== 'all') {
+        // Filter by Direction
+        if (filterDirection !== 'ALL') {
+            result = result.filter(t => t.direction === filterDirection);
+        }
+
+        // Filter by Exchange
+        if (selectedExchanges.length > 0) {
+            result = result.filter(t => selectedExchanges.includes(t.exchange));
+        }
+
+        // Filter by Time Range
+        if (timeRange !== 'all') {
+            let dateRange;
+            if (timeRange === 'custom' && customStart) {
                 const now = new Date();
-                let dateRange: { start: Date; end: Date };
-
-                if (timeRange === 'custom' && customStart) {
-                    dateRange = {
-                        start: startOfDay(parseISO(customStart)),
-                        end: customEnd ? endOfDay(parseISO(customEnd)) : now
-                    };
-                } else {
-                    dateRange = getDateRangeForFilter(timeRange);
-                }
-
-                const tradeDate = parseISO(t.exitDate);
-                matchesDate = isAfter(tradeDate, dateRange.start) && isBefore(tradeDate, dateRange.end);
+                dateRange = {
+                    start: startOfDay(new Date(customStart)),
+                    end: customEnd ? endOfDay(new Date(customEnd)) : now
+                };
+            } else {
+                dateRange = getDateRangeForFilter(timeRange);
             }
 
-            const matchesStrategy = !filterStrategy || t.strategyId === filterStrategy;
-            const matchesMistake = !filterMistake || (t.mistakes && t.mistakes.includes(filterMistake));
+            const { start, end } = dateRange;
+            if (start) result = result.filter(t => isAfter(new Date(t.exitDate), start));
+            if (end) result = result.filter(t => isBefore(new Date(t.exitDate), end));
+        }
 
-            return matchesTicker && isClosed && matchesType && matchesDirection && matchesExchange && matchesDate && matchesStrategy && matchesMistake;
-        });
+        // Filter by Strategy
+        if (filterStrategy) {
+            result = result.filter(t => t.strategyId === filterStrategy);
+        }
+
+        // Filter by Mistake
+        if (filterMistake) {
+            result = result.filter(t => t.mistakes && t.mistakes.includes(filterMistake));
+        }
+
+        return result;
     }, [trades, filterTicker, filterType, filterDirection, selectedExchanges, timeRange, customStart, customEnd, filterStrategy, filterMistake]);
 
     const sortedTrades = useMemo(() => {
@@ -122,10 +139,7 @@ const Journal = () => {
         });
     };
 
-    const SortIcon = ({ columnKey }: { columnKey: string }) => {
-        if (sortConfig.key !== columnKey) return null;
-        return sortConfig.direction === 'asc' ? <ChevronUp size={14} className="ml-1" /> : <ChevronDown size={14} className="ml-1" />;
-    };
+
 
     return (
         <div className="space-y-6">
@@ -138,8 +152,8 @@ const Journal = () => {
                             // Smart sync: only sync exchanges with API keys configured
                             const exchanges: Array<'MEXC' | 'ByBit'> = ['MEXC', 'ByBit'];
                             const toSync = exchanges.filter(ex => {
-                                const apiKey = localStorage.getItem(`${ex.toLowerCase()}_api_key`);
-                                const apiSecret = localStorage.getItem(`${ex.toLowerCase()}_api_secret`);
+                                const apiKey = localStorage.getItem(ex.toLowerCase() + "_api_key");
+                                const apiSecret = localStorage.getItem(ex.toLowerCase() + "_api_secret");
                                 return apiKey && apiSecret;
                             });
 
@@ -176,7 +190,7 @@ const Journal = () => {
                     </div>
                     <button
                         onClick={() => setShowFilters(!showFilters)}
-                        className={`relative z-10 flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${showFilters ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white' : 'bg-[var(--bg-secondary)] border-[var(--border)] hover:border-[var(--text-tertiary)]'}`}
+                        className={"relative z-10 flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors " + (showFilters ? "bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white" : "bg-[var(--bg-secondary)] border-[var(--border)] hover:border-[var(--text-tertiary)]")}
                     >
                         <Filter size={18} />
                         <span>Filters</span>
@@ -287,231 +301,37 @@ const Journal = () => {
                         <table className="w-full">
                             <thead>
                                 <tr className="bg-[var(--bg-tertiary)] text-left">
-                                    <th
-                                        draggable="true"
-                                        onDragStart={() => handleDragStart('date')}
-                                        onDragOver={(e) => handleDragOver(e, 'date')}
-                                        onDragEnd={handleDragEnd}
-                                        onClick={() => handleSort('exitDate')}
-                                        className={`cursor-move hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)] font-medium text-sm transition-all relative z-10 w-[15%] ${draggedColumn === 'date' ? 'opacity-50' : ''
-                                            } ${dragOverColumn === 'date' ? 'bg-[var(--accent-primary)]/10' : ''}`}
-                                    >
-                                        <div className="flex items-center">
-                                            <GripVertical size={14} className="mr-1 opacity-50" />
-                                            Date <SortIcon columnKey="exitDate" />
-                                        </div>
-                                    </th>
-                                    <th onClick={() => handleSort('ticker')} className="cursor-pointer hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)] font-medium text-sm transition-colors relative z-10 w-[10%]">
-                                        <div className="flex items-center">Symbol <SortIcon columnKey="ticker" /></div>
-                                    </th>
-                                    <th onClick={() => handleSort('type')} className="cursor-pointer hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)] font-medium text-sm transition-colors relative z-10 w-[10%]">
-                                        <div className="flex items-center">Type <SortIcon columnKey="type" /></div>
-                                    </th>
-                                    <th className="px-6 py-4 text-[var(--text-secondary)] font-medium text-sm w-[5%] relative z-10">
-                                        Media
-                                    </th>
-                                    <th className="px-6 py-4 text-[var(--text-secondary)] font-medium text-sm w-[15%] relative z-10">
-                                        Strategy
-                                    </th>
-                                    <th className="px-6 py-4 text-[var(--text-secondary)] font-medium text-sm w-[15%] relative z-10">
-                                        Mistakes
-                                    </th>
-                                    <th onClick={() => handleSort('direction')} className="cursor-pointer hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)] font-medium text-sm transition-colors relative z-10 w-[10%]">
-                                        <div className="flex items-center">Direction <SortIcon columnKey="direction" /></div>
-                                    </th>
-                                    <th onClick={() => handleSort('quantity')} className="cursor-pointer hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)] font-medium text-sm text-right transition-colors relative z-10 w-[8%]">
-                                        <div className="flex items-center justify-end">Size <SortIcon columnKey="quantity" /></div>
-                                    </th>
-                                    <th onClick={() => handleSort('entryPrice')} className="cursor-pointer hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)] font-medium text-sm text-right transition-colors relative z-10 w-[10%]">
-                                        <div className="flex items-center justify-end">Entry <SortIcon columnKey="entryPrice" /></div>
-                                    </th>
-                                    <th onClick={() => handleSort('exitPrice')} className="cursor-pointer hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)] font-medium text-sm text-right transition-colors relative z-10 w-[10%]">
-                                        <div className="flex items-center justify-end">Exit <SortIcon columnKey="exitPrice" /></div>
-                                    </th>
-                                    <th onClick={() => handleSort('pnl')} className="cursor-pointer hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)] font-medium text-sm text-right transition-colors relative z-10 w-[10%]">
-                                        <div className="flex items-center justify-end">P&L <SortIcon columnKey="pnl" /></div>
-                                    </th>
-                                    <th onClick={() => handleSort('pnlPercentage')} className="cursor-pointer hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)] font-medium text-sm text-right transition-colors relative z-10 w-[10%]">
-                                        <div className="flex items-center justify-end">Net ROI <SortIcon columnKey="pnlPercentage" /></div>
-                                    </th>
-                                    <th className="px-6 py-4 text-[var(--text-secondary)] font-medium text-sm text-right relative z-10 w-[8%]">
-                                        Risk
-                                    </th>
-                                    <th className="px-6 py-4 text-[var(--text-secondary)] font-medium text-sm text-right relative z-10 w-[6%]">
-                                        R
-                                    </th>
+                                    {columns.map(column => (
+                                        <TableHeader
+                                            key={column.id}
+                                            column={column}
+                                            sortConfig={sortConfig}
+                                            draggedColumn={draggedColumn}
+                                            dragOverColumn={dragOverColumn}
+                                            handleSort={handleSort}
+                                            handleDragStart={handleDragStart}
+                                            handleDragOver={handleDragOver}
+                                            handleDragEnd={handleDragEnd}
+                                        />
+                                    ))}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[var(--border)]">
                                 {sortedTrades.map((trade) => (
                                     <tr key={trade.id} className="hover:bg-[var(--bg-tertiary)]/50 transition-colors">
-                                        <td className="px-6 py-4 text-[var(--text-secondary)] text-sm">
-                                            {format(parseISO(trade.exitDate), 'MMM dd, yyyy HH:mm')}
-                                        </td>
-                                        <td className="px-6 py-4 font-semibold">
-                                            <button
-                                                onClick={() => setSelectedTrade(trade)}
-                                                className="text-left hover:text-[var(--accent-primary)] transition-colors flex items-center gap-2"
-                                            >
-                                                {trade.ticker}
-                                                <span className="text-xs font-normal text-[var(--text-tertiary)] px-1.5 py-0.5 border border-[var(--border)] rounded">{trade.exchange}</span>
-                                            </button>
-                                        </td>
-                                        <td className="px-6 py-4 text-[var(--text-secondary)] text-sm">{trade.type}</td>
-                                        <td className="px-6 py-4">
-                                            {(trade.screenshotIds?.length || 0) > 0 && (
-                                                <div className="flex items-center gap-1 text-[var(--text-secondary)]" title={`${trade.screenshotIds?.length} screenshots`}>
-                                                    <ImageIcon size={14} />
-                                                    <span className="text-xs">{trade.screenshotIds?.length}</span>
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <select
-                                                value={trade.strategyId || ''}
-                                                onChange={(e) => updateTrade(trade.id, { strategyId: e.target.value })}
-                                                className={`
-                                                    bg-transparent border border-[var(--border)] rounded px-2 py-1 text-xs outline-none focus:border-[var(--accent-primary)]
-                                                    ${trade.strategyId ? strategies.find(s => s.id === trade.strategyId)?.color.replace('bg-', 'text-') : 'text-[var(--text-tertiary)]'}
-                                                `}
-                                                onClick={(e) => e.stopPropagation()}
-                                            >
-                                                <option value="">- No Strategy -</option>
-                                                {strategies.map(s => (
-                                                    <option key={s.id} value={s.id}>
-                                                        {s.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </td>
-                                        <td className="px-6 py-4 relative">
-                                            <div className="flex flex-wrap gap-1 items-center">
-                                                {(trade.mistakes || []).length > 0 && (
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {trade.mistakes?.map(mid => {
-                                                            const m = mistakes.find(mk => mk.id === mid);
-                                                            if (!m) return null;
-                                                            return (
-                                                                <span key={mid} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-white ${m.color}`}
-                                                                    title={m.name}>
-                                                                    {m.name.slice(0, 1)}
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            const newMistakes = trade.mistakes?.filter(id => id !== mid) || [];
-                                                                            updateTrade(trade.id, { mistakes: newMistakes });
-                                                                        }}
-                                                                        className="hover:text-black/50"
-                                                                    >
-                                                                        <X size={10} />
-                                                                    </button>
-                                                                </span>
-                                                            )
-                                                        })}
-                                                    </div>
-                                                )}
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setActiveMistakeDropdown(activeMistakeDropdown === trade.id ? null : trade.id);
-                                                    }}
-                                                    className={`p-1 rounded hover:bg-[var(--bg-tertiary)] ${activeMistakeDropdown === trade.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-tertiary)]'}`}
-                                                >
-                                                    <Plus size={14} />
-                                                </button>
-                                            </div>
-
-                                            {/* Mistake Dropdown */}
-                                            {activeMistakeDropdown === trade.id && (
-                                                <>
-                                                    <div className="fixed inset-0 z-40" onClick={() => setActiveMistakeDropdown(null)}></div>
-                                                    <div className="absolute left-0 top-full mt-1 z-50 w-48 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg shadow-xl p-2 animate-in fade-in zoom-in-95 duration-100">
-                                                        <p className="text-xs font-semibold text-[var(--text-secondary)] mb-2 px-2">Tag Mistakes</p>
-                                                        <div className="space-y-1 max-h-48 overflow-y-auto">
-                                                            {mistakes.length === 0 ? (
-                                                                <p className="text-xs text-[var(--text-tertiary)] px-2 py-1">No mistakes defined.</p>
-                                                            ) : (
-                                                                mistakes.map(m => {
-                                                                    const isSelected = (trade.mistakes || []).includes(m.id);
-                                                                    return (
-                                                                        <button
-                                                                            key={m.id}
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                const current = trade.mistakes || [];
-                                                                                const newMistakes = isSelected
-                                                                                    ? current.filter(id => id !== m.id)
-                                                                                    : [...current, m.id];
-                                                                                updateTrade(trade.id, { mistakes: newMistakes });
-                                                                            }}
-                                                                            className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-xs transition-colors ${isSelected ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]' : 'hover:bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}
-                                                                        >
-                                                                            <div className="flex items-center gap-2">
-                                                                                <div className={`w-2 h-2 rounded-full ${m.color}`}></div>
-                                                                                <span>{m.name}</span>
-                                                                            </div>
-                                                                            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"></div>}
-                                                                        </button>
-                                                                    );
-                                                                })
-                                                            )}
-                                                        </div>
-                                                        <div className="mt-2 pt-2 border-t border-[var(--border)]">
-                                                            <Link to="/playbook" className="text-[10px] text-[var(--accent-primary)] hover:underline px-2 block text-center">Manage Mistakes</Link>
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span
-                                                className={`text-xs font-medium px-2 py-1 rounded-full ${trade.direction === 'LONG'
-                                                    ? 'bg-[var(--success)]/10 text-[var(--success)]'
-                                                    : 'bg-[var(--danger)]/10 text-[var(--danger)]'
-                                                    }`}
-                                            >
-                                                {trade.direction}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right text-sm text-[var(--text-secondary)]">
-                                            {trade.type === 'FUTURES' && trade.margin
-                                                ? `$${trade.margin.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                                                : trade.type === 'FOREX'
-                                                    ? trade.quantity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                                    : trade.type === 'CRYPTO' || trade.type === 'FUTURES' || trade.type === 'SPOT'
-                                                        ? trade.quantity.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
-                                                        : trade.quantity.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                                        </td>
-                                        <td className="px-6 py-4 text-right text-sm">${trade.entryPrice.toFixed(2)}</td>
-                                        <td className="px-6 py-4 text-right text-sm">${trade.exitPrice.toFixed(2)}</td>
-                                        <td className={`px-6 py-4 text-right font-medium ${trade.pnl >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
-                                            ${trade.pnl.toFixed(2)}
-                                        </td>
-                                        <td className={`px-6 py-4 text-right ${trade.pnlPercentage >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
-                                            <div className="flex items-center justify-end gap-1">
-                                                {trade.pnlPercentage >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                                                {Math.abs(trade.pnlPercentage).toFixed(2)}%
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <input
-                                                type="number"
-                                                value={trade.initialRisk || ''}
-                                                onChange={(e) => {
-                                                    const val = parseFloat(e.target.value);
-                                                    updateTrade(trade.id, { initialRisk: isNaN(val) ? undefined : val });
-                                                }}
-                                                placeholder="-"
-                                                className="w-16 bg-transparent border border-[var(--border)] rounded px-2 py-1 text-right text-sm outline-none focus:border-[var(--accent-primary)] placeholder-[var(--text-tertiary)]"
-                                                onClick={(e) => e.stopPropagation()}
+                                        {columns.map(column => (
+                                            <TableCell
+                                                key={column.id}
+                                                columnId={column.id}
+                                                trade={trade}
+                                                strategies={strategies}
+                                                mistakes={mistakes}
+                                                activeMistakeDropdown={activeMistakeDropdown}
+                                                setActiveMistakeDropdown={setActiveMistakeDropdown}
+                                                setSelectedTrade={setSelectedTrade}
+                                                updateTrade={updateTrade}
                                             />
-                                        </td>
-                                        <td className="px-6 py-4 text-right text-sm font-medium text-[var(--text-secondary)]">
-                                            {trade.initialRisk && trade.initialRisk > 0
-                                                ? `${(trade.pnl / trade.initialRisk).toFixed(2)}R`
-                                                : '-'
-                                            }
-                                        </td>
+                                        ))}
                                     </tr>
                                 ))}
                             </tbody>

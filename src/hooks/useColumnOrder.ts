@@ -24,18 +24,20 @@ export interface Column {
 }
 
 const DEFAULT_COLUMNS: Column[] = [
+    // Primary columns - most important data
     { id: 'date', label: 'Date', width: 'w-[15%]', sortKey: 'exitDate' },
     { id: 'ticker', label: 'Symbol', width: 'w-[10%]', sortKey: 'ticker' },
     { id: 'type', label: 'Type', width: 'w-[10%]', sortKey: 'type' },
-    { id: 'screenshots', label: 'Media', width: 'w-[5%]' },
-    { id: 'strategy', label: 'Strategy', width: 'w-[15%]' },
-    { id: 'mistakes', label: 'Mistakes', width: 'w-[15%]' },
     { id: 'direction', label: 'Direction', width: 'w-[10%]', sortKey: 'direction' },
     { id: 'quantity', label: 'Size', width: 'w-[8%]', sortKey: 'quantity' },
     { id: 'entryPrice', label: 'Entry', width: 'w-[10%]', sortKey: 'entryPrice' },
     { id: 'exitPrice', label: 'Exit', width: 'w-[10%]', sortKey: 'exitPrice' },
     { id: 'pnl', label: 'P&L', width: 'w-[10%]', sortKey: 'pnl' },
     { id: 'pnlPercentage', label: 'Net ROI', width: 'w-[10%]', sortKey: 'pnlPercentage' },
+    // Secondary columns - supporting data
+    { id: 'screenshots', label: 'Media', width: 'w-[5%]' },
+    { id: 'strategy', label: 'Strategy', width: 'w-[15%]' },
+    { id: 'mistakes', label: 'Mistakes', width: 'w-[15%]' },
     { id: 'risk', label: 'Risk', width: 'w-[8%]' },
     { id: 'rMultiple', label: 'R', width: 'w-[6%]' },
 ];
