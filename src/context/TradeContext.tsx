@@ -223,7 +223,7 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                 id: pos.id,
                 exchange: exchangeName as any,
                 ticker: symbol,
-                type: 'CRYPTO',
+                type: (pos.type || 'CRYPTO') as any,
                 direction: pos.direction,
                 entryPrice: pos.price,
                 exitPrice: pos.price, // Current price not known, use entry
@@ -233,6 +233,8 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                 fees: pos.fees,
                 pnl: 0,
                 pnlPercentage: 0,
+                notional: pos.qty * pos.price,
+                margin: (pos.qty * pos.price) / (pos.leverage || 1),
                 status: 'OPEN',
                 notes: `Imported via ${exchangeName} API`,
                 isBot: pos.isBot
@@ -428,8 +430,17 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
 
             if (exchange === 'MEXC') {
                 // Fetch Orders/Deals (Reverting to History to be safe + Heuristic Bot Detection)
+
+                // Extract unique symbols from existing MEXC trades to ensure we re-scan 0-balance pairs
+                // Include both raw and normalized (no underscore) versions to cover Spot/Futures format differences
+                const mexcTickers = trades.filter(t => t.exchange === 'MEXC').map(t => t.ticker);
+                const knownSymbols = Array.from(new Set([
+                    ...mexcTickers,
+                    ...mexcTickers.map(t => t.replace('_', '')) // Convert SOL_USDT -> SOLUSDT for Spot API
+                ]));
+
                 const futuresResult = await fetchMEXCTradeHistory(apiKey, apiSecret);
-                const spotResult = await fetchMEXCSpotHistory(apiKey, apiSecret);
+                const spotResult = await fetchMEXCSpotHistory(apiKey, apiSecret, knownSymbols);
 
                 // Bot Detection: Futures with specific externalOid tags
                 // We track the FIRST timestamp where a bot tag is seen.
@@ -507,20 +518,20 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             console.log(`[${exchange}] Raw API response sample:`, raw);
             console.log(`[${exchange}] API Trades before aggregation:`, apiTrades.length);
 
-            const trades = aggregateTrades(apiTrades, exchange);
-            console.log(`[${exchange}] Trades after aggregation:`, trades.length);
-            console.log(`[${exchange}] Sample aggregated trade:`, trades[0]);
+            const newTrades = aggregateTrades(apiTrades, exchange);
+            console.log(`[${exchange}] Trades after aggregation:`, newTrades.length);
+            console.log(`[${exchange}] Sample aggregated trade:`, newTrades[0]);
 
             // deduplication logic is now inside mergeTrades (called by addTrades)
-            addTrades(trades);
+            addTrades(newTrades);
             setLastUpdated(Date.now());
 
-            console.log(`[${exchange}] Sync complete - added ${trades.length} trades`);
+            console.log(`[${exchange}] Sync complete - added ${newTrades.length} trades`);
 
             if (!silent) {
                 // Return count instead of alerting
             }
-            return trades.length;
+            return newTrades.length;
 
         } catch (error: any) {
             if (error.message === 'Simulation_Mode') {

@@ -209,7 +209,7 @@ export interface MEXCSpotTrade {
     isBestMatch: boolean;
 }
 
-export const fetchMEXCSpotHistory = async (apiKey: string, apiSecret: string): Promise<{ trades: MEXCSpotTrade[], raw: any }> => {
+export const fetchMEXCSpotHistory = async (apiKey: string, apiSecret: string, knownSymbols: string[] = []): Promise<{ trades: MEXCSpotTrade[], raw: any }> => {
     const timestamp = Date.now().toString();
     // V3 uses query string signing. 
     // Format: HmacSHA256(queryString, secret)
@@ -249,13 +249,18 @@ export const fetchMEXCSpotHistory = async (apiKey: string, apiSecret: string): P
             .map((b: any) => b.asset);
 
         // Construct likely pairs. Scan USDT and USDC.
-        const pairsToScan: string[] = [];
+        const pairsToScan = new Set<string>();
+
+        // Add pairs from active assets
         activeAssets.forEach((asset: string) => {
             if (asset !== 'USDT' && asset !== 'USDC') {
-                pairsToScan.push(`${asset}USDT`);
-                pairsToScan.push(`${asset}USDC`);
+                pairsToScan.add(`${asset}USDT`);
+                pairsToScan.add(`${asset}USDC`);
             }
         });
+
+        // Add known symbols from history
+        knownSymbols.forEach(s => pairsToScan.add(s));
 
         // Also add generic popular pairs just in case? No, rate limits.
         // Scan discovered pairs for trades
