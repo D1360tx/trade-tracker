@@ -130,6 +130,21 @@ export interface PositionSizeMetric {
     totalPnL: number;
 }
 
+/**
+ * Format dollar amount for bucket labels
+ */
+const formatBucketLabel = (value: number): string => {
+    if (value >= 1000000) {
+        return `$${(value / 1000000).toFixed(1)}M`;
+    } else if (value >= 1000) {
+        return `$${Math.round(value / 1000)}k`;
+    } else if (value >= 100) {
+        return `$${Math.round(value / 100) * 100}`;
+    } else {
+        return `$${Math.round(value)}`;
+    }
+};
+
 export const calculateWinRateByPositionSize = (trades: Trade[]): PositionSizeMetric[] => {
     const validTrades = trades.filter(t => t.status === 'CLOSED' && t.pnl !== undefined);
 
@@ -162,7 +177,7 @@ export const calculateWinRateByPositionSize = (trades: Trade[]): PositionSizeMet
         const avgPnL = bucketTrades.length > 0 ? totalPnL / bucketTrades.length : 0;
 
         buckets.push({
-            bucket: `$${Math.round(bucketMin)}-${Math.round(bucketMax)}`,
+            bucket: `${formatBucketLabel(bucketMin)} - ${formatBucketLabel(bucketMax)}`,
             minSize: bucketMin,
             maxSize: bucketMax,
             trades: bucketTrades.length,

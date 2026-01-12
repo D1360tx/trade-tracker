@@ -47,7 +47,7 @@ const MetricCard: React.FC<{
             <div className={`text-3xl font-bold mb-1 ${ratingColors[rating]}`}>
                 {value}
             </div>
-            <p className="text-xs text-[var(--text-tertiary)]">{description}</p>
+            <p className="text-sm text-[var(--text-tertiary)]">{description}</p>
         </div>
     );
 };
@@ -168,7 +168,12 @@ const RiskMetricsDashboard: React.FC<RiskMetricsDashboardProps> = ({ trades }) =
             {/* Position Size Analysis */}
             {positionSizeMetrics.length > 0 && (
                 <div className="bg-[var(--bg-tertiary)] rounded-lg p-6">
-                    <h4 className="text-lg font-bold mb-4">Win Rate by Position Size</h4>
+                    <div className="mb-4">
+                        <h4 className="text-lg font-bold">Win Rate by Position Size</h4>
+                        <p className="text-sm text-[var(--text-secondary)] mt-1">
+                            Position Size = Entry Price × Quantity (× 100 for options)
+                        </p>
+                    </div>
                     <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={positionSizeMetrics} margin={{ top: 20, right: 30, bottom: 60, left: 20 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
@@ -214,8 +219,8 @@ const RiskMetricsDashboard: React.FC<RiskMetricsDashboardProps> = ({ trades }) =
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>
-                    <p className="text-sm text-[var(--text-secondary)] mt-3 text-center">
-                        Identify your optimal position sizing sweet spot
+                    <p className="text-sm text-[var(--text-secondary)] mt-3 text-center font-medium">
+                        Higher win rates in larger position sizes suggest confidence and skill scaling
                     </p>
                 </div>
             )}
@@ -230,34 +235,36 @@ const RiskMetricsDashboard: React.FC<RiskMetricsDashboardProps> = ({ trades }) =
                             <XAxis
                                 dataKey="range"
                                 stroke="var(--text-tertiary)"
-                                fontSize={11}
+                                fontSize={13}
+                                tick={{ fill: 'var(--text-secondary)' }}
                             />
                             <YAxis
                                 stroke="var(--text-tertiary)"
-                                fontSize={11}
+                                fontSize={13}
                                 tickFormatter={(val) => `${val}%`}
+                                tick={{ fill: 'var(--text-secondary)' }}
                             />
                             <Tooltip
                                 content={({ active, payload }) => {
                                     if (!active || !payload || !payload[0]) return null;
                                     const data = payload[0].payload;
                                     return (
-                                        <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded p-3 shadow-xl text-xs">
-                                            <p className="font-bold mb-1">{data.range}</p>
+                                        <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded p-3 shadow-xl text-sm">
+                                            <p className="font-bold mb-1 text-[var(--text-primary)]">{data.range}</p>
                                             <p className="text-[var(--text-secondary)]">Count: {data.count} trades</p>
                                             <p className="text-[var(--accent-primary)]">{data.percentage.toFixed(1)}% of total</p>
                                         </div>
                                     );
                                 }}
                             />
-                            <Bar dataKey="percentage" radius={[4, 4, 0, 0]}>
+                            <Bar dataKey="percentage" radius={[6, 6, 0, 0]}>
                                 {rMultiples.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={entry.color} />
                                 ))}
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>
-                    <p className="text-xs text-[var(--text-tertiary)] mt-2 text-center">
+                    <p className="text-sm text-[var(--text-secondary)] mt-3 text-center font-medium">
                         Distribution of wins/losses in R-multiples (based on P&L %)
                     </p>
                 </div>
@@ -265,11 +272,11 @@ const RiskMetricsDashboard: React.FC<RiskMetricsDashboardProps> = ({ trades }) =
 
             {/* Insights */}
             <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-4">
-                <h4 className="text-sm font-bold mb-2 flex items-center gap-2">
+                <h4 className="text-base font-bold mb-2 flex items-center gap-2">
                     <AlertTriangle size={16} className="text-blue-400" />
                     Risk Analysis Insights
                 </h4>
-                <div className="space-y-1 text-xs text-[var(--text-secondary)]">
+                <div className="space-y-1 text-sm text-[var(--text-secondary)]">
                     {sharpeRatio < 1 && <p>• Consider reducing position sizes to improve risk-adjusted returns</p>}
                     {calmarRatio < 1 && <p>• Focus on reducing maximum drawdown through better risk management</p>}
                     {riskOfRuin > 10 && <p>• ⚠️ High risk of ruin detected - reduce risk per trade immediately</p>}
