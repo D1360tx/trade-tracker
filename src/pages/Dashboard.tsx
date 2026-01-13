@@ -55,7 +55,51 @@ const Dashboard = () => {
             return isAfter(tradeDate, dateRange.start) && isBefore(tradeDate, dateRange.end);
         });
 
-        return filtered;
+
+        // 4. Aggregate Schwab options (same logic as Journal)
+        const groupedByPosition = new Map<string, typeof filtered>();
+        const nonAggregatable: typeof filtered = [];
+
+        filtered.forEach(trade => {
+            if (trade.exchange === 'Schwab' && trade.type === 'OPTION') {
+                const entryMinute = trade.entryDate?.substring(0, 16) || '';
+                const exitMinute = trade.exitDate?.substring(0, 16) || '';
+                const key = `${trade.ticker}|${entryMinute}|${exitMinute}`;
+
+                if (!groupedByPosition.has(key)) {
+                    groupedByPosition.set(key, []);
+                }
+                groupedByPosition.get(key)!.push(trade);
+            } else {
+                nonAggregatable.push(trade);
+            }
+        });
+
+        const aggregated: typeof filtered = [];
+        groupedByPosition.forEach(group => {
+            if (group.length === 1) {
+                aggregated.push(group[0]);
+            } else {
+                const first = group[0];
+                const totalQuantity = group.reduce((sum, t) => sum + t.quantity, 0);
+                const totalPnl = group.reduce((sum, t) => sum + t.pnl, 0);
+                const totalFees = group.reduce((sum, t) => sum + (t.fees || 0), 0);
+                const avgEntryPrice = group.reduce((sum, t) => sum + (t.entryPrice * t.quantity), 0) / totalQuantity;
+                const avgExitPrice = group.reduce((sum, t) => sum + (t.exitPrice * t.quantity), 0) / totalQuantity;
+
+                aggregated.push({
+                    ...first,
+                    quantity: totalQuantity,
+                    pnl: totalPnl,
+                    fees: totalFees,
+                    entryPrice: avgEntryPrice,
+                    exitPrice: avgExitPrice,
+                    pnlPercentage: first.margin ? (totalPnl / (first.margin * group.length)) * 100 : 0
+                });
+            }
+        });
+
+        return [...aggregated, ...nonAggregatable];
     }, [trades, timeRange, customStart, customEnd, selectedExchanges]);
 
     // Core Stats
