@@ -217,7 +217,9 @@ const Journal = () => {
                                 // Fallback: check localStorage
                                 const apiKey = localStorage.getItem(ex.toLowerCase() + "_api_key");
                                 const apiSecret = localStorage.getItem(ex.toLowerCase() + "_api_secret");
-                                if (apiKey && apiSecret) {
+                                const hasSchwabTokens = ex === 'Schwab' && !!localStorage.getItem('schwab_tokens');
+
+                                if ((apiKey && apiSecret) || hasSchwabTokens) {
                                     toSync.push(ex);
                                 }
                             }
