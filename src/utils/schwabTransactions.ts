@@ -268,8 +268,52 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
         }
     }
 
-    console.log('[Schwab Mapper] Created', trades.length, 'matched trades');
-    return trades;
+    // Aggregate trades that are multiple contracts of the same position closed at the same time
+    console.log('[Schwab Mapper] Aggregating multiple contracts closed simultaneously...');
+    const aggregatedTrades: Trade[] = [];
+    const tradeGroups = new Map<string, Trade[]>();
+
+    trades.forEach(trade => {
+        // Group key: symbol + entry date (minute precision) + exit date (minute precision)
+        const entryMinute = trade.entryDate.substring(0, 16); // YYYY-MM-DDTHH:MM
+        const exitMinute = trade.exitDate.substring(0, 16);
+        const key = `${trade.ticker}|${entryMinute}|${exitMinute}`;
+
+        if (!tradeGroups.has(key)) {
+            tradeGroups.set(key, []);
+        }
+        tradeGroups.get(key)!.push(trade);
+    });
+
+    // Combine trades in each group
+    tradeGroups.forEach(group => {
+        if (group.length === 1) {
+            aggregatedTrades.push(group[0]);
+        } else {
+            // Multiple contracts closed together - aggregate them
+            const first = group[0];
+            const totalQuantity = group.reduce((sum, t) => sum + t.quantity, 0);
+            const totalPnl = group.reduce((sum, t) => sum + t.pnl, 0);
+            const totalFees = group.reduce((sum, t) => sum + (t.fees || 0), 0);
+            const avgEntryPrice = group.reduce((sum, t) => sum + (t.entryPrice * t.quantity), 0) / totalQuantity;
+            const avgExitPrice = group.reduce((sum, t) => sum + (t.exitPrice * t.quantity), 0) / totalQuantity;
+
+            aggregatedTrades.push({
+                ...first,
+                quantity: totalQuantity,
+                pnl: totalPnl,
+                fees: totalFees,
+                entryPrice: avgEntryPrice,
+                exitPrice: avgExitPrice,
+                pnlPercentage: first.margin ? (totalPnl / (first.margin * group.length)) * 100 : 0
+            });
+
+            console.log(`[Schwab Mapper] Aggregated ${group.length} contracts of ${first.ticker}: Total P&L $${totalPnl.toFixed(2)}`);
+        }
+    });
+
+    console.log('[Schwab Mapper] Created', aggregatedTrades.length, 'trades (aggregated from', trades.length, 'raw trades)');
+    return aggregatedTrades;
 };
 
 /**
