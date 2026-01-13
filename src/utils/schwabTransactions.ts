@@ -59,9 +59,12 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
     console.log('[Schwab Mapper] Found', tradeTransactions.length, 'trade transactions');
 
     // Sort by date (oldest first for FIFO)
-    const sorted = [...tradeTransactions].sort((a, b) =>
-        new Date(a.time).getTime() - new Date(b.time).getTime()
-    );
+    // Sort by date (oldest first for FIFO), use activityId as tiebreaker
+    const sorted = [...tradeTransactions].sort((a, b) => {
+        const timeDiff = new Date(a.time).getTime() - new Date(b.time).getTime();
+        if (timeDiff !== 0) return timeDiff;
+        return a.activityId - b.activityId;
+    });
 
     const trades: Trade[] = [];
     const openPositions: Map<string, OpenPosition[]> = new Map();
