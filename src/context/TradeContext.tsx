@@ -267,7 +267,27 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             try {
                 setIsLoading(true);
                 const cloudTrades = await fetchTrades();
-                setTrades(cloudTrades);
+
+                // Deduplicate on load (in case duplicates exist in database)
+                const seen = new Set<string>();
+                const uniqueTrades = cloudTrades.filter(trade => {
+                    const pnlRounded = Math.round((trade.pnl || 0) * 100) / 100;
+                    const exitDateStr = trade.exitDate ? trade.exitDate.split('T')[0] : '';
+                    const fingerprint = `${trade.exchange}|${trade.ticker}|${exitDateStr}|${pnlRounded}|${trade.quantity}`;
+
+                    if (seen.has(fingerprint)) {
+                        console.log('[TradeContext] Filtered duplicate trade:', trade.ticker, exitDateStr, trade.pnl);
+                        return false;
+                    }
+                    seen.add(fingerprint);
+                    return true;
+                });
+
+                if (cloudTrades.length !== uniqueTrades.length) {
+                    console.log(`[TradeContext] Filtered ${cloudTrades.length - uniqueTrades.length} duplicates from Supabase`);
+                }
+
+                setTrades(uniqueTrades);
                 setLastUpdated(Date.now());
             } catch (error) {
                 console.error('Error loading trades:', error);
@@ -305,67 +325,19 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
     const lastUpdatedRef = useRef(lastUpdated);
     useEffect(() => { lastUpdatedRef.current = lastUpdated; }, [lastUpdated]);
 
-    // Hourly & Scheduled Auto-Sync
-    useEffect(() => {
-        // Cooldown: Don't sync for first 2 minutes after page load (refresh protection)
-        const mountTime = Date.now();
-
-        const checkTimeAndSync = () => {
-            const now = new Date();
-            const timeSinceMount = now.getTime() - mountTime;
-
-            // Skip auto-sync for first 2 minutes after mount (user likely just refreshed)
-            if (timeSinceMount < 2 * 60 * 1000) return;
-
-            const minutes = now.getMinutes();
-            const hours = now.getHours(); // 0-23
-            const day = now.getDay(); // 0=Sun, 1=Mon... 6=Sat
-
-            // Standard Hourly Sync (for crypto exchanges)
-            const isTopHour = minutes === 0;
-            const msSinceLast = lastUpdatedRef.current ? now.getTime() - lastUpdatedRef.current : Infinity;
-
-            if (isTopHour && msSinceLast > 50 * 60 * 1000) {
-                ['MEXC', 'ByBit'].forEach(ex => fetchTradesFromAPI(ex as any, true));
-            }
-
-            // Schwab Aggressive Schedule (for active day traders):
-            // 1. Hourly During Market Hours: Mon-Fri 9 AM - 3 PM (9:00, 10:00, 11:00, 12:00, 13:00, 14:00, 15:00)
-            // 2. After Market Close: Mon-Fri after 3:30 PM (15:30)
-            // 3. Monday Morning: Monday after 8:31 AM (08:31) to catch weekend/Friday after-hours
-            const isWeekday = day >= 1 && day <= 5;
-            const isMarketHours = hours >= 9 && hours <= 15; // 9 AM - 3 PM CST
-            const isAfterMarketClose = hours > 15 || (hours === 15 && minutes >= 30);
-            const isMondayMorning = day === 1 && (hours > 8 || (hours === 8 && minutes >= 31));
-
-            // Hourly sync during market hours (on the hour)
-            if (isWeekday && isMarketHours && isTopHour && msSinceLast > 50 * 60 * 1000) {
-                console.log(`[AutoSync] Triggering Schwab hourly sync (Market Hours: ${hours}:00)`);
-                fetchTradesFromAPI('Schwab' as any, true);
-            }
-            // After-hours and Monday morning sync (scheduled times)
-            else if ((isWeekday && isAfterMarketClose) || isMondayMorning) {
-                // Determine the "Threshold Time" for today
-                const threshold = new Date(now);
-                if (isMondayMorning && hours < 15) { // Prioritize morning check if it's Monday morning (before market close)
-                    threshold.setHours(8, 31, 0, 0);
-                } else {
-                    threshold.setHours(15, 30, 0, 0);
-                }
-
-                const lastUpdateDate = lastUpdatedRef.current ? new Date(lastUpdatedRef.current) : new Date(0);
-
-                // If we haven't synced since the threshold time, trigger it
-                if (lastUpdateDate.getTime() < threshold.getTime()) {
-                    console.log(`[AutoSync] Triggering Schwab sync (Schedule: ${isMondayMorning && hours < 15 ? 'Mon Morning' : 'Market Close'})`);
-                    fetchTradesFromAPI('Schwab' as any, true);
-                }
-            }
-        };
-        // Check every 10 seconds to catch sync times accurately
-        const interval = setInterval(checkTimeAndSync, 10000);
-        return () => clearInterval(interval);
-    }, []);
+    // Hourly & Scheduled Auto-Sync - DISABLED FOR NOW
+    // TODO: Re-enable with proper safeguards (user preference, better state management)
+    // useEffect(() => {
+    //     const mountTime = Date.now();
+    //     const checkTimeAndSync = () => {
+    //         const now = new Date();
+    //         const timeSinceMount = now.getTime() - mountTime;
+    //         if (timeSinceMount < 2 * 60 * 1000) return;
+    //         // ... sync logic here
+    //     };
+    //     const interval = setInterval(checkTimeAndSync, 10000);
+    //     return () => clearInterval(interval);
+    // }, []);
 
     // Generate a fingerprint for duplicate detection based on trade content
     const getTradeFingerprint = (trade: Trade): string => {
