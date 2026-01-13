@@ -13,7 +13,8 @@ import ExchangeFilter from '../components/ExchangeFilter';
 import TimeRangeFilter, { getDateRangeForFilter } from '../components/TimeRangeFilter';
 import type { TimeRange } from '../components/TimeRangeFilter';
 import DayDetailModal from '../components/DayDetailModal';
-import KPIDetailModal, { KPIModalType } from '../components/KPIDetailModal';
+import KPIDetailModal from '../components/KPIDetailModal';
+import type { KPIModalType } from '../components/KPIDetailModal';
 
 import { format, parseISO, isAfter, isBefore, startOfDay, endOfDay, differenceInMinutes } from 'date-fns';
 import { useTrades } from '../context/TradeContext';
