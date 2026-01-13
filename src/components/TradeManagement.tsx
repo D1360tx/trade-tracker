@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useTrades } from '../context/TradeContext';
-import { Trash2, Edit2, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Trash2, Edit2, Check, X, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { Trade } from '../types';
 
@@ -11,6 +11,27 @@ const TradeManagement = () => {
     const [editValues, setEditValues] = useState<Partial<Trade>>({});
     const [filterExchange, setFilterExchange] = useState<string>('ALL');
     const [showManagement, setShowManagement] = useState(false);
+    const [isCleaningDuplicates, setIsCleaningDuplicates] = useState(false);
+
+    // ⚠️ TEMPORARY DEV TOOL - Remove before production!
+    const handleCleanupDuplicates = async () => {
+        if (!confirm('Clean up duplicate trades in database? This will permanently delete duplicates.')) return;
+
+        setIsCleaningDuplicates(true);
+        try {
+            const { cleanupDuplicateTrades } = await import('../lib/supabase/cleanupDuplicates');
+            const result = await cleanupDuplicateTrades();
+            alert(`✅ Cleanup complete!\n\nRemoved: ${result.removed} duplicates\nKept: ${result.kept} unique trades`);
+            // Reload page to refresh data
+            window.location.reload();
+        } catch (error: any) {
+            alert(`❌ Cleanup failed: ${error.message}`);
+            console.error(error);
+        } finally {
+            setIsCleaningDuplicates(false);
+        }
+    };
+
 
     // Get unique exchanges
     const exchanges = useMemo(() => {
@@ -142,6 +163,17 @@ const TradeManagement = () => {
                                 Delete {selectedIds.size} Selected
                             </button>
                         )}
+
+                        {/* ⚠️ TEMPORARY DEV TOOL - Remove before production! */}
+                        <button
+                            onClick={handleCleanupDuplicates}
+                            disabled={isCleaningDuplicates}
+                            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors ml-auto"
+                            title="Remove duplicate trades from database"
+                        >
+                            <Sparkles size={16} className={isCleaningDuplicates ? 'animate-spin' : ''} />
+                            {isCleaningDuplicates ? 'Cleaning...' : 'Clean Duplicates'}
+                        </button>
                     </div>
 
                     {/* Trade List */}
