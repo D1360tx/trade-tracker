@@ -24,14 +24,54 @@ export const fetchTrades = async (): Promise<Trade[]> => {
 };
 
 /**
- * Insert new trades
+ * Insert new trades (with deduplication)
  */
 export const insertTrades = async (trades: Trade[]): Promise<Trade[]> => {
     // Get current user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
-    const dbTrades: TradeInsert[] = trades.map(trade => ({
+    // Fetch existing trades to check for duplicates
+    const existing = await fetchTrades();
+
+    // Create fingerprint map for fast lookup
+    const existingFingerprints = new Set<string>();
+    existing.forEach(t => {
+        // Fingerprint: exchange|ticker|exitDate|pnl|quantity
+        const pnlRounded = Math.round((t.pnl || 0) * 100) / 100;
+        const exitDateStr = t.exitDate ? t.exitDate.split('T')[0] : '';
+        const fingerprint = `${t.exchange}|${t.ticker}|${exitDateStr}|${pnlRounded}|${t.quantity}`;
+        existingFingerprints.add(fingerprint);
+
+        // Also track by external_oid if available
+        if (t.externalOid) {
+            existingFingerprints.add(`${t.exchange}|${t.externalOid}`);
+        }
+    });
+
+    // Filter out duplicates
+    const uniqueTrades = trades.filter(trade => {
+        const pnlRounded = Math.round((trade.pnl || 0) * 100) / 100;
+        const exitDateStr = trade.exitDate ? trade.exitDate.split('T')[0] : '';
+        const fingerprint = `${trade.exchange}|${trade.ticker}|${exitDateStr}|${pnlRounded}|${trade.quantity}`;
+
+        if (existingFingerprints.has(fingerprint)) return false;
+
+        if (trade.externalOid && existingFingerprints.has(`${trade.exchange}|${trade.externalOid}`)) {
+            return false;
+        }
+
+        return true;
+    });
+
+    if (uniqueTrades.length === 0) {
+        console.log('[insertTrades] All trades are duplicates, skipping insert');
+        return [];
+    }
+
+    console.log(`[insertTrades] Inserting ${uniqueTrades.length} new trades (${trades.length - uniqueTrades.length} duplicates skipped)`);
+
+    const dbTrades: TradeInsert[] = uniqueTrades.map(trade => ({
         ...mapAppTradeToDb(trade) as TradeInsert,
         user_id: user.id
     }));
