@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Save, CheckCircle, Eye, EyeOff, ChevronRight, Bot, Sparkles, AlertCircle } from 'lucide-react';
+import { Save, CheckCircle, Eye, EyeOff, ChevronRight, Bot, Sparkles, AlertCircle, Database, Upload } from 'lucide-react';
+import { migrateFromLocalStorage, clearLocalStorageData } from '../lib/migrations/localStorage-to-supabase';
 
 const EXCHANGES = [
     { id: 'MEXC', name: 'MEXC Global', color: 'bg-blue-500' },
@@ -20,6 +21,8 @@ const SettingsPage = () => {
     const [showSecret, setShowSecret] = useState(false);
     const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'testing' | 'success' | 'error'>('idle');
     const [testMessage, setTestMessage] = useState('');
+    const [migrationStatus, setMigrationStatus] = useState<'idle' | 'migrating' | 'success' | 'error'>('idle');
+    const [migrationMessage, setMigrationMessage] = useState('');
 
     useEffect(() => {
         // Load all keys
@@ -81,6 +84,34 @@ const SettingsPage = () => {
         } else {
             setTestMessage('Connection Successful! AI is ready.');
             setStatus('success');
+        }
+    };
+
+    const handleMigrate = async () => {
+        setMigrationStatus('migrating');
+        setMigrationMessage('Migrating data to cloud...');
+
+        try {
+            const result = await migrateFromLocalStorage();
+
+            const summary = `✅ Migration Complete!\n` +
+                `Trades: ${result.trades}\n` +
+                `Strategies: ${result.strategies}\n` +
+                `Mistakes: ${result.mistakes}`;
+
+            setMigrationMessage(summary);
+            setMigrationStatus('success');
+
+            // Clear localStorage after successful migration
+            clearLocalStorageData();
+
+            // Reload page to fetch from Supabase
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } catch (error: any) {
+            setMigrationMessage(`Migration failed: ${error.message}`);
+            setMigrationStatus('error');
         }
     };
 
@@ -224,6 +255,57 @@ const SettingsPage = () => {
                                 </div>
                             )}
                         </div>
+                    </div>
+                </div>
+
+                {/* Data Migration */}
+                <div className="md:col-span-2 glass-panel p-8 rounded-xl space-y-6">
+                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[var(--border)]">
+                        <div className="w-12 h-12 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                            <Database className="text-cyan-500" size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold">Data Migration</h3>
+                            <p className="text-xs text-[var(--text-tertiary)]">Import existing data to cloud</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="p-4 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg">
+                            <div className="flex items-start gap-3">
+                                <Upload className="text-cyan-500 mt-1" size={20} />
+                                <div className="flex-1">
+                                    <h4 className="font-medium text-sm mb-2">Import from Browser Storage</h4>
+                                    <p className="text-xs text-[var(--text-tertiary)] mb-4">
+                                        If you have existing trades, strategies, or mistakes saved locally, click below to migrate them to your cloud account.
+                                    </p>
+                                    <button
+                                        onClick={handleMigrate}
+                                        disabled={migrationStatus === 'migrating'}
+                                        className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-medium text-sm hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                    >
+                                        {migrationStatus === 'migrating' ? (
+                                            <>
+                                                <span className="animate-spin">⏳</span>
+                                                Migrating...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Upload size={16} />
+                                                Start Migration
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {migrationMessage && (
+                            <div className={`p-4 rounded-lg text-sm flex items-start gap-2 whitespace-pre-line ${migrationStatus === 'error' ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
+                                {migrationStatus === 'error' ? <AlertCircle size={16} className="mt-0.5" /> : <CheckCircle size={16} className="mt-0.5" />}
+                                <span>{migrationMessage}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
