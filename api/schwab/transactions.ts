@@ -59,6 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const accountsList = Array.isArray(accounts) ? accounts : [accounts];
             const allTransactions: any[] = [];
             const debugInfo: any[] = [];
+            const processedAccounts = new Set<string>(); // Dedupe accounts
 
             // Iterate through all accounts
             for (const account of accountsList) {
@@ -75,6 +76,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     debugInfo.push({ error: 'Could not extract ID', account });
                     continue;
                 }
+
+                // Skip if already processed (deduplication)
+                if (processedAccounts.has(accId)) {
+                    debugInfo.push({ accId, status: 'skipped (duplicate)' });
+                    continue;
+                }
+                processedAccounts.add(accId);
 
                 try {
                     // Build transactions URL
