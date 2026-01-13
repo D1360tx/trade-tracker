@@ -40,7 +40,8 @@ const Journal = () => {
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'exitDate', direction: 'desc' });
 
     const filteredTrades = useMemo(() => {
-        let result = trades;
+        // Only show CLOSED trades in the Journal (OPEN positions will have a separate tab)
+        let result = trades.filter(t => t.status === 'CLOSED');
 
         // Filter by Ticker
         if (filterTicker) {
