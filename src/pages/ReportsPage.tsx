@@ -192,7 +192,10 @@ const ReportsPage = () => {
                         <input
                             type="date"
                             value={filterStartDate}
-                            onChange={(e) => setFilterStartDate(e.target.value)}
+                            onChange={(e) => {
+                                setFilterStartDate(e.target.value);
+                                setTimeRange('custom');
+                            }}
                             className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent-primary)] text-[var(--text-secondary)] [color-scheme:dark]"
                         />
                     </div>
@@ -204,7 +207,10 @@ const ReportsPage = () => {
                         <input
                             type="date"
                             value={filterEndDate}
-                            onChange={(e) => setFilterEndDate(e.target.value)}
+                            onChange={(e) => {
+                                setFilterEndDate(e.target.value);
+                                setTimeRange('custom');
+                            }}
                             className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent-primary)] text-[var(--text-secondary)] [color-scheme:dark]"
                         />
                     </div>
