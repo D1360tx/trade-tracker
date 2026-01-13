@@ -541,9 +541,9 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 const { fetchSchwabTransactions } = await import('../utils/schwabAuth');
                 const { mapSchwabTransactionsToTrades } = await import('../utils/schwabTransactions');
 
-                // Use 180 day window (extended from 90 to reduce orphaned trades)
+                // Use 365 day window to capture older open positions (e.g. LEAPS)
                 const endDate = new Date().toISOString().split('T')[0];
-                const startDate = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                const startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
                 const transactions = await fetchSchwabTransactions(startDate, endDate);
                 const mappedTrades = mapSchwabTransactionsToTrades(transactions);

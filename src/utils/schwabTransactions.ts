@@ -135,6 +135,11 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
         } else {
             // CLOSING transaction - match with open position (FIFO)
             const positions = openPositions.get(positionKey) || [];
+
+            if (positions.length === 0) {
+                console.warn(`[Schwab Mapper] ORPHANED CLOSING TRADE: Could not find opening position for ${positionKey} (TxId: ${tx.activityId}). This trade will be skipped. Try increasing sync window.`);
+            }
+
             let remainingQty = quantity;
 
             while (remainingQty > 0 && positions.length > 0) {
