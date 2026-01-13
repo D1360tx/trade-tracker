@@ -1,11 +1,13 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, Wallet, Settings, Menu, X, Bell, Calendar, Brain, Upload, BarChart2, FileText, ChevronLeft, ChevronRight, Bot, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Wallet, Settings, Menu, X, Bell, Calendar, Brain, Upload, BarChart2, FileText, ChevronLeft, ChevronRight, Bot, TrendingUp, LogOut } from 'lucide-react';
 import AIChat from './AIChat';
 import { useTrades } from '../context/TradeContext';
+import { useAuth } from '../context/AuthContext';
 
 const Layout = () => {
     const { lastUpdated } = useTrades();
+    const { user, signOut } = useAuth();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
     const [isCollapsed, setIsCollapsed] = React.useState(() => {
         const saved = localStorage.getItem('sidebar_collapsed');
@@ -114,6 +116,19 @@ const Layout = () => {
                     </button>
 
                     <div className="ml-auto flex items-center gap-4">
+                        {user?.email && (
+                            <span className="hidden sm:block text-sm text-[var(--text-secondary)]">
+                                {user.email}
+                            </span>
+                        )}
+                        <button
+                            onClick={() => signOut()}
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--danger)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
+                            title="Sign out"
+                        >
+                            <LogOut size={18} />
+                            <span className="hidden sm:inline">Logout</span>
+                        </button>
                         <button className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] relative">
                             <Bell size={20} />
                             <span className="absolute top-2 right-2 w-2 h-2 bg-[var(--danger)] rounded-full"></span>
