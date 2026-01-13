@@ -185,7 +185,18 @@ function mapAppTradeToDb(trade: Partial<Trade>): TradeInsert | TradeUpdate {
     const dbTrade: any = {};
 
     // Map all fields
-    if (trade.id) dbTrade.id = trade.id;
+    // ID handling: Only pass ID if it's a valid UUID. Otherwise treat it as external_oid.
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trade.id || '');
+
+    if (trade.id && isUUID) {
+        dbTrade.id = trade.id;
+    } else if (trade.id) {
+        // If not a UUID (e.g. exchange numeric ID), map to external_oid if not already set
+        if (!trade.externalOid) {
+            dbTrade.external_oid = trade.id;
+        }
+    }
+
     if (trade.exchange) dbTrade.exchange = trade.exchange;
     if (trade.ticker) dbTrade.ticker = trade.ticker;
     if (trade.type) dbTrade.type = trade.type;
@@ -207,6 +218,8 @@ function mapAppTradeToDb(trade: Partial<Trade>): TradeInsert | TradeUpdate {
     if (trade.notional !== undefined) dbTrade.notional = trade.notional;
     if (trade.margin !== undefined) dbTrade.margin = trade.margin;
     if (trade.isBot !== undefined) dbTrade.is_bot = trade.isBot;
+
+    // Explicit externalOid takes precedence over mapped ID
     if (trade.externalOid !== undefined) dbTrade.external_oid = trade.externalOid;
 
     // user_id will be automatically set by RLS/triggers if needed
