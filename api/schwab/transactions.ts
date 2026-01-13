@@ -84,11 +84,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     const endDateObj = endDate ? new Date(endDate as string) : new Date();
                     const startDateObj = startDate ? new Date(startDate as string) : new Date(endDateObj.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-                    // Format dates as YYYY-MM-DD (Schwab requires simple date format, no time component)
-                    const formatDate = (date: Date) => date.toISOString().split('T')[0];
+                    // Schwab requires full ISO 8601 format with time component
+                    // Create copies to avoid mutation
+                    const startISO = new Date(startDateObj);
+                    startISO.setUTCHours(0, 0, 0, 0);
 
-                    transactionsUrl.searchParams.set('startDate', formatDate(startDateObj));
-                    transactionsUrl.searchParams.set('endDate', formatDate(endDateObj));
+                    const endISO = new Date(endDateObj);
+                    endISO.setUTCHours(23, 59, 59, 999);
+
+                    transactionsUrl.searchParams.set('startDate', startISO.toISOString());
+                    transactionsUrl.searchParams.set('endDate', endISO.toISOString());
 
                     const txResponse = await fetch(transactionsUrl.toString(), {
                         headers: {
@@ -119,8 +124,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             status: errorDetail,
                             url: transactionsUrl.toString(),
                             dates: {
-                                start: formatDate(startDateObj),
-                                end: formatDate(endDateObj)
+                                start: startISO.toISOString(),
+                                end: endISO.toISOString()
                             }
                         });
                     }
@@ -163,5 +168,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
     } catch (error: any) {
-        // ...
+        console.error('Schwab transactions error:', error);
+        return res.status(500).json({
+            error: 'Failed to fetch transactions',
+            message: error.message
+        });
     }
+}
