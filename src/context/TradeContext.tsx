@@ -550,10 +550,8 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 const { mapSchwabTransactionsToTrades } = await import('../utils/schwabTransactions');
 
                 // Use 365 day window to capture older open positions (e.g. LEAPS)
-                // Use tomorrow as endDate to ensure we capture all trades from today regardless of server time
-                const now = new Date();
-                now.setDate(now.getDate() + 1);
-                const endDate = now.toISOString().split('T')[0];
+                // Use 365 day window to capture older open positions (e.g. LEAPS)
+                const endDate = new Date().toISOString().split('T')[0];
                 const startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
                 const transactions = await fetchSchwabTransactions(startDate, endDate);
