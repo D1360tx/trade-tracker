@@ -81,12 +81,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     const transactionsUrl = new URL(`https://api.schwabapi.com/trader/v1/accounts/${accId}/transactions`);
 
                     // Set date range (default: last 30 days)
-                    const end = endDate ? new Date(endDate as string) : new Date();
-                    const start = startDate ? new Date(startDate as string) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+                    const endDateObj = endDate ? new Date(endDate as string) : new Date();
+                    const startDateObj = startDate ? new Date(startDate as string) : new Date(endDateObj.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-                    // Set dates to start/end of day in UTC
-                    transactionsUrl.searchParams.set('startDate', new Date(start.setHours(0, 0, 0, 0)).toISOString());
-                    transactionsUrl.searchParams.set('endDate', new Date(end.setHours(23, 59, 59, 999)).toISOString());
+                    // Format dates as YYYY-MM-DD (Schwab requires simple date format, no time component)
+                    const formatDate = (date: Date) => date.toISOString().split('T')[0];
+
+                    transactionsUrl.searchParams.set('startDate', formatDate(startDateObj));
+                    transactionsUrl.searchParams.set('endDate', formatDate(endDateObj));
 
                     const txResponse = await fetch(transactionsUrl.toString(), {
                         headers: {
