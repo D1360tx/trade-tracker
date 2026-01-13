@@ -423,7 +423,13 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const addTrades = (newTrades: Trade[]) => {
+        // Update local state immediately (optimistic update)
         mergeTrades(newTrades);
+
+        // Sync to Supabase in background (fire-and-forget)
+        dbInsertTrades(newTrades).catch(error => {
+            console.error('Error syncing trades to Supabase:', error);
+        });
     };
 
     const clearTrades = () => {
@@ -435,11 +441,25 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const updateTrade = (id: string, updates: Partial<Trade>) => {
+        // Update local state immediately
         setTrades(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+
+        // Sync to Supabase in background
+        dbUpdateTrade(id, updates).catch(error => {
+            console.error('Error syncing trade update to Supabase:', error);
+        });
     };
 
     const deleteTrades = (ids: string[]) => {
+        // Update local state immediately
         setTrades(prev => prev.filter(t => !ids.includes(t.id)));
+
+        // Sync to Supabase in background
+        ids.forEach(id => {
+            dbDeleteTrade(id).catch(error => {
+                console.error(`Error deleting trade ${id} from Supabase:`, error);
+            });
+        });
     };
 
     const fetchTradesFromAPI = async (exchange: 'MEXC' | 'Binance' | 'ByBit' | 'Coinbase' | 'BloFin' | 'Schwab' | 'Interactive Brokers', silent = false): Promise<number> => {
