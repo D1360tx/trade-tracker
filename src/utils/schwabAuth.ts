@@ -201,5 +201,12 @@ export const fetchSchwabTransactions = async (startDate?: string, endDate?: stri
     }
 
     const data = await response.json();
+
+    // Log backend debug info for troubleshooting
+    if (data.debug) {
+        console.log('[Schwab Client] Backend debug info:', data.debug);
+        console.log('[Schwab Client] Transaction count:', data.count || 0);
+    }
+
     return data.transactions || [];
 };

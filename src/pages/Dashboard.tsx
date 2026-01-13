@@ -320,7 +320,7 @@ const Dashboard = () => {
             </div>
 
             {/* Empty State */}
-            {trades.length === 0 ? (
+            {(!isLoading && trades.length === 0) ? (
                 <div className="glass-panel p-12 text-center rounded-xl space-y-4 col-span-full">
                     <div className="w-16 h-16 bg-[var(--bg-tertiary)] rounded-full flex items-center justify-center mx-auto text-[var(--accent-primary)]">
                         <BarChart3 size={32} />
