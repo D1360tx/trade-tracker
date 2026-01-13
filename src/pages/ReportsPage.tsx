@@ -167,10 +167,17 @@ const ReportsPage = () => {
                     selectedRange={timeRange}
                     onRangeChange={(range) => {
                         setTimeRange(range);
-                        if (range !== 'custom') {
+                        if (range !== 'custom' && range !== 'all') {
+                            // Calculate and set the date range for the preset
+                            const dateRange = getDateRangeForFilter(range);
+                            setFilterStartDate(format(dateRange.start, 'yyyy-MM-dd'));
+                            setFilterEndDate(format(dateRange.end, 'yyyy-MM-dd'));
+                        } else if (range === 'all') {
+                            // Clear dates for "All Time"
                             setFilterStartDate('');
                             setFilterEndDate('');
                         }
+                        // For 'custom', don't change the dates (user sets them manually)
                     }}
                     customStartDate={filterStartDate}
                     customEndDate={filterEndDate}
