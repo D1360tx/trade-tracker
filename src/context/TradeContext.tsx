@@ -464,7 +464,15 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             apiSecret = localStorage.getItem(`${exchange.toLowerCase()}_api_secret`);
         }
 
-        if (!apiKey || !apiSecret) {
+        // Check for valid connection (API keys OR OAuth tokens for Schwab)
+        let hasConnection = !!(apiKey && apiSecret);
+
+        if (!hasConnection && exchange === 'Schwab') {
+            const hasTokens = !!localStorage.getItem('schwab_tokens');
+            if (hasTokens) hasConnection = true;
+        }
+
+        if (!hasConnection) {
             if (!silent) alert(`Please configure ${exchange} API keys in Settings first.`);
             return 0;
         }
@@ -485,8 +493,8 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                     ...mexcTickers.map(t => t.replace('_', '')) // Convert SOL_USDT -> SOLUSDT for Spot API
                 ]));
 
-                const futuresResult = await fetchMEXCTradeHistory(apiKey, apiSecret);
-                const spotResult = await fetchMEXCSpotHistory(apiKey, apiSecret, knownSymbols);
+                const futuresResult = await fetchMEXCTradeHistory(apiKey!, apiSecret!);
+                const spotResult = await fetchMEXCSpotHistory(apiKey!, apiSecret!, knownSymbols);
 
                 // Bot Detection: Futures with specific externalOid tags
                 // We track the FIRST timestamp where a bot tag is seen.
@@ -533,7 +541,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                     debugKeys: sampleTradeKeys
                 };
             } else if (exchange === 'ByBit') {
-                const result = await fetchByBitTradeHistory(apiKey, apiSecret);
+                const result = await fetchByBitTradeHistory(apiKey!, apiSecret!);
                 apiTrades = result.trades;
                 raw = result.raw;
             } else if (exchange === 'Schwab') {
