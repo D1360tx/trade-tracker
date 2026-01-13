@@ -182,6 +182,38 @@ export interface Database {
                     updated_at?: string
                 }
             }
+            api_credentials: {
+                Row: {
+                    id: string
+                    user_id: string
+                    exchange: string
+                    api_key: string
+                    api_secret: string
+                    is_active: boolean | null
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    user_id: string
+                    exchange: string
+                    api_key: string
+                    api_secret: string
+                    is_active?: boolean | null
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: string
+                    user_id?: string
+                    exchange?: string
+                    api_key?: string
+                    api_secret?: string
+                    is_active?: boolean | null
+                    created_at?: string
+                    updated_at?: string
+                }
+            }
         }
         Views: {
             [_ in never]: never

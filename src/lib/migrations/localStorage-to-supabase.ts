@@ -1,8 +1,8 @@
-import { supabase } from '../lib/supabase/client';
-import { insertTrades } from '../lib/supabase/trades';
-import { insertStrategy } from '../lib/supabase/strategies';
-import { insertMistake } from '../lib/supabase/mistakes';
-import type { Trade, Strategy, Mistake } from '../types';
+import { supabase } from '../supabase/client';
+import { insertTrades } from '../supabase/trades';
+import { insertStrategy } from '../supabase/strategies';
+import { insertMistake } from '../supabase/mistakes';
+import type { Trade, Strategy, Mistake } from '../../types';
 
 /**
  * Migrate data from localStorage to Supabase

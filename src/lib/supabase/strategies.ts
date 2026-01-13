@@ -30,7 +30,7 @@ export const insertStrategy = async (strategy: Omit<Strategy, 'id'>): Promise<St
             name: strategy.name,
             description: strategy.description || null,
             color: strategy.color
-        })
+        } as any)
         .select()
         .single();
 
@@ -50,7 +50,7 @@ export const updateStrategy = async (id: string, updates: Partial<Strategy>): Pr
 
     const { data, error } = await supabase
         .from('strategies')
-        .update(dbUpdates)
+        .update(dbUpdates as any)
         .eq('id', id)
         .select()
         .single();

@@ -50,7 +50,7 @@ export const saveAPICredentials = async (exchange: string, apiKey: string, apiSe
             api_key: apiKey,
             api_secret: apiSecret,
             is_active: true
-        }, {
+        } as any, {
             onConflict: 'user_id,exchange'
         });
 
@@ -93,7 +93,7 @@ export const getExchangeCredentials = async (exchange: string): Promise<{ key: s
     }
 
     return {
-        key: data.api_key,
-        secret: data.api_secret
+        key: (data as any).api_key,
+        secret: (data as any).api_secret
     };
 };

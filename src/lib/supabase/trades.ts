@@ -38,7 +38,7 @@ export const insertTrades = async (trades: Trade[]): Promise<Trade[]> => {
 
     const { data, error } = await supabase
         .from('trades')
-        .insert(dbTrades)
+        .insert(dbTrades as any)
         .select();
 
     if (error) {
@@ -57,7 +57,7 @@ export const updateTrade = async (id: string, updates: Partial<Trade>): Promise<
 
     const { data, error } = await supabase
         .from('trades')
-        .update(dbUpdates)
+        .update(dbUpdates as any)
         .eq('id', id)
         .select()
         .single();

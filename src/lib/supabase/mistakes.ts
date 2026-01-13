@@ -29,7 +29,7 @@ export const insertMistake = async (mistake: Omit<Mistake, 'id'>): Promise<Mista
             name: mistake.name,
             description: mistake.description || null,
             color: mistake.color
-        })
+        } as any)
         .select()
         .single();
 
@@ -49,7 +49,7 @@ export const updateMistake = async (id: string, updates: Partial<Mistake>): Prom
 
     const { data, error } = await supabase
         .from('mistakes')
-        .update(dbUpdates)
+        .update(dbUpdates as any)
         .eq('id', id)
         .select()
         .single();
