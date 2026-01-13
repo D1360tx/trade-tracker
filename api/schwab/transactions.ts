@@ -106,7 +106,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             debugInfo.push({ accId, count: txData.length, status: 'success' });
                         }
                     } else {
-                        debugInfo.push({ accId, status: `failed: ${txResponse.status}` });
+                        // Capture detailed error info
+                        let errorDetail = `failed: ${txResponse.status}`;
+                        try {
+                            const errorBody = await txResponse.text();
+                            errorDetail += ` - ${errorBody}`;
+                        } catch (e) {
+                            // Could not read error body
+                        }
+                        debugInfo.push({
+                            accId,
+                            status: errorDetail,
+                            url: transactionsUrl.toString(),
+                            dates: {
+                                start: formatDate(startDateObj),
+                                end: formatDate(endDateObj)
+                            }
+                        });
                     }
                 } catch (err: any) {
                     debugInfo.push({ accId, error: err.message });
