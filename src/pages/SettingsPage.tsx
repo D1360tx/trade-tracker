@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Save, CheckCircle, Eye, EyeOff, ChevronRight, Bot, Sparkles, AlertCircle, Database, Upload } from 'lucide-react';
 import { migrateFromLocalStorage, clearLocalStorageData } from '../lib/migrations/localStorage-to-supabase';
+import { fetchAPICredentials, saveAPICredentials } from '../lib/supabase/apiCredentials';
+import { useAuth } from '../context/AuthContext';
 
 const EXCHANGES = [
     { id: 'MEXC', name: 'MEXC Global', color: 'bg-blue-500' },
@@ -15,6 +17,7 @@ const EXCHANGES = [
 import { sendMessageToAI } from '../utils/aiService';
 
 const SettingsPage = () => {
+    const { user } = useAuth();
     const [selectedExchange, setSelectedExchange] = useState('MEXC');
     const [keys, setKeys] = useState<Record<string, { key: string, secret: string }>>({});
     const [aiKey, setAiKey] = useState('');
@@ -25,17 +28,30 @@ const SettingsPage = () => {
     const [migrationMessage, setMigrationMessage] = useState('');
 
     useEffect(() => {
-        // Load all keys
-        const newKeys: Record<string, { key: string, secret: string }> = {};
-        EXCHANGES.forEach(ex => {
-            newKeys[ex.id] = {
-                key: localStorage.getItem(`${ex.id.toLowerCase()}_api_key`) || '',
-                secret: localStorage.getItem(`${ex.id.toLowerCase()}_api_secret`) || ''
-            };
-        });
-        setKeys(newKeys);
+        if (!user) return;
+
+        // Load API credentials from Supabase
+        const loadCredentials = async () => {
+            try {
+                const cloudCreds = await fetchAPICredentials();
+                setKeys(cloudCreds);
+            } catch (error) {
+                console.error('Error loading API credentials:', error);
+                // Fallback to localStorage for backward compatibility
+                const newKeys: Record<string, { key: string, secret: string }> = {};
+                EXCHANGES.forEach(ex => {
+                    newKeys[ex.id] = {
+                        key: localStorage.getItem(`${ex.id.toLowerCase()}_api_key`) || '',
+                        secret: localStorage.getItem(`${ex.id.toLowerCase()}_api_secret`) || ''
+                    };
+                });
+                setKeys(newKeys);
+            }
+        };
+
+        loadCredentials();
         setAiKey(localStorage.getItem('ai_api_key') || '');
-    }, []);
+    }, [user]);
 
     const handleChange = (field: 'key' | 'secret', value: string) => {
         setKeys(prev => ({
@@ -47,23 +63,28 @@ const SettingsPage = () => {
         }));
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         setStatus('saving');
 
-        // Save current exchange keys
-        const current = keys[selectedExchange];
-        localStorage.setItem(`${selectedExchange.toLowerCase()}_api_key`, current.key);
-        localStorage.setItem(`${selectedExchange.toLowerCase()}_api_secret`, current.secret);
+        try {
+            //Save current exchange keys to Supabase
+            const current = keys[selectedExchange];
+            if (current && (current.key || current.secret)) {
+                await saveAPICredentials(selectedExchange, current.key, current.secret);
+            }
 
-        // Save AI Key
-        const trimmedKey = aiKey.trim();
-        localStorage.setItem('ai_api_key', trimmedKey);
-        setAiKey(trimmedKey);
+            // Save AI Key (still in localStorage for now)
+            const trimmedKey = aiKey.trim();
+            localStorage.setItem('ai_api_key', trimmedKey);
+            setAiKey(trimmedKey);
 
-        setTimeout(() => {
             setStatus('saved');
             setTimeout(() => setStatus('idle'), 3000);
-        }, 800);
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            setStatus('error');
+            setTimeout(() => setStatus('idle'), 3000);
+        }
     };
 
     const handleTestAI = async () => {
