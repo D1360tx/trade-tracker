@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useRef, type ReactNode 
 import type { Trade } from '../types';
 import { fetchMEXCTradeHistory, fetchMEXCSpotHistory, fetchByBitTradeHistory } from '../utils/apiClient';
 import { fetchTrades, insertTrades as dbInsertTrades, updateTrade as dbUpdateTrade, deleteTrade as dbDeleteTrade, subscribeTrades } from '../lib/supabase/trades';
+import { getExchangeCredentials } from '../lib/supabase/apiCredentials';
 import { useAuth } from './AuthContext';
 
 interface TradeContextType {
@@ -463,8 +464,25 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const fetchTradesFromAPI = async (exchange: 'MEXC' | 'Binance' | 'ByBit' | 'Coinbase' | 'BloFin' | 'Schwab' | 'Interactive Brokers', silent = false): Promise<number> => {
-        const apiKey = localStorage.getItem(`${exchange.toLowerCase()}_api_key`);
-        const apiSecret = localStorage.getItem(`${exchange.toLowerCase()}_api_secret`);
+        // Try to fetch API credentials from Supabase first, then fall back to localStorage
+        let apiKey: string | null = null;
+        let apiSecret: string | null = null;
+
+        try {
+            const credentials = await getExchangeCredentials(exchange);
+            if (credentials) {
+                apiKey = credentials.key;
+                apiSecret = credentials.secret;
+            }
+        } catch (error) {
+            console.warn(`[${exchange}] Could not fetch credentials from Supabase, trying localStorage:`, error);
+        }
+
+        // Fallback to localStorage if Supabase didn't have credentials
+        if (!apiKey || !apiSecret) {
+            apiKey = localStorage.getItem(`${exchange.toLowerCase()}_api_key`);
+            apiSecret = localStorage.getItem(`${exchange.toLowerCase()}_api_secret`);
+        }
 
         if (!apiKey || !apiSecret) {
             if (!silent) alert(`Please configure ${exchange} API keys in Settings first.`);
