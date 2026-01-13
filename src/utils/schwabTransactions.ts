@@ -279,6 +279,14 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
         const exitMinute = trade.exitDate.substring(0, 16);
         const key = `${trade.ticker}|${entryMinute}|${exitMinute}`;
 
+        console.log('[Schwab Aggregation] Trade:', {
+            ticker: trade.ticker,
+            entryDate: trade.entryDate,
+            exitDate: trade.exitDate,
+            key,
+            pnl: trade.pnl
+        });
+
         if (!tradeGroups.has(key)) {
             tradeGroups.set(key, []);
         }

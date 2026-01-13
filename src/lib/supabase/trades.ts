@@ -49,16 +49,24 @@ export const insertTrades = async (trades: Trade[]): Promise<Trade[]> => {
         }
     });
 
-    // Filter out duplicates
+    // Filter out duplicates (both against existing AND within the incoming batch)
+    const seenFingerprints = new Set<string>(existingFingerprints);
     const uniqueTrades = trades.filter(trade => {
         const pnlRounded = Math.round((trade.pnl || 0) * 100) / 100;
         const exitDateStr = trade.exitDate ? trade.exitDate.split('T')[0] : '';
         const fingerprint = `${trade.exchange}|${trade.ticker}|${exitDateStr}|${pnlRounded}|${trade.quantity}`;
 
-        if (existingFingerprints.has(fingerprint)) return false;
+        // Check if we've already seen this fingerprint (existing or in this batch)
+        if (seenFingerprints.has(fingerprint)) return false;
 
-        if (trade.externalOid && existingFingerprints.has(`${trade.exchange}|${trade.externalOid}`)) {
+        if (trade.externalOid && seenFingerprints.has(`${trade.exchange}|${trade.externalOid}`)) {
             return false;
+        }
+
+        // Mark as seen for future trades in this batch
+        seenFingerprints.add(fingerprint);
+        if (trade.externalOid) {
+            seenFingerprints.add(`${trade.exchange}|${trade.externalOid}`);
         }
 
         return true;
