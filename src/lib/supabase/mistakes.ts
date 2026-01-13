@@ -49,6 +49,7 @@ export const updateMistake = async (id: string, updates: Partial<Mistake>): Prom
 
     const { data, error } = await supabase
         .from('mistakes')
+        // @ts-ignore - Supabase type inference issue
         .update(dbUpdates as any)
         .eq('id', id)
         .select()

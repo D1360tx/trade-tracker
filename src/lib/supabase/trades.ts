@@ -57,6 +57,7 @@ export const updateTrade = async (id: string, updates: Partial<Trade>): Promise<
 
     const { data, error } = await supabase
         .from('trades')
+        // @ts-ignore - Supabase type inference issue
         .update(dbUpdates as any)
         .eq('id', id)
         .select()

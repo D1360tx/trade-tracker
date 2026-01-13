@@ -1,13 +1,5 @@
 import { supabase } from './client';
 
-interface APICredential {
-    id: string;
-    exchange: string;
-    api_key: string;
-    api_secret: string;
-    is_active: boolean;
-}
-
 /**
  * Fetch all API credentials for the current user
  */

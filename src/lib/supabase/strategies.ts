@@ -3,7 +3,6 @@ import type { Database } from './database.types';
 import type { Strategy } from '../../types';
 
 type StrategyRow = Database['public']['Tables']['strategies']['Row'];
-type StrategyInsert = Database['public']['Tables']['strategies']['Insert'];
 
 export const fetchStrategies = async (): Promise<Strategy[]> => {
     const { data, error } = await supabase
@@ -50,6 +49,7 @@ export const updateStrategy = async (id: string, updates: Partial<Strategy>): Pr
 
     const { data, error } = await supabase
         .from('strategies')
+        // @ts-ignore - Supabase type inference issue
         .update(dbUpdates as any)
         .eq('id', id)
         .select()
