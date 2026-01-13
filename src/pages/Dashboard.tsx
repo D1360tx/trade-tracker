@@ -19,7 +19,7 @@ import { format, parseISO, isAfter, isBefore, startOfDay, endOfDay, differenceIn
 import { useTrades } from '../context/TradeContext';
 
 const Dashboard = () => {
-    const { trades } = useTrades();
+    const { trades, isLoading } = useTrades();
     const [timeRange, setTimeRange] = useState<TimeRange>('this_week');
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
@@ -249,6 +249,34 @@ const Dashboard = () => {
         if (minutes < 1440) return `${(minutes / 60).toFixed(1)}h`;
         return `${(minutes / 1440).toFixed(1)}d`;
     };
+
+    if (isLoading) {
+        return (
+            <div className="space-y-6 animate-pulse">
+                <div className="flex justify-between items-center mb-6">
+                    <div className="h-10 w-48 bg-[var(--bg-tertiary)] rounded-lg" />
+                    <div className="flex gap-2">
+                        <div className="h-10 w-32 bg-[var(--bg-tertiary)] rounded-lg" />
+                        <div className="h-10 w-40 bg-[var(--bg-tertiary)] rounded-lg" />
+                    </div>
+                </div>
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    {[...Array(4)].map((_, i) => (
+                        <div key={i} className="h-32 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl" />
+                    ))}
+                </div>
+                {/* Secondary Stats Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
+                    {[...Array(8)].map((_, i) => (
+                        <div key={i} className="h-36 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl" />
+                    ))}
+                </div>
+                {/* Chart */}
+                <div className="h-[400px] bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
