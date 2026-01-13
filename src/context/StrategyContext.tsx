@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { Strategy } from '../types';
+import { fetchStrategies, insertStrategy as dbInsertStrategy, updateStrategy as dbUpdateStrategy, deleteStrategy as dbDeleteStrategy } from '../lib/supabase/strategies';
+import { useAuth } from './AuthContext';
 
 interface StrategyContextType {
     strategies: Strategy[];
@@ -12,47 +14,80 @@ interface StrategyContextType {
 const StrategyContext = createContext<StrategyContextType | undefined>(undefined);
 
 export const StrategyProvider = ({ children }: { children: ReactNode }) => {
-    const [strategies, setStrategies] = useState<Strategy[]>(() => {
-        const stored = localStorage.getItem('trade_tracker_strategies');
-        const currentStrategies = stored ? JSON.parse(stored) : [];
+    const { user } = useAuth();
+    const [strategies, setStrategies] = useState<Strategy[]>([]);
 
-        const defaultStrategies = [
-            { id: 's_def_1', name: 'Breakout', color: 'bg-green-500', description: 'Price breaks key level' },
-            { id: 's_def_2', name: 'Reversal', color: 'bg-blue-500', description: 'Price reverses at key level' },
-            { id: 's_def_3', name: 'Trend Following', color: 'bg-purple-500', description: 'Riding the trend' },
-            { id: 's_def_4', name: 'Scalping', color: 'bg-orange-500', description: 'Quick small profits' }
-        ];
-
-        // Only add defaults if they don't already exist (by name)
-        const missingDefaults = defaultStrategies.filter(
-            def => !currentStrategies.some((s: Strategy) => s.name === def.name)
-        );
-
-        if (missingDefaults.length > 0) {
-            return [...currentStrategies, ...missingDefaults];
+    // Load strategies from Supabase
+    useEffect(() => {
+        if (!user) {
+            setStrategies([]);
+            return;
         }
 
-        return currentStrategies;
-    });
+        const loadStrategies = async () => {
+            try {
+                const cloudStrategies = await fetchStrategies();
 
-    useEffect(() => {
-        localStorage.setItem('trade_tracker_strategies', JSON.stringify(strategies));
-    }, [strategies]);
+                // Add default strategies if user has none
+                if (cloudStrategies.length === 0) {
+                    const defaults = [
+                        { name: 'Breakout', color: 'bg-green-500', description: 'Price breaks key level' },
+                        { name: 'Reversal', color: 'bg-blue-500', description: 'Price reverses at key level' },
+                        { name: 'Trend Following', color: 'bg-purple-500', description: 'Riding the trend' },
+                        { name: 'Scalping', color: 'bg-orange-500', description: 'Quick small profits' }
+                    ];
+
+                    for (const def of defaults) {
+                        await dbInsertStrategy(def);
+                    }
+
+                    // Reload after adding defaults
+                    const updatedStrategies = await fetchStrategies();
+                    setStrategies(updatedStrategies);
+                } else {
+                    setStrategies(cloudStrategies);
+                }
+            } catch (error) {
+                console.error('Error loading strategies:', error);
+            }
+        };
+
+        loadStrategies();
+    }, [user]);
 
     const addStrategy = (strategy: Omit<Strategy, 'id'>) => {
-        const newStrategy: Strategy = {
-            ...strategy,
-            id: Math.random().toString(36).substr(2, 9)
-        };
+        // Optimistic update
+        const tempId = Math.random().toString(36).substr(2, 9);
+        const newStrategy: Strategy = { ...strategy, id: tempId };
         setStrategies(prev => [...prev, newStrategy]);
+
+        // Sync to Supabase
+        dbInsertStrategy(strategy).then(created => {
+            setStrategies(prev => prev.map(s => s.id === tempId ? created : s));
+        }).catch(error => {
+            console.error('Error adding strategy:', error);
+            setStrategies(prev => prev.filter(s => s.id !== tempId));
+        });
     };
 
     const updateStrategy = (id: string, updates: Partial<Strategy>) => {
+        // Optimistic update
         setStrategies(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+
+        // Sync to Supabase
+        dbUpdateStrategy(id, updates).catch(error => {
+            console.error('Error updating strategy:', error);
+        });
     };
 
     const deleteStrategy = (id: string) => {
+        // Optimistic update
         setStrategies(prev => prev.filter(s => s.id !== id));
+
+        // Sync to Supabase
+        dbDeleteStrategy(id).catch(error => {
+            console.error('Error deleting strategy:', error);
+        });
     };
 
     const getStrategy = (id: string) => strategies.find(s => s.id === id);
