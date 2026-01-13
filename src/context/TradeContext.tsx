@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
 import type { Trade } from '../types';
 import { fetchMEXCTradeHistory, fetchMEXCSpotHistory, fetchByBitTradeHistory } from '../utils/apiClient';
+import { fetchTrades, insertTrades as dbInsertTrades, updateTrade as dbUpdateTrade, deleteTrade as dbDeleteTrade, subscribeTrades } from '../lib/supabase/trades';
+import { useAuth } from './AuthContext';
 
 interface TradeContextType {
     trades: Trade[];
@@ -246,31 +248,57 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
 };
 
 export const TradeProvider = ({ children }: { children: ReactNode }) => {
-    const [trades, setTrades] = useState<Trade[]>(() => {
-        const stored = localStorage.getItem('trade_tracker_trades');
-        const parsed = stored ? JSON.parse(stored) : [];
-        return parsed.map((t: Trade) => ({
-            ...t,
-            status: t.pnl !== 0 ? 'CLOSED' : 'OPEN'
-        }));
-    });
-    const [isLoading, setIsLoading] = useState(false);
+    const { user } = useAuth();
+    const [trades, setTrades] = useState<Trade[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [lastDebugData, setLastDebugData] = useState<any>(null);
+    const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
-    const [lastUpdated, setLastUpdated] = useState<number | null>(() => {
-        const stored = localStorage.getItem('trade_tracker_last_updated');
-        return stored ? Number(stored) : null;
-    });
-
+    // Load trades from Supabase on mount
     useEffect(() => {
-        localStorage.setItem('trade_tracker_trades', JSON.stringify(trades));
-    }, [trades]);
-
-    useEffect(() => {
-        if (lastUpdated) {
-            localStorage.setItem('trade_tracker_last_updated', lastUpdated.toString());
+        if (!user) {
+            setTrades([]);
+            setIsLoading(false);
+            return;
         }
-    }, [lastUpdated]);
+
+        const loadTrades = async () => {
+            try {
+                setIsLoading(true);
+                const cloudTrades = await fetchTrades();
+                setTrades(cloudTrades);
+                setLastUpdated(Date.now());
+            } catch (error) {
+                console.error('Error loading trades:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadTrades();
+    }, [user]);
+
+    // Subscribe to real-time changes
+    useEffect(() => {
+        if (!user) return;
+
+        const unsubscribe = subscribeTrades(
+            // onInsert
+            (newTrade) => {
+                setTrades(prev => [newTrade, ...prev]);
+            },
+            // onUpdate
+            (updatedTrade) => {
+                setTrades(prev => prev.map(t => t.id === updatedTrade.id ? updatedTrade : t));
+            },
+            // onDelete
+            (deletedId) => {
+                setTrades(prev => prev.filter(t => t.id !== deletedId));
+            }
+        );
+
+        return () => unsubscribe();
+    }, [user]);
 
     // Ref for auto-sync to avoid stale closures
     const lastUpdatedRef = useRef(lastUpdated);
