@@ -189,6 +189,36 @@ const Journal = () => {
 
 
 
+
+    // Show loading skeleton
+    if (isLoading) {
+        return (
+            <div className="space-y-6 animate-pulse">
+                <div className="flex justify-between items-center">
+                    <div className="h-10 w-48 bg-[var(--bg-tertiary)] rounded-lg" />
+                    <div className="flex gap-4">
+                        <div className="h-10 w-32 bg-[var(--bg-tertiary)] rounded-lg" />
+                        <div className="h-10 w-32 bg-[var(--bg-tertiary)] rounded-lg" />
+                        <div className="h-10 w-64 bg-[var(--bg-tertiary)] rounded-lg" />
+                        <div className="h-10 w-24 bg-[var(--bg-tertiary)] rounded-lg" />
+                    </div>
+                </div>
+                <div className="glass-panel rounded-xl p-6">
+                    <div className="space-y-4">
+                        {[...Array(10)].map((_, i) => (
+                            <div key={i} className="flex gap-4">
+                                <div className="h-6 flex-1 bg-[var(--bg-tertiary)] rounded" />
+                                <div className="h-6 flex-1 bg-[var(--bg-tertiary)] rounded" />
+                                <div className="h-6 flex-1 bg-[var(--bg-tertiary)] rounded" />
+                                <div className="h-6 flex-1 bg-[var(--bg-tertiary)] rounded" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -350,7 +380,7 @@ const Journal = () => {
                 </div>
             )}
 
-            {trades.length === 0 ? (
+            {(!isLoading && trades.length === 0) ? (
                 <div className="glass-panel p-12 text-center rounded-xl">
                     <p className="text-[var(--text-secondary)] mb-4">No trades imported yet.</p>
                     <Link to="/import" className="text-[var(--accent-primary)] hover:underline">Go to Import Page</Link>
