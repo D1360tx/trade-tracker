@@ -13,6 +13,7 @@ import ExchangeFilter from '../components/ExchangeFilter';
 import TimeRangeFilter, { getDateRangeForFilter } from '../components/TimeRangeFilter';
 import type { TimeRange } from '../components/TimeRangeFilter';
 import DayDetailModal from '../components/DayDetailModal';
+import KPIDetailModal, { KPIModalType } from '../components/KPIDetailModal';
 
 import { format, parseISO, isAfter, isBefore, startOfDay, endOfDay, differenceInMinutes } from 'date-fns';
 import { useTrades } from '../context/TradeContext';
@@ -25,6 +26,7 @@ const Dashboard = () => {
     const [selectedExchanges, setSelectedExchanges] = useState<string[]>([]);
     const [showAdvancedStats, setShowAdvancedStats] = useState(false);
     const [selectedDayDate, setSelectedDayDate] = useState<string | null>(null);
+    const [kpiModal, setKpiModal] = useState<{ type: KPIModalType, trades: any[], metrics?: any } | null>(null);
 
     const filteredTrades = useMemo(() => {
         const now = new Date();
@@ -336,7 +338,13 @@ const Dashboard = () => {
 
                     {/* Secondary KPI Grid (New 8 metrics) */}
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-                        <div className="glass-panel p-4 rounded-xl">
+                        <div
+                            className="glass-panel p-4 rounded-xl cursor-pointer hover:ring-2 hover:ring-[var(--success)]/50 transition-all"
+                            onClick={() => {
+                                const wins = filteredTrades.filter(t => t.pnl > 0).sort((a, b) => b.pnl - a.pnl);
+                                setKpiModal({ type: 'avg_win', trades: wins });
+                            }}
+                        >
                             <div className="flex items-center gap-2 text-[var(--success)] mb-2">
                                 <ArrowUpRight size={16} />
                                 <span className="text-xs text-[var(--text-tertiary)]">Avg Win</span>
@@ -345,7 +353,13 @@ const Dashboard = () => {
                                 ${stats.avgWin.toFixed(2)}
                             </p>
                         </div>
-                        <div className="glass-panel p-4 rounded-xl">
+                        <div
+                            className="glass-panel p-4 rounded-xl cursor-pointer hover:ring-2 hover:ring-[var(--danger)]/50 transition-all"
+                            onClick={() => {
+                                const losses = filteredTrades.filter(t => t.pnl < 0).sort((a, b) => a.pnl - b.pnl);
+                                setKpiModal({ type: 'avg_loss', trades: losses });
+                            }}
+                        >
                             <div className="flex items-center gap-2 text-[var(--danger)] mb-2">
                                 <ArrowDownRight size={16} />
                                 <span className="text-xs text-[var(--text-tertiary)]">Avg Loss</span>
@@ -354,7 +368,13 @@ const Dashboard = () => {
                                 ${stats.avgLoss.toFixed(2)}
                             </p>
                         </div>
-                        <div className="glass-panel p-4 rounded-xl">
+                        <div
+                            className="glass-panel p-4 rounded-xl cursor-pointer hover:ring-2 hover:ring-[var(--success)]/50 transition-all"
+                            onClick={() => {
+                                const wins = filteredTrades.filter(t => t.pnl > 0).sort((a, b) => b.pnl - a.pnl);
+                                setKpiModal({ type: 'best_trade', trades: wins.slice(0, 10) });
+                            }}
+                        >
                             <div className="flex items-center gap-2 text-[var(--success)] mb-2">
                                 <Award size={16} />
                                 <span className="text-xs text-[var(--text-tertiary)]">Best Trade</span>
@@ -363,7 +383,13 @@ const Dashboard = () => {
                                 ${stats.largestWin.toFixed(2)}
                             </p>
                         </div>
-                        <div className="glass-panel p-4 rounded-xl">
+                        <div
+                            className="glass-panel p-4 rounded-xl cursor-pointer hover:ring-2 hover:ring-[var(--danger)]/50 transition-all"
+                            onClick={() => {
+                                const losses = filteredTrades.filter(t => t.pnl < 0).sort((a, b) => a.pnl - b.pnl);
+                                setKpiModal({ type: 'worst_trade', trades: losses.slice(0, 10) });
+                            }}
+                        >
                             <div className="flex items-center gap-2 text-[var(--danger)] mb-2">
                                 <AlertTriangle size={16} />
                                 <span className="text-xs text-[var(--text-tertiary)]">Worst Trade</span>
@@ -372,7 +398,23 @@ const Dashboard = () => {
                                 ${Math.abs(stats.largestLoss).toFixed(2)}
                             </p>
                         </div>
-                        <div className="glass-panel p-4 rounded-xl">
+                        <div
+                            className="glass-panel p-4 rounded-xl cursor-pointer hover:ring-2 hover:ring-[var(--accent-primary)]/50 transition-all"
+                            onClick={() => {
+                                const lossRate = filteredTrades.length > 0 ? (filteredTrades.filter(t => t.pnl < 0).length / filteredTrades.length * 100) : 0;
+                                setKpiModal({
+                                    type: 'expectancy',
+                                    trades: [],
+                                    metrics: {
+                                        winRate: stats.winRate,
+                                        avgWin: stats.avgWin,
+                                        lossRate: lossRate,
+                                        avgLoss: Math.abs(stats.avgLoss),
+                                        expectancy: stats.expectancy
+                                    }
+                                });
+                            }}
+                        >
                             <div className="flex items-center gap-2 text-[var(--accent-primary)] mb-2">
                                 <Target size={16} />
                                 <span className="text-xs text-[var(--text-tertiary)]">Expectancy</span>
@@ -381,7 +423,14 @@ const Dashboard = () => {
                                 ${stats.expectancy.toFixed(2)}
                             </p>
                         </div>
-                        <div className="glass-panel p-4 rounded-xl">
+                        <div
+                            className="glass-panel p-4 rounded-xl cursor-pointer hover:ring-2 hover:ring-[var(--danger)]/50 transition-all"
+                            onClick={() => {
+                                // For now, showing largest losses as a proxy for what contributed to drawdown
+                                const losses = filteredTrades.filter(t => t.pnl < 0).sort((a, b) => a.pnl - b.pnl);
+                                setKpiModal({ type: 'max_drawdown', trades: losses.slice(0, 5) });
+                            }}
+                        >
                             <div className="flex items-center gap-2 text-[var(--danger)] mb-2">
                                 <TrendingDown size={16} />
                                 <span className="text-xs text-[var(--text-tertiary)]">Max DD</span>
@@ -641,6 +690,15 @@ const Dashboard = () => {
                     date={selectedDayDate}
                     trades={filteredTrades}
                     onClose={() => setSelectedDayDate(null)}
+                />
+            )}
+
+            {kpiModal && (
+                <KPIDetailModal
+                    type={kpiModal.type}
+                    trades={kpiModal.trades}
+                    metrics={kpiModal.metrics}
+                    onClose={() => setKpiModal(null)}
                 />
             )}
         </div>
