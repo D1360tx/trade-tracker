@@ -91,7 +91,54 @@ const Journal = () => {
             result = result.filter(t => t.mistakes && t.mistakes.includes(filterMistake));
         }
 
-        return result;
+        // Aggregate Schwab options that are multiple contracts of same position
+        // This handles existing data that was imported before aggregation was added
+        const groupedByPosition = new Map<string, typeof result>();
+        const nonAggregatable: typeof result = [];
+
+        result.forEach(trade => {
+            // Only aggregate Schwab options
+            if (trade.exchange === 'Schwab' && trade.type === 'OPTION') {
+                const entryMinute = trade.entryDate?.substring(0, 16) || '';
+                const exitMinute = trade.exitDate?.substring(0, 16) || '';
+                const key = `${trade.ticker}|${entryMinute}|${exitMinute}`;
+
+                if (!groupedByPosition.has(key)) {
+                    groupedByPosition.set(key, []);
+                }
+                groupedByPosition.get(key)!.push(trade);
+            } else {
+                nonAggregatable.push(trade);
+            }
+        });
+
+        // Aggregate grouped trades
+        const aggregated: typeof result = [];
+        groupedByPosition.forEach(group => {
+            if (group.length === 1) {
+                aggregated.push(group[0]);
+            } else {
+                // Combine multiple contracts
+                const first = group[0];
+                const totalQuantity = group.reduce((sum, t) => sum + t.quantity, 0);
+                const totalPnl = group.reduce((sum, t) => sum + t.pnl, 0);
+                const totalFees = group.reduce((sum, t) => sum + (t.fees || 0), 0);
+                const avgEntryPrice = group.reduce((sum, t) => sum + (t.entryPrice * t.quantity), 0) / totalQuantity;
+                const avgExitPrice = group.reduce((sum, t) => sum + (t.exitPrice * t.quantity), 0) / totalQuantity;
+
+                aggregated.push({
+                    ...first,
+                    quantity: totalQuantity,
+                    pnl: totalPnl,
+                    fees: totalFees,
+                    entryPrice: avgEntryPrice,
+                    exitPrice: avgExitPrice,
+                    pnlPercentage: first.margin ? (totalPnl / (first.margin * group.length)) * 100 : 0
+                });
+            }
+        });
+
+        return [...aggregated, ...nonAggregatable];
     }, [trades, filterTicker, filterType, filterDirection, selectedExchanges, timeRange, customStart, customEnd, filterStrategy, filterMistake]);
 
     const sortedTrades = useMemo(() => {
