@@ -307,8 +307,16 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
 
     // Hourly & Scheduled Auto-Sync
     useEffect(() => {
+        // Cooldown: Don't sync for first 2 minutes after page load (refresh protection)
+        const mountTime = Date.now();
+
         const checkTimeAndSync = () => {
             const now = new Date();
+            const timeSinceMount = now.getTime() - mountTime;
+
+            // Skip auto-sync for first 2 minutes after mount (user likely just refreshed)
+            if (timeSinceMount < 2 * 60 * 1000) return;
+
             const minutes = now.getMinutes();
             const hours = now.getHours(); // 0-23
             const day = now.getDay(); // 0=Sun, 1=Mon... 6=Sat

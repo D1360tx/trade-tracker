@@ -150,20 +150,37 @@ const Journal = () => {
                 <div className="flex gap-4">
                     <button
                         onClick={async () => {
-                            // Smart sync: only sync exchanges with API keys configured
-                            const exchanges: Array<'MEXC' | 'ByBit'> = ['MEXC', 'ByBit'];
-                            const toSync = exchanges.filter(ex => {
+                            // Sync all exchanges that have credentials saved
+                            const exchanges: Array<'MEXC' | 'ByBit' | 'Schwab'> = ['MEXC', 'ByBit', 'Schwab'];
+                            const toSync = [];
+
+                            for (const ex of exchanges) {
+                                // Check Supabase first (async), fallback to localStorage
+                                try {
+                                    const { getExchangeCredentials } = await import('../lib/supabase/apiCredentials');
+                                    const credentials = await getExchangeCredentials(ex);
+                                    if (credentials) {
+                                        toSync.push(ex);
+                                        continue;
+                                    }
+                                } catch (e) {
+                                    // Supabase check failed, try localStorage
+                                }
+
+                                // Fallback: check localStorage
                                 const apiKey = localStorage.getItem(ex.toLowerCase() + "_api_key");
                                 const apiSecret = localStorage.getItem(ex.toLowerCase() + "_api_secret");
-                                return apiKey && apiSecret;
-                            });
+                                if (apiKey && apiSecret) {
+                                    toSync.push(ex);
+                                }
+                            }
 
                             if (toSync.length === 0) {
                                 alert('No exchange API keys configured. Please add API keys in Settings first.');
                                 return;
                             }
 
-                            await Promise.all(toSync.map(ex => fetchTradesFromAPI(ex)));
+                            await Promise.all(toSync.map(ex => fetchTradesFromAPI(ex as any)));
                         }}
                         disabled={isLoading}
                         className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-primary)] text-white rounded-lg hover:bg-[var(--accent-primary)]/90 disabled:opacity-50 transition-colors"
