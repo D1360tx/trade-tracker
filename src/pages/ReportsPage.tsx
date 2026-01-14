@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useTrades } from '../context/TradeContext';
 import { useStrategies } from '../context/StrategyContext';
 import { useMistakes } from '../context/MistakeContext';
-import { Download, X, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { Download, X, TrendingUp, TrendingDown, Calendar, ChevronDown } from 'lucide-react';
 import HeatmapChart from '../components/charts/HeatmapChart';
 import TradeDistribution from '../components/charts/TradeDistribution';
 import EquityCurveChart from '../components/charts/EquityCurveChart';
@@ -28,6 +28,7 @@ const ReportsPage = () => {
     const [filterStrategy, setFilterStrategy] = useState('');
     const [filterMistake, setFilterMistake] = useState('');
     const [selectedDayDate, setSelectedDayDate] = useState<string | null>(null);
+    const [showFilters, setShowFilters] = useState(false); // Collapsed by default
 
     // Filtered trades
     const filteredTrades = useMemo(() => {
@@ -190,91 +191,115 @@ const ReportsPage = () => {
                 </div>
             </div>
 
-            {/* Filters */}
-            <div className="glass-panel p-4 rounded-xl">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-                    <div className="space-y-1">
-                        <label className="text-xs text-[var(--text-tertiary)] flex items-center gap-1">
-                            <Calendar size={12} />
-                            From Date
-                        </label>
-                        <input
-                            type="date"
-                            value={filterStartDate}
-                            onChange={(e) => {
-                                setFilterStartDate(e.target.value);
-                                setTimeRange('custom');
-                            }}
-                            className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent-primary)] text-[var(--text-secondary)] [color-scheme:dark]"
-                        />
+            {/* Filters - Collapsible */}
+            <div className="glass-panel rounded-xl overflow-hidden">
+                {/* Toggle Header */}
+                <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="w-full flex items-center justify-between p-4 hover:bg-[var(--bg-tertiary)]/30 transition-colors"
+                >
+                    <div className="flex items-center gap-3">
+                        <span className="font-medium">Advanced Filters</span>
+                        {hasActiveFilters && (
+                            <span className="px-2 py-0.5 text-xs bg-[var(--accent-primary)] text-white rounded-full">
+                                {[filterStartDate, filterEndDate, filterStrategy, filterMistake].filter(Boolean).length} active
+                            </span>
+                        )}
                     </div>
-                    <div className="space-y-1">
-                        <label className="text-xs text-[var(--text-tertiary)] flex items-center gap-1">
-                            <Calendar size={12} />
-                            To Date
-                        </label>
-                        <input
-                            type="date"
-                            value={filterEndDate}
-                            onChange={(e) => {
-                                setFilterEndDate(e.target.value);
-                                setTimeRange('custom');
-                            }}
-                            className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent-primary)] text-[var(--text-secondary)] [color-scheme:dark]"
-                        />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs text-[var(--text-tertiary)]">Strategy</label>
-                        <select
-                            value={filterStrategy}
-                            onChange={(e) => setFilterStrategy(e.target.value)}
-                            className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent-primary)]"
-                        >
-                            <option value="">All Strategies</option>
-                            {strategies.map(s => (
-                                <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs text-[var(--text-tertiary)]">Mistake</label>
-                        <select
-                            value={filterMistake}
-                            onChange={(e) => setFilterMistake(e.target.value)}
-                            className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent-primary)]"
-                        >
-                            <option value="">All Mistakes</option>
-                            {mistakes.map(m => (
-                                <option key={m.id} value={m.id}>{m.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs text-[var(--text-tertiary)] opacity-0">Actions</label>
-                        <button
-                            onClick={handleClearFilters}
-                            disabled={!hasActiveFilters}
-                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded text-sm hover:bg-[var(--bg-secondary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <X size={14} />
-                            Clear
-                        </button>
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs text-[var(--text-tertiary)] opacity-0">Actions</label>
-                        <button
-                            onClick={handleExport}
-                            disabled={filteredTrades.length === 0}
-                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[var(--accent-primary)] text-white rounded text-sm hover:bg-[var(--accent-primary)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <Download size={14} />
-                            Export CSV
-                        </button>
-                    </div>
-                </div>
-                {hasActiveFilters && (
-                    <div className="mt-3 text-xs text-[var(--text-secondary)]">
-                        Showing {filteredTrades.length} of {trades.filter(t => t.status === 'CLOSED' || t.pnl !== 0).length} trades
+                    <ChevronDown
+                        size={20}
+                        className={`text-[var(--text-secondary)] transition-transform ${showFilters ? 'rotate-180' : ''}`}
+                    />
+                </button>
+
+                {/* Expandable Filter Content */}
+                {showFilters && (
+                    <div className="p-4 border-t border-[var(--border)]">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-xs text-[var(--text-tertiary)] flex items-center gap-1">
+                                    <Calendar size={12} />
+                                    From Date
+                                </label>
+                                <input
+                                    type="date"
+                                    value={filterStartDate}
+                                    onChange={(e) => {
+                                        setFilterStartDate(e.target.value);
+                                        setTimeRange('custom');
+                                    }}
+                                    className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent-primary)] text-[var(--text-secondary)] [color-scheme:dark]"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-[var(--text-tertiary)] flex items-center gap-1">
+                                    <Calendar size={12} />
+                                    To Date
+                                </label>
+                                <input
+                                    type="date"
+                                    value={filterEndDate}
+                                    onChange={(e) => {
+                                        setFilterEndDate(e.target.value);
+                                        setTimeRange('custom');
+                                    }}
+                                    className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent-primary)] text-[var(--text-secondary)] [color-scheme:dark]"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-[var(--text-tertiary)]">Strategy</label>
+                                <select
+                                    value={filterStrategy}
+                                    onChange={(e) => setFilterStrategy(e.target.value)}
+                                    className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent-primary)]"
+                                >
+                                    <option value="">All Strategies</option>
+                                    {strategies.map(s => (
+                                        <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-[var(--text-tertiary)]">Mistake</label>
+                                <select
+                                    value={filterMistake}
+                                    onChange={(e) => setFilterMistake(e.target.value)}
+                                    className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--accent-primary)]"
+                                >
+                                    <option value="">All Mistakes</option>
+                                    {mistakes.map(m => (
+                                        <option key={m.id} value={m.id}>{m.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-[var(--text-tertiary)] opacity-0">Actions</label>
+                                <button
+                                    onClick={handleClearFilters}
+                                    disabled={!hasActiveFilters}
+                                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded text-sm hover:bg-[var(--bg-secondary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <X size={14} />
+                                    Clear
+                                </button>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-[var(--text-tertiary)] opacity-0">Actions</label>
+                                <button
+                                    onClick={handleExport}
+                                    disabled={filteredTrades.length === 0}
+                                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[var(--accent-primary)] text-white rounded text-sm hover:bg-[var(--accent-primary)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Download size={14} />
+                                    Export CSV
+                                </button>
+                            </div>
+                        </div>
+                        {hasActiveFilters && (
+                            <div className="mt-3 text-xs text-[var(--text-secondary)]">
+                                Showing {filteredTrades.length} of {trades.filter(t => t.status === 'CLOSED' || t.pnl !== 0).length} trades
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
