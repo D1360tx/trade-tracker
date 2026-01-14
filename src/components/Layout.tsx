@@ -13,10 +13,28 @@ const Layout = () => {
         const saved = localStorage.getItem('sidebar_collapsed');
         return saved === 'true';
     });
+    const sidebarRef = React.useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
         localStorage.setItem('sidebar_collapsed', String(isCollapsed));
     }, [isCollapsed]);
+
+    // Close mobile menu when clicking outside
+    React.useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (isMobileMenuOpen && sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+                setIsMobileMenuOpen(false);
+            }
+        };
+
+        if (isMobileMenuOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isMobileMenuOpen]);
 
 
     const navItems = [
@@ -37,8 +55,17 @@ const Layout = () => {
 
     return (
         <div className="flex h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
+            {/* Mobile Menu Backdrop */}
+            {isMobileMenuOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 md:hidden"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
             <aside
+                ref={sidebarRef}
                 className={`
           fixed inset-y-0 left-0 z-50 bg-[var(--bg-secondary)] border-r border-[var(--border)]
           transform transition-all duration-300 ease-in-out flex flex-col

@@ -166,16 +166,26 @@ const Calendar = () => {
                 </div>
             </div>
 
-            <div className="glass-panel p-6 rounded-xl">
-                <div className="grid grid-cols-7 mb-4">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                        <div key={day} className="text-center text-[var(--text-secondary)] font-medium text-sm py-2">
-                            {day}
+            <div className="glass-panel p-3 md:p-6 rounded-xl">
+                {/* Day Headers - Show single letter on mobile */}
+                <div className="grid grid-cols-7 mb-2 md:mb-4">
+                    {[
+                        { full: 'Sunday', short: 'S' },
+                        { full: 'Monday', short: 'M' },
+                        { full: 'Tuesday', short: 'T' },
+                        { full: 'Wednesday', short: 'W' },
+                        { full: 'Thursday', short: 'T' },
+                        { full: 'Friday', short: 'F' },
+                        { full: 'Saturday', short: 'S' }
+                    ].map(day => (
+                        <div key={day.full} className="text-center text-[var(--text-secondary)] font-medium py-1 md:py-2">
+                            <span className="hidden sm:inline text-sm">{day.full.substring(0, 3)}</span>
+                            <span className="sm:hidden text-xs">{day.short}</span>
                         </div>
                     ))}
                 </div>
 
-                <div className="grid grid-cols-7 gap-2 md:gap-4">
+                <div className="grid grid-cols-7 gap-1 md:gap-2 lg:gap-4">
                     {blanks.map((_, i) => (
                         <div key={`blank-${i}`} className="aspect-square"></div>
                     ))}
@@ -190,20 +200,22 @@ const Calendar = () => {
                                 key={date.toISOString()}
                                 onClick={() => hasTrades && setSelectedDate(date)}
                                 className={`
-                                    aspect-square rounded-xl p-2 flex flex-col items-center justify-center border transition-all hover:scale-105 relative overflow-hidden
+                                    aspect-square rounded-lg md:rounded-xl p-1 md:p-2 flex flex-col items-center justify-center border transition-all hover:scale-105 relative overflow-hidden
                                     ${hasTrades ? 'cursor-pointer' : 'cursor-default'}
                                     ${getDayClass(pnl)}
-                                    ${isToday ? 'ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-secondary)]' : ''}
+                                    ${isToday ? 'ring-1 md:ring-2 ring-[var(--accent-primary)] ring-offset-1 md:ring-offset-2 ring-offset-[var(--bg-secondary)]' : ''}
                                 `}
                             >
-                                <span className="absolute top-2 left-2 text-xs opacity-60 font-medium">
+                                <span className="absolute top-0.5 left-0.5 md:top-2 md:left-2 text-[10px] md:text-xs opacity-60 font-medium">
                                     {format(date, 'd')}
                                 </span>
 
                                 {pnl !== 0 && (
-                                    <div className="mt-4 text-center">
-                                        <span className="text-xs sm:text-sm font-bold block">
-                                            {pnl > 0 ? '+' : ''}${Math.abs(pnl).toLocaleString()}
+                                    <div className="mt-2 md:mt-4 text-center">
+                                        <span className="text-[10px] md:text-sm font-bold block leading-tight">
+                                            {pnl > 0 ? '+' : ''}${Math.abs(pnl) >= 1000
+                                                ? (Math.abs(pnl) / 1000).toFixed(1) + 'k'
+                                                : Math.abs(pnl).toLocaleString()}
                                         </span>
                                         {pnl > 0 && <div className="absolute inset-0 bg-green-500/5 blur-xl"></div>}
                                         {pnl < 0 && <div className="absolute inset-0 bg-red-500/5 blur-xl"></div>}
@@ -211,7 +223,7 @@ const Calendar = () => {
                                 )}
 
                                 {pnl === 0 && (
-                                    <span className="text-[var(--text-tertiary)] text-xs mt-4">-</span>
+                                    <span className="text-[var(--text-tertiary)] text-[10px] md:text-xs mt-2 md:mt-4">-</span>
                                 )}
                             </div>
                         );

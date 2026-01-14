@@ -5,7 +5,7 @@ import { useStrategies } from '../context/StrategyContext';
 import { useMistakes } from '../context/MistakeContext';
 import { Link } from 'react-router-dom';
 import { isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
-import { Search, Filter, RefreshCw, RotateCcw, GripVertical } from 'lucide-react';
+import { Search, Filter, RefreshCw, RotateCcw, GripVertical, Grid, List } from 'lucide-react';
 import TradeDetailsModal from '../components/TradeDetailsModal';
 import ExchangeFilter from '../components/ExchangeFilter';
 import TimeRangeFilter, { getDateRangeForFilter } from '../components/TimeRangeFilter';
@@ -38,6 +38,12 @@ const Journal = () => {
 
     // Sorting State
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'exitDate', direction: 'desc' });
+
+    // View Mode State (table vs card view for mobile)
+    const [viewMode, setViewMode] = useState<'table' | 'card'>(() => {
+        const saved = localStorage.getItem('journal_view_mode');
+        return (saved as 'table' | 'card') || (window.innerWidth < 768 ? 'card' : 'table');
+    });
 
     const filteredTrades = useMemo(() => {
         // Only show CLOSED trades in the Journal (OPEN positions will have a separate tab)
@@ -290,7 +296,19 @@ const Journal = () => {
                         className={"relative z-10 flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors " + (showFilters ? "bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white" : "bg-[var(--bg-secondary)] border-[var(--border)] hover:border-[var(--text-tertiary)]")}
                     >
                         <Filter size={18} />
-                        <span>Filters</span>
+                        <span className="hidden sm:inline">Filters</span>
+                    </button>
+                    <button
+                        onClick={() => {
+                            const newMode = viewMode === 'table' ? 'card' : 'table';
+                            setViewMode(newMode);
+                            localStorage.setItem('journal_view_mode', newMode);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+                        title={viewMode === 'table' ? 'Card View' : 'Table View'}
+                    >
+                        {viewMode === 'table' ? <Grid size={18} /> : <List size={18} />}
+                        <span className="hidden sm:inline">{viewMode === 'table' ? 'Card View' : 'Table View'}</span>
                     </button>
                 </div>
             </div>
@@ -387,53 +405,111 @@ const Journal = () => {
                 </div>
             ) : (
                 <div className="glass-panel rounded-xl overflow-hidden">
-                    {/* Column reorder info */}
-                    <div className="px-6 py-3 bg-[var(--bg-tertiary)]/50 border-b border-[var(--border)] flex items-center justify-between">
-                        <p className="text-xs text-[var(--text-secondary)]">
-                            <GripVertical size={14} className="inline mr-1" />
-                            Drag column headers to reorder • <button onClick={resetToDefault} className="text-[var(--accent-primary)] hover:underline">Reset to default</button>
-                        </p>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="bg-[var(--bg-tertiary)] text-left">
-                                    {columns.map(column => (
-                                        <TableHeader
-                                            key={column.id}
-                                            column={column}
-                                            sortConfig={sortConfig}
-                                            draggedColumn={draggedColumn}
-                                            dragOverColumn={dragOverColumn}
-                                            handleSort={handleSort}
-                                            handleDragStart={handleDragStart}
-                                            handleDragOver={handleDragOver}
-                                            handleDragEnd={handleDragEnd}
-                                        />
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[var(--border)]">
-                                {sortedTrades.map((trade) => (
-                                    <tr key={trade.id} className="hover:bg-[var(--bg-tertiary)]/50 transition-colors">
-                                        {columns.map(column => (
-                                            <TableCell
-                                                key={column.id}
-                                                columnId={column.id}
-                                                trade={trade}
-                                                strategies={strategies}
-                                                mistakes={mistakes}
-                                                activeMistakeDropdown={activeMistakeDropdown}
-                                                setActiveMistakeDropdown={setActiveMistakeDropdown}
-                                                setSelectedTrade={setSelectedTrade}
-                                                updateTrade={updateTrade}
-                                            />
+                    {viewMode === 'table' ? (
+                        <>
+                            {/* Table View */}
+                            {/* Column reorder info */}
+                            <div className="px-6 py-3 bg-[var(--bg-tertiary)]/50 border-b border-[var(--border)] flex items-center justify-between">
+                                <p className="text-xs text-[var(--text-secondary)]">
+                                    <GripVertical size={14} className="inline mr-1" />
+                                    Drag column headers to reorder • <button onClick={resetToDefault} className="text-[var(--accent-primary)] hover:underline">Reset to default</button>
+                                </p>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="bg-[var(--bg-tertiary)] text-left">
+                                            {columns.map(column => (
+                                                <TableHeader
+                                                    key={column.id}
+                                                    column={column}
+                                                    sortConfig={sortConfig}
+                                                    draggedColumn={draggedColumn}
+                                                    dragOverColumn={dragOverColumn}
+                                                    handleSort={handleSort}
+                                                    handleDragStart={handleDragStart}
+                                                    handleDragOver={handleDragOver}
+                                                    handleDragEnd={handleDragEnd}
+                                                />
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-[var(--border)]">
+                                        {sortedTrades.map((trade) => (
+                                            <tr key={trade.id} className="hover:bg-[var(--bg-tertiary)]/50 transition-colors">
+                                                {columns.map(column => (
+                                                    <TableCell
+                                                        key={column.id}
+                                                        columnId={column.id}
+                                                        trade={trade}
+                                                        strategies={strategies}
+                                                        mistakes={mistakes}
+                                                        activeMistakeDropdown={activeMistakeDropdown}
+                                                        setActiveMistakeDropdown={setActiveMistakeDropdown}
+                                                        setSelectedTrade={setSelectedTrade}
+                                                        updateTrade={updateTrade}
+                                                    />
+                                                ))}
+                                            </tr>
                                         ))}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    ) : (
+                        /* Card View for Mobile */
+                        <div className="p-4 space-y-4">
+                            {sortedTrades.map(trade => (
+                                <div
+                                    key={trade.id}
+                                    onClick={() => setSelectedTrade(trade)}
+                                    className="bg-[var(--bg-tertiary)] rounded-lg p-4 cursor-pointer hover:bg-[var(--bg-tertiary)]/80 transition-colors border border-[var(--border)]"
+                                >
+                                    {/* Header Row */}
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="font-bold text-lg">{trade.ticker}</span>
+                                                <span className={`text-xs px-2 py-0.5 rounded ${trade.direction === 'LONG' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'}`}>
+                                                    {trade.direction}
+                                                </span>
+                                                <span className={`text-xs px-2 py-0.5 rounded ${trade.type === 'OPTION' ? 'bg-amber-500/20 text-amber-400' : trade.type === 'CRYPTO' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                                                    {trade.type}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-[var(--text-tertiary)]">
+                                                {new Date(trade.exitDate).toLocaleDateString()} • {trade.exchange}
+                                            </p>
+                                        </div>
+                                        <div className={`text-right font-bold ${trade.pnl >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                                            <p className="text-xl">{trade.pnl >= 0 ? '+' : ''}${trade.pnl.toLocaleString()}</p>
+                                            <p className="text-sm">{trade.pnlPercentage >= 0 ? '+' : ''}{trade.pnlPercentage.toFixed(1)}%</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Trade Details Grid */}
+                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                        <div>
+                                            <p className="text-[var(--text-tertiary)] text-xs">Entry</p>
+                                            <p className="font-medium">${trade.entryPrice?.toFixed(2)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[var(--text-tertiary)] text-xs">Exit</p>
+                                            <p className="font-medium">${trade.exitPrice?.toFixed(2)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[var(--text-tertiary)] text-xs">Quantity</p>
+                                            <p className="font-medium">{trade.quantity}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[var(--text-tertiary)] text-xs">Fees</p>
+                                            <p className="font-medium">${trade.fees?.toFixed(2) || '0.00'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
             {selectedTrade && (
