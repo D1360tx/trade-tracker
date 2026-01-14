@@ -230,7 +230,7 @@ const Journal = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <h2 className="text-3xl font-bold">Trade Journal</h2>
 
-                <div className="flex gap-4">
+                <div className="flex flex-wrap gap-2">
                     <button
                         onClick={async () => {
                             // Sync all exchanges that have credentials saved
@@ -268,20 +268,21 @@ const Journal = () => {
                             await Promise.all(toSync.map(ex => fetchTradesFromAPI(ex as any)));
                         }}
                         disabled={isLoading}
-                        className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-primary)] text-white rounded-lg hover:bg-[var(--accent-primary)]/90 disabled:opacity-50 transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-primary)] text-white rounded-lg hover:bg-[var(--accent-primary)]/90 disabled:opacity-50 transition-colors whitespace-nowrap"
                     >
                         <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
-                        <span>{isLoading ? 'Syncing...' : 'Sync Exchanges'}</span>
+                        <span className="hidden sm:inline">{isLoading ? 'Syncing...' : 'Sync Exchanges'}</span>
+                        <span className="sm:hidden">{isLoading ? 'Sync' : 'Sync'}</span>
                     </button>
                     <button
                         onClick={resetToDefault}
-                        className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors whitespace-nowrap"
                         title="Reset column order to default"
                     >
                         <RotateCcw size={18} />
-                        <span>Reset Columns</span>
+                        <span className="hidden md:inline">Reset Columns</span>
                     </button>
-                    <div className="relative">
+                    <div className="relative flex-1 min-w-[200px] md:flex-none">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" size={18} />
                         <input
                             type="text"
@@ -293,7 +294,7 @@ const Journal = () => {
                     </div>
                     <button
                         onClick={() => setShowFilters(!showFilters)}
-                        className={"relative z-10 flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors " + (showFilters ? "bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white" : "bg-[var(--bg-secondary)] border-[var(--border)] hover:border-[var(--text-tertiary)]")}
+                        className={"relative z-10 flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors whitespace-nowrap " + (showFilters ? "bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white" : "bg-[var(--bg-secondary)] border-[var(--border)] hover:border-[var(--text-tertiary)]")}
                     >
                         <Filter size={18} />
                         <span className="hidden sm:inline">Filters</span>
@@ -304,7 +305,7 @@ const Journal = () => {
                             setViewMode(newMode);
                             localStorage.setItem('journal_view_mode', newMode);
                         }}
-                        className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors whitespace-nowrap"
                         title={viewMode === 'table' ? 'Card View' : 'Table View'}
                     >
                         {viewMode === 'table' ? <Grid size={18} /> : <List size={18} />}
