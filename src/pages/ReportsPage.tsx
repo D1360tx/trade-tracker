@@ -156,36 +156,38 @@ const ReportsPage = () => {
     return (
         <div className="space-y-6">
             {/* Header with Time Range */}
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                 <div>
                     <h1 className="text-3xl font-bold bg-gradient-to-r from-[var(--accent-primary)] to-cyan-400 bg-clip-text text-transparent">
                         Advanced Reporting
                     </h1>
                     <p className="text-[var(--text-secondary)]">Deep dive analytics and performance visualization.</p>
                 </div>
-                <TimeRangeFilter
-                    selectedRange={timeRange}
-                    onRangeChange={(range) => {
-                        setTimeRange(range);
-                        if (range !== 'custom' && range !== 'all') {
-                            // Calculate and set the date range for the preset
-                            const dateRange = getDateRangeForFilter(range);
-                            setFilterStartDate(format(dateRange.start, 'yyyy-MM-dd'));
-                            setFilterEndDate(format(dateRange.end, 'yyyy-MM-dd'));
-                        } else if (range === 'all') {
-                            // Clear dates for "All Time"
-                            setFilterStartDate('');
-                            setFilterEndDate('');
-                        }
-                        // For 'custom', don't change the dates (user sets them manually)
-                    }}
-                    customStartDate={filterStartDate}
-                    customEndDate={filterEndDate}
-                    onCustomDateChange={(start, end) => {
-                        setFilterStartDate(start);
-                        setFilterEndDate(end);
-                    }}
-                />
+                <div className="flex-shrink-0">
+                    <TimeRangeFilter
+                        selectedRange={timeRange}
+                        onRangeChange={(range) => {
+                            setTimeRange(range);
+                            if (range !== 'custom' && range !== 'all') {
+                                // Calculate and set the date range for the preset
+                                const dateRange = getDateRangeForFilter(range);
+                                setFilterStartDate(format(dateRange.start, 'yyyy-MM-dd'));
+                                setFilterEndDate(format(dateRange.end, 'yyyy-MM-dd'));
+                            } else if (range === 'all') {
+                                // Clear dates for "All Time"
+                                setFilterStartDate('');
+                                setFilterEndDate('');
+                            }
+                            // For 'custom', don't change the dates (user sets them manually)
+                        }}
+                        customStartDate={filterStartDate}
+                        customEndDate={filterEndDate}
+                        onCustomDateChange={(start, end) => {
+                            setFilterStartDate(start);
+                            setFilterEndDate(end);
+                        }}
+                    />
+                </div>
             </div>
 
             {/* Filters */}
