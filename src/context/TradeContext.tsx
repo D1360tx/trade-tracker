@@ -365,6 +365,12 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 // First check by ID (for API-sourced trades that have consistent IDs)
                 const idMatchIndex = next.findIndex(t => t.id === incoming.id);
 
+                // For Schwab trades, also check externalOid (the closing transaction activityId)
+                // This prevents creating duplicate trades when the same close matches multiple opens
+                const externalOidMatchIndex = incoming.externalOid
+                    ? next.findIndex(t => t.exchange === incoming.exchange && t.externalOid === incoming.externalOid && t.ticker === incoming.ticker)
+                    : -1;
+
                 // Then check by content fingerprint (for CSV imports with random IDs)
                 const fingerprint = getTradeFingerprint(incoming);
                 const fpMatchIndex = existingFingerprints.get(fingerprint);
@@ -379,7 +385,13 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                             screenshotIds: existing.screenshotIds
                         };
                         updatedCount++;
+                    } else {
+                        duplicateCount++;
                     }
+                } else if (externalOidMatchIndex !== -1) {
+                    // Duplicate detected by Schwab externalOid - skip
+                    duplicateCount++;
+                    console.log('[Dedup] Skipping Schwab duplicate by externalOid:', incoming.externalOid, incoming.ticker);
                 } else if (fpMatchIndex !== undefined) {
                     // Duplicate detected by fingerprint - skip but preserve user data
                     duplicateCount++;
