@@ -7,7 +7,7 @@ import TimeRangeFilter, { getDateRangeForFilter } from '../components/TimeRangeF
 import type { TimeRange } from '../components/TimeRangeFilter';
 
 const OverviewPage = () => {
-    const { trades } = useTrades();
+    const { trades, isLoading } = useTrades();
     const [selectedExchanges, setSelectedExchanges] = useState<string[]>([]);
     const [timeRange, setTimeRange] = useState<TimeRange>('all');
     const [customStart, setCustomStart] = useState('');
@@ -296,6 +296,50 @@ const OverviewPage = () => {
         const h = hours % 24;
         return h > 0 ? `${days}d ${h}h` : `${days}d`;
     };
+
+    // Show skeleton while loading
+    if (isLoading) {
+        return (
+            <div className="space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="h-10 w-48 bg-[var(--bg-tertiary)] rounded animate-pulse" />
+                    <div className="flex gap-2">
+                        <div className="h-10 w-40 bg-[var(--bg-tertiary)] rounded animate-pulse" />
+                        <div className="h-10 w-40 bg-[var(--bg-tertiary)] rounded animate-pulse" />
+                    </div>
+                </div>
+                <div className="glass-panel p-6 rounded-xl">
+                    <div className="h-6 w-32 bg-[var(--bg-tertiary)] rounded animate-pulse mb-4" />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {[1, 2, 3].map(i => (
+                            <div key={i}>
+                                <div className="h-4 w-24 bg-[var(--bg-tertiary)] rounded animate-pulse mb-2" />
+                                <div className="h-8 w-32 bg-[var(--bg-tertiary)] rounded animate-pulse mb-1" />
+                                <div className="h-3 w-20 bg-[var(--bg-tertiary)] rounded animate-pulse" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[1, 2].map(i => (
+                        <div key={i} className="glass-panel p-6 rounded-xl space-y-3">
+                            {[...Array(8)].map((_, j) => (
+                                <div key={j} className="h-6 bg-[var(--bg-tertiary)] rounded animate-pulse" />
+                            ))}
+                        </div>
+                    ))}
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {[1, 2].map(i => (
+                        <div key={i} className="glass-panel p-6 rounded-xl">
+                            <div className="h-6 w-48 bg-[var(--bg-tertiary)] rounded animate-pulse mb-4" />
+                            <div className="h-[300px] bg-[var(--bg-tertiary)] rounded animate-pulse" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     if (!stats) {
         return (
