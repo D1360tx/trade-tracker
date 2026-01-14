@@ -73,7 +73,7 @@ const ExchangeFilter = ({ exchanges, selectedExchanges, onSelectionChange }: Exc
 
             {/* Dropdown Panel */}
             {isOpen && (
-                <div className="absolute top-full mt-2 right-0 z-50 w-56 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute top-full mt-2 left-0 sm:right-0 sm:left-auto z-50 w-56 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                     {/* Select All Option */}
                     <button
                         onClick={handleSelectAll}
@@ -107,8 +107,8 @@ const ExchangeFilter = ({ exchanges, selectedExchanges, onSelectionChange }: Exc
                                             {/* Custom Checkbox */}
                                             <div
                                                 className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${isSelected
-                                                        ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)]'
-                                                        : 'border-[var(--border)]'
+                                                    ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)]'
+                                                    : 'border-[var(--border)]'
                                                     }`}
                                             >
                                                 {isSelected && (
