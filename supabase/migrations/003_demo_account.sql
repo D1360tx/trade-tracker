@@ -1,27 +1,97 @@
 -- Demo Account Setup
--- Creates a demo user with realistic trade data for MVP demonstration
+-- Creates a demo user directly in auth.users and populates with realistic trade data
 
--- Create demo user (password: demo123)
--- Note: You'll need to create this user through Supabase Auth UI or API
--- Email: demo@demo.com
--- Password: demo123
+-- Create the demo user directly (bypasses email verification)
+INSERT INTO auth.users (
+    instance_id,
+    id,
+    aud,
+    role,
+    email,
+    encrypted_password,
+    email_confirmed_at,
+    invited_at,
+    confirmation_token,
+    confirmation_sent_at,
+    recovery_token,
+    recovery_sent_at,
+    email_change_token_new,
+    email_change,
+    email_change_sent_at,
+    last_sign_in_at,
+    raw_app_meta_data,
+    raw_user_meta_data,
+    is_super_admin,
+    created_at,
+    updated_at,
+    phone,
+    phone_confirmed_at,
+    phone_change,
+    phone_change_token,
+    phone_change_sent_at,
+    email_change_token_current,
+    email_change_confirm_status,
+    banned_until,
+    reauthentication_token,
+    reauthentication_sent_at,
+    is_sso_user,
+    deleted_at
+)
+SELECT
+    '00000000-0000-0000-0000-000000000000',
+    gen_random_uuid(),
+    'authenticated',
+    'authenticated',
+    'demo@tradetracker.app',
+    crypt('demo123', gen_salt('bf')), -- Password: demo123
+    NOW(),
+    NOW(),
+    '',
+    NOW(),
+    '',
+    NULL,
+    '',
+    '',
+    NULL,
+    NULL,
+    '{"provider":"email","providers":["email"]}',
+    '{}',
+    FALSE,
+    NOW(),
+    NOW(),
+    NULL,
+    NULL,
+    '',
+    '',
+    NULL,
+    '',
+    0,
+    NULL,
+    '',
+    NULL,
+    FALSE,
+    NULL
+WHERE NOT EXISTS (
+    SELECT 1 FROM auth.users WHERE email = 'demo@tradetracker.app'
+);
 
--- First, we need to get or create the demo user ID
--- This assumes the demo user will be created with email demo@demo.com
--- The actual user creation should be done through Supabase Auth
-
--- For now, let's use a placeholder UUID that you'll replace with the actual demo user ID
--- after creating the user through Supabase Dashboard
-
+-- Now insert demo data using the created user
 DO $$
 DECLARE
-    demo_user_id uuid := '00000000-0000-0000-0000-000000000001'; -- REPLACE THIS with actual demo user ID
+    demo_user_id uuid;
     strategy_momentum_id uuid;
     strategy_breakout_id uuid;
     strategy_scalp_id uuid;
     mistake_fomo_id uuid;
     mistake_sized_id uuid;
 BEGIN
+    -- Get the demo user ID
+    SELECT id INTO demo_user_id FROM auth.users WHERE email = 'demo@tradetracker.app';
+    
+    IF demo_user_id IS NULL THEN
+        RAISE EXCEPTION 'Demo user not found';
+    END IF;
+
     -- Create some demo strategies
     INSERT INTO strategies (id, user_id, name, description, created_at)
     VALUES 
@@ -107,11 +177,3 @@ BEGIN
     WHERE user_id = demo_user_id AND ticker = 'SOLUSDT' AND direction = 'SHORT';
 
 END $$;
-
--- Instructions for setup:
--- 1. Create a demo user in Supabase Auth Dashboard:
---    - Email: demo@demo.com
---    - Password: demo123
--- 2. Get the user_id from auth.users table
--- 3. Replace '00000000-0000-0000-0000-000000000001' with the actual demo_user_id
--- 4. Run this migration: supabase db push

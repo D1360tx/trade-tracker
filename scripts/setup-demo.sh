@@ -9,54 +9,53 @@ echo ""
 # Colors for output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${YELLOW}Step 1: Creating demo user in Supabase Auth${NC}"
+echo -e "${BLUE}This script will:${NC}"
+echo "  ✅ Create demo@tradetracker.app user (password: demo123)"
+echo "  ✅ Add 15 realistic demo trades"
+echo "  ✅ Add 3 trading strategies"
+echo "  ✅ Add 2 common mistake tags"
 echo ""
-echo "Please create a user in your Supabase Dashboard:"
-echo "  1. Go to Authentication > Users"
-echo "  2. Click 'Add user'"
-echo "  3. Email: demo@example.com"
-echo "  4. Password: demo123"
-echo "  5. Auto Confirm User: YES"
-echo ""
-read -p "Press enter when you've created the demo user..."
+read -p "Press enter to continue..."
 
 echo ""
-echo -e "${YELLOW}Step 2: Getting demo user ID${NC}"
-echo ""
-echo "Run this SQL query in your Supabase SQL Editor to get the user ID:"
-echo ""
-echo "SELECT id, email FROM auth.users WHERE email = 'demo@example.com';"
-echo ""
-read -p "Enter the demo user ID (UUID): " DEMO_USER_ID
-
-echo ""
-echo -e "${YELLOW}Step 3: Updating migration with demo user ID${NC}"
-
-# Update the migration file with the actual user ID
-sed -i.bak "s/demo_user_id uuid := '00000000-0000-0000-0000-000000000001'/demo_user_id uuid := '$DEMO_USER_ID'/" supabase/migrations/003_demo_account.sql
-
-echo "✅ Migration file updated"
-echo ""
-echo -e "${YELLOW}Step 4: Applying migration${NC}"
+echo -e "${YELLOW}Applying demo account migration...${NC}"
 
 # Apply the migration
 npx supabase db push
 
-echo ""
-echo -e "${GREEN}✅ Demo account setup complete!${NC}"
-echo ""
-echo "Demo Login Credentials:"
-echo "  Email: demo@example.com"
-echo "  Password: demo123"
-echo ""
-echo "The demo account now has:"
-echo "  ✅ 15 realistic trades (wins and losses)"
-echo "  ✅ 3 trading strategies"
-echo "  ✅ 2 common mistakes tagged"
-echo "  ✅ Mix of stocks, options, and crypto"
-echo "  ✅ Multiple exchanges (Schwab, MEXC)"
-echo "  ✅ Recent data for populated charts"
-echo ""
-echo "🚀 Ready to demo!"
+if [ $? -eq 0 ]; then
+    echo ""
+    echo -e "${GREEN}✅ Demo account setup complete!${NC}"
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "${GREEN}Demo Login Credentials:${NC}"
+    echo "  📧 Email: demo@tradetracker.app"
+    echo "  🔑 Password: demo123"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "The demo account now has:"
+    echo "  ✅ 15 realistic trades (wins and losses)"
+    echo "  ✅ 3 trading strategies"
+    echo "  ✅ 2 common mistakes tagged"
+    echo "  ✅ Mix of stocks, options, and crypto"
+    echo "  ✅ Multiple exchanges (Schwab, MEXC)"
+    echo "  ✅ Recent data for populated charts"
+    echo ""
+    echo "Total Demo P&L: ~\$9,387"
+    echo "Win Rate: ~67%"
+    echo "Profit Factor: ~2.8"
+    echo ""
+    echo "🚀 Ready to demo!"
+else
+    echo ""
+    echo -e "${YELLOW}⚠️  Migration failed. Check the error above.${NC}"
+    echo ""
+    echo "Common issues:"
+    echo "  - Make sure Supabase is running: npx supabase start"
+    echo "  - Check that you're in the project root directory"
+    echo "  - Verify Supabase connection settings"
+    exit 1
+fi
