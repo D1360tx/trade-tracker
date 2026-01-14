@@ -300,9 +300,15 @@ const Calendar = () => {
                                     {pnl !== 0 && (
                                         <div className="mt-2 md:mt-4 text-center">
                                             <span className="text-[10px] md:text-sm font-bold block leading-tight">
-                                                {pnl > 0 ? '+' : ''}${Math.abs(pnl) >= 1000
-                                                    ? (Math.abs(pnl) / 1000).toFixed(1) + 'k'
-                                                    : Math.abs(pnl).toLocaleString()}
+                                                {/* Mobile: no decimals, Desktop: 2 decimals */}
+                                                <span className="md:hidden">
+                                                    {pnl > 0 ? '+' : ''}${Math.abs(pnl) >= 1000
+                                                        ? (Math.abs(pnl) / 1000).toFixed(1) + 'k'
+                                                        : Math.round(Math.abs(pnl)).toLocaleString()}
+                                                </span>
+                                                <span className="hidden md:inline">
+                                                    {pnl > 0 ? '+' : ''}${pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </span>
                                             </span>
                                             {pnl > 0 && <div className="absolute inset-0 bg-green-500/5 blur-xl"></div>}
                                             {pnl < 0 && <div className="absolute inset-0 bg-red-500/5 blur-xl"></div>}
