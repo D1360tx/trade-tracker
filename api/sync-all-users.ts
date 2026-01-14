@@ -1,30 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-/**
- * Scheduled Sync Endpoint
- * 
- * Runs on a schedule to sync all users' trades from their connected exchanges
- * 
- * Schedule (EST):
- * - Monday 8:31 AM (weekend catchup)
- * - Every hour 9 AM - 3 PM weekdays
- * - 3:30 PM weekdays (market close)
- * 
- * Security: Protected by CRON_SECRET environment variable
- * 
- * Last updated: 2026-01-14 16:11 CST
- */
-
-interface SyncResult {
-    userId: string;
-    email: string;
-    exchanges: {
-        name: string;
-        success: boolean;
-        tradesAdded: number;
-        error?: string;
-    }[];
-}
+import { createClient } from '@supabase/supabase-js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Security: Verify cron secret
@@ -32,61 +7,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const expectedSecret = process.env.CRON_SECRET;
 
     if (!expectedSecret) {
-        console.error('[Cron] CRON_SECRET not configured');
-        return res.status(500).json({ error: 'Server configuration error' });
+        return res.status(500).json({ error: 'CRON_SECRET not configured' });
     }
 
     if (cronSecret !== expectedSecret) {
-        console.warn('[Cron] Unauthorized sync attempt');
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    console.log('[Cron] Starting scheduled sync at', new Date().toISOString());
+    console.log('[Cron] Starting sync at', new Date().toISOString());
 
     try {
-        // Import Supabase client
-        const { createClient } = await import('@supabase/supabase-js');
-        const supabaseUrl = process.env.VITE_SUPABASE_URL;
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY; // Service role for admin access
-
-        if (!supabaseUrl || !supabaseServiceKey) {
-            throw new Error('Supabase configuration missing');
-        }
-
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        const supabaseUrl = process.env.VITE_SUPABASE_URL!;
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
 
         // Get all users
-        const { data: users, error: usersError } = await supabase.auth.admin.listUsers();
+        const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers();
+        if (usersError) throw usersError;
 
-        if (usersError) {
-            throw new Error(`Failed to fetch users: ${usersError.message}`);
-        }
-
-        console.log(`[Cron] Found ${users.users.length} users to sync`);
-
-        const results: SyncResult[] = [];
-        let totalTradesAdded = 0;
+        const results = [];
+        let totalTrades = 0;
 
         // Sync each user
-        for (const user of users.users) {
+        for (const user of usersData.users) {
             const userId = user.id;
             const email = user.email || 'unknown';
 
             console.log(`[Cron] Syncing user: ${email}`);
 
-            const userResult: SyncResult = {
-                userId,
-                email,
-                exchanges: []
-            };
-
-            // Check which exchanges this user has configured
-            const { data: credentials } = await supabase
-                .from('api_credentials')
-                .select('exchange, api_key, api_secret')
-                .eq('user_id', userId);
-
-            // Also check for Schwab OAuth tokens
+            // Check for Schwab tokens
             const { data: schwabTokens } = await supabase
                 .from('oauth_tokens')
                 .select('*')
@@ -94,66 +43,110 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .eq('provider', 'schwab')
                 .single();
 
-            // Sync Schwab if OAuth tokens exist
+            // Sync Schwab
             if (schwabTokens) {
                 try {
-                    const schwabResult = await syncSchwab(userId, schwabTokens, supabase);
-                    userResult.exchanges.push({
-                        name: 'Schwab',
-                        success: true,
-                        tradesAdded: schwabResult.tradesAdded
+                    const schwabUrl = `https://${req.headers.host}/api/schwab/transactions`;
+                    const schwabRes = await fetch(schwabUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            userId,
+                            accessToken: schwabTokens.access_token,
+                            refreshToken: schwabTokens.refresh_token
+                        })
                     });
-                    totalTradesAdded += schwabResult.tradesAdded;
-                } catch (error: any) {
-                    console.error(`[Cron] Schwab sync failed for ${email}:`, error.message);
-                    userResult.exchanges.push({
-                        name: 'Schwab',
-                        success: false,
-                        tradesAdded: 0,
-                        error: error.message
-                    });
+
+                    if (schwabRes.ok) {
+                        const data = await schwabRes.json();
+                        const trades = data.trades || [];
+
+                        if (trades.length > 0) {
+                            await supabase.from('trades').upsert(
+                                trades.map((t: any) => ({ ...t, user_id: userId })),
+                                { onConflict: 'id' }
+                            );
+                            totalTrades += trades.length;
+                        }
+
+                        results.push({ email, schwab: trades.length });
+                    }
+                } catch (err: any) {
+                    console.error(`Schwab sync failed for ${email}:`, err.message);
+                    results.push({ email, schwab: 0, error: err.message });
                 }
             }
 
-            // Sync MEXC if credentials exist
-            const mexcCreds = credentials?.find(c => c.exchange === 'MEXC');
+            // Check for MEXC credentials
+            const { data: mexcCreds } = await supabase
+                .from('api_credentials')
+                .select('*')
+                .eq('user_id', userId)
+                .eq('exchange', 'MEXC')
+                .single();
+
+            // Sync MEXC
             if (mexcCreds?.api_key && mexcCreds?.api_secret) {
                 try {
-                    const mexcResult = await syncMEXC(userId, mexcCreds, supabase);
-                    userResult.exchanges.push({
-                        name: 'MEXC',
-                        success: true,
-                        tradesAdded: mexcResult.tradesAdded
+                    // Sync Futures
+                    const futuresUrl = `https://${req.headers.host}/api/mexc-futures`;
+                    const futuresRes = await fetch(futuresUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            apiKey: mexcCreds.api_key,
+                            apiSecret: mexcCreds.api_secret
+                        })
                     });
-                    totalTradesAdded += mexcResult.tradesAdded;
-                } catch (error: any) {
-                    console.error(`[Cron] MEXC sync failed for ${email}:`, error.message);
-                    userResult.exchanges.push({
-                        name: 'MEXC',
-                        success: false,
-                        tradesAdded: 0,
-                        error: error.message
+
+                    if (futuresRes.ok) {
+                        const data = await futuresRes.json();
+                        const trades = data.trades || [];
+
+                        if (trades.length > 0) {
+                            await supabase.from('trades').upsert(
+                                trades.map((t: any) => ({ ...t, user_id: userId })),
+                                { onConflict: 'id' }
+                            );
+                            totalTrades += trades.length;
+                        }
+                    }
+
+                    // Sync Spot
+                    const spotUrl = `https://${req.headers.host}/api/mexc-spot`;
+                    const spotRes = await fetch(spotUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            apiKey: mexcCreds.api_key,
+                            apiSecret: mexcCreds.api_secret
+                        })
                     });
+
+                    if (spotRes.ok) {
+                        const data = await spotRes.json();
+                        const trades = data.trades || [];
+
+                        if (trades.length > 0) {
+                            await supabase.from('trades').upsert(
+                                trades.map((t: any) => ({ ...t, user_id: userId })),
+                                { onConflict: 'id' }
+                            );
+                            totalTrades += trades.length;
+                        }
+                    }
+                } catch (err: any) {
+                    console.error(`MEXC sync failed for ${email}:`, err.message);
                 }
-            }
-
-            // Add ByBit sync here if needed in the future
-
-            if (userResult.exchanges.length > 0) {
-                results.push(userResult);
             }
         }
 
-        const summary = {
+        return res.status(200).json({
             timestamp: new Date().toISOString(),
-            usersProcessed: results.length,
-            totalTradesAdded,
+            usersProcessed: usersData.users.length,
+            totalTradesAdded: totalTrades,
             results
-        };
-
-        console.log('[Cron] Sync complete:', summary);
-
-        return res.status(200).json(summary);
+        });
 
     } catch (error: any) {
         console.error('[Cron] Sync failed:', error);
@@ -162,101 +155,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             timestamp: new Date().toISOString()
         });
     }
-}
-
-// Sync Schwab trades for a user
-async function syncSchwab(userId: string, tokens: any, supabase: any) {
-    // Call Schwab API to get transactions
-    const response = await fetch(`${process.env.VERCEL_URL || 'http://localhost:3000'}/api/schwab/transactions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            userId,
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token
-        })
-    });
-
-    if (!response.ok) {
-        throw new Error(`Schwab API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const trades = data.trades || [];
-
-    // Store trades in database
-    if (trades.length > 0) {
-        const { error } = await supabase
-            .from('trades')
-            .upsert(trades.map((t: any) => ({ ...t, user_id: userId })), {
-                onConflict: 'id'
-            });
-
-        if (error) {
-            throw new Error(`Failed to store Schwab trades: ${error.message}`);
-        }
-    }
-
-    return { tradesAdded: trades.length };
-}
-
-// Sync MEXC trades for a user
-async function syncMEXC(userId: string, credentials: any, supabase: any) {
-    let totalTrades = 0;
-
-    // Sync Futures
-    try {
-        const futuresResponse = await fetch(`${process.env.VERCEL_URL || 'http://localhost:3000'}/api/mexc-futures`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                apiKey: credentials.api_key,
-                apiSecret: credentials.api_secret
-            })
-        });
-
-        if (futuresResponse.ok) {
-            const futuresData = await futuresResponse.json();
-            const futuresTrades = futuresData.trades || [];
-
-            if (futuresTrades.length > 0) {
-                await supabase.from('trades').upsert(
-                    futuresTrades.map((t: any) => ({ ...t, user_id: userId })),
-                    { onConflict: 'id' }
-                );
-                totalTrades += futuresTrades.length;
-            }
-        }
-    } catch (error) {
-        console.error('[Cron] MEXC Futures sync error:', error);
-    }
-
-    // Sync Spot
-    try {
-        const spotResponse = await fetch(`${process.env.VERCEL_URL || 'http://localhost:3000'}/api/mexc-spot`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                apiKey: credentials.api_key,
-                apiSecret: credentials.api_secret
-            })
-        });
-
-        if (spotResponse.ok) {
-            const spotData = await spotResponse.json();
-            const spotTrades = spotData.trades || [];
-
-            if (spotTrades.length > 0) {
-                await supabase.from('trades').upsert(
-                    spotTrades.map((t: any) => ({ ...t, user_id: userId })),
-                    { onConflict: 'id' }
-                );
-                totalTrades += spotTrades.length;
-            }
-        }
-    } catch (error) {
-        console.error('[Cron] MEXC Spot sync error:', error);
-    }
-
-    return { tradesAdded: totalTrades };
 }
