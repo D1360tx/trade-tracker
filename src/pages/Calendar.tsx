@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, getDay, addMonths, parseISO } from 'date-fns';
-import { ChevronLeft, ChevronRight, X, TrendingUp, TrendingDown, Target, DollarSign, BarChart3 } from 'lucide-react';
+import { startOfMonth, endOfMonth, eachDayOfInterval, format, getDay, addMonths, parseISO, startOfWeek, endOfWeek, addWeeks } from 'date-fns';
+import { ChevronLeft, ChevronRight, X, TrendingUp, TrendingDown, Target, DollarSign, BarChart3, Calendar as CalendarIcon } from 'lucide-react';
 import { useTrades } from '../context/TradeContext';
 import ExchangeFilter from '../components/ExchangeFilter';
 import type { Trade } from '../types';
@@ -9,6 +9,12 @@ const Calendar = () => {
     const { trades } = useTrades();
     const [selectedExchanges, setSelectedExchanges] = useState<string[]>([]);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+    // Mobile view mode (monthly grid or weekly list)
+    const [mobileView, setMobileView] = useState<'monthly' | 'weekly'>(() => {
+        const saved = localStorage.getItem('calendar_mobile_view');
+        return (saved as 'monthly' | 'weekly') || 'monthly';
+    });
 
     // Get unique exchanges for filter dropdown
     const uniqueExchanges = useMemo(() => {
@@ -39,12 +45,19 @@ const Calendar = () => {
 
     const handlePrevMonth = () => setCurrentDate(prev => addMonths(prev, -1));
     const handleNextMonth = () => setCurrentDate(prev => addMonths(prev, 1));
+    const handlePrevWeek = () => setCurrentDate(prev => addWeeks(prev, -1));
+    const handleNextWeek = () => setCurrentDate(prev => addWeeks(prev, 1));
 
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
     const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
     const startDay = getDay(monthStart);
     const blanks = Array(startDay).fill(null);
+
+    // Weekly view data
+    const weekStart = startOfWeek(currentDate);
+    const weekEnd = endOfWeek(currentDate);
+    const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
     const getPnLForDate = (date: Date) => {
         const dateStr = format(date, 'yyyy-MM-dd');
@@ -163,71 +176,144 @@ const Calendar = () => {
                             <ChevronRight size={20} />
                         </button>
                     </div>
+
+                    {/* Mobile View Toggle (only visible on small screens) */}
+                    <button
+                        onClick={() => {
+                            const newView = mobileView === 'monthly' ? 'weekly' : 'monthly';
+                            setMobileView(newView);
+                            localStorage.setItem('calendar_mobile_view', newView);
+                        }}
+                        className="md:hidden flex items-center gap-2 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+                        title={mobileView === 'monthly' ? 'Switch to Weekly' : 'Switch to Monthly'}
+                    >
+                        <CalendarIcon size={18} />
+                        <span className="text-sm">{mobileView === 'monthly' ? 'Weekly' : 'Monthly'}</span>
+                    </button>
                 </div>
             </div>
 
             <div className="glass-panel p-3 md:p-6 rounded-xl">
-                {/* Day Headers - Show single letter on mobile */}
-                <div className="grid grid-cols-7 mb-2 md:mb-4">
-                    {[
-                        { full: 'Sunday', short: 'S' },
-                        { full: 'Monday', short: 'M' },
-                        { full: 'Tuesday', short: 'T' },
-                        { full: 'Wednesday', short: 'W' },
-                        { full: 'Thursday', short: 'T' },
-                        { full: 'Friday', short: 'F' },
-                        { full: 'Saturday', short: 'S' }
-                    ].map(day => (
-                        <div key={day.full} className="text-center text-[var(--text-secondary)] font-medium py-1 md:py-2">
-                            <span className="hidden sm:inline text-sm">{day.full.substring(0, 3)}</span>
-                            <span className="sm:hidden text-xs">{day.short}</span>
+                {/* Mobile Weekly View */}
+                {mobileView === 'weekly' ? (
+                    <div className="md:hidden">
+                        {/* Week Navigation */}
+                        <div className="flex items-center justify-between mb-4">
+                            <button onClick={handlePrevWeek} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors">
+                                <ChevronLeft size={20} />
+                            </button>
+                            <span className="text-sm font-medium">
+                                {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
+                            </span>
+                            <button onClick={handleNextWeek} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors">
+                                <ChevronRight size={20} />
+                            </button>
                         </div>
-                    ))}
-                </div>
 
-                <div className="grid grid-cols-7 gap-1 md:gap-2 lg:gap-4">
-                    {blanks.map((_, i) => (
-                        <div key={`blank-${i}`} className="aspect-square"></div>
-                    ))}
+                        {/* Weekly Cards */}
+                        <div className="space-y-3">
+                            {daysInWeek.map(date => {
+                                const pnl = getPnLForDate(date);
+                                const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+                                const dayTrades = getTradesForDate(date);
+                                const hasTrades = dayTrades.length > 0;
 
-                    {daysInMonth.map(date => {
-                        const pnl = getPnLForDate(date);
-                        const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-                        const hasTrades = getTradesForDate(date).length > 0;
+                                return (
+                                    <div
+                                        key={date.toISOString()}
+                                        onClick={() => hasTrades && setSelectedDate(date)}
+                                        className={`
+                                            p-4 rounded-xl border transition-all
+                                            ${hasTrades ? 'cursor-pointer hover:scale-[1.02]' : ''}
+                                            ${getDayClass(pnl)}
+                                            ${isToday ? 'ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-primary)]' : ''}
+                                        `}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="font-semibold text-base">{format(date, 'EEEE')}</p>
+                                                <p className="text-sm text-[var(--text-secondary)]">{format(date, 'MMM d, yyyy')}</p>
+                                                {hasTrades && (
+                                                    <p className="text-xs text-[var(--text-tertiary)] mt-1">{dayTrades.length} trade{dayTrades.length > 1 ? 's' : ''}</p>
+                                                )}
+                                            </div>
+                                            <div className={`text-right ${pnl >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                                                <p className="text-2xl font-bold">
+                                                    {pnl !== 0 ? (pnl > 0 ? '+' : '') + '$' + pnl.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ) : null}
 
-                        return (
-                            <div
-                                key={date.toISOString()}
-                                onClick={() => hasTrades && setSelectedDate(date)}
-                                className={`
+                {/* Monthly Grid (Desktop always, Mobile when monthly mode selected) */}
+                <div className={mobileView === 'weekly' ? 'hidden md:block' : ''}>
+                    {/* Day Headers - Show single letter on mobile */}
+                    <div className="grid grid-cols-7 mb-2 md:mb-4">
+                        {[
+                            { full: 'Sunday', short: 'S' },
+                            { full: 'Monday', short: 'M' },
+                            { full: 'Tuesday', short: 'T' },
+                            { full: 'Wednesday', short: 'W' },
+                            { full: 'Thursday', short: 'T' },
+                            { full: 'Friday', short: 'F' },
+                            { full: 'Saturday', short: 'S' }
+                        ].map(day => (
+                            <div key={day.full} className="text-center text-[var(--text-secondary)] font-medium py-1 md:py-2">
+                                <span className="hidden sm:inline text-sm">{day.full.substring(0, 3)}</span>
+                                <span className="sm:hidden text-xs">{day.short}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-1 md:gap-2 lg:gap-4">
+                        {blanks.map((_, i) => (
+                            <div key={`blank-${i}`} className="aspect-square"></div>
+                        ))}
+
+                        {daysInMonth.map(date => {
+                            const pnl = getPnLForDate(date);
+                            const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+                            const hasTrades = getTradesForDate(date).length > 0;
+
+                            return (
+                                <div
+                                    key={date.toISOString()}
+                                    onClick={() => hasTrades && setSelectedDate(date)}
+                                    className={`
                                     aspect-square rounded-lg md:rounded-xl p-1 md:p-2 flex flex-col items-center justify-center border transition-all hover:scale-105 relative overflow-hidden
                                     ${hasTrades ? 'cursor-pointer' : 'cursor-default'}
                                     ${getDayClass(pnl)}
                                     ${isToday ? 'ring-1 md:ring-2 ring-[var(--accent-primary)] ring-offset-1 md:ring-offset-2 ring-offset-[var(--bg-secondary)]' : ''}
                                 `}
-                            >
-                                <span className="absolute top-0.5 left-0.5 md:top-2 md:left-2 text-[10px] md:text-xs opacity-60 font-medium">
-                                    {format(date, 'd')}
-                                </span>
+                                >
+                                    <span className="absolute top-0.5 left-0.5 md:top-2 md:left-2 text-[10px] md:text-xs opacity-60 font-medium">
+                                        {format(date, 'd')}
+                                    </span>
 
-                                {pnl !== 0 && (
-                                    <div className="mt-2 md:mt-4 text-center">
-                                        <span className="text-[10px] md:text-sm font-bold block leading-tight">
-                                            {pnl > 0 ? '+' : ''}${Math.abs(pnl) >= 1000
-                                                ? (Math.abs(pnl) / 1000).toFixed(1) + 'k'
-                                                : Math.abs(pnl).toLocaleString()}
-                                        </span>
-                                        {pnl > 0 && <div className="absolute inset-0 bg-green-500/5 blur-xl"></div>}
-                                        {pnl < 0 && <div className="absolute inset-0 bg-red-500/5 blur-xl"></div>}
-                                    </div>
-                                )}
+                                    {pnl !== 0 && (
+                                        <div className="mt-2 md:mt-4 text-center">
+                                            <span className="text-[10px] md:text-sm font-bold block leading-tight">
+                                                {pnl > 0 ? '+' : ''}${Math.abs(pnl) >= 1000
+                                                    ? (Math.abs(pnl) / 1000).toFixed(1) + 'k'
+                                                    : Math.abs(pnl).toLocaleString()}
+                                            </span>
+                                            {pnl > 0 && <div className="absolute inset-0 bg-green-500/5 blur-xl"></div>}
+                                            {pnl < 0 && <div className="absolute inset-0 bg-red-500/5 blur-xl"></div>}
+                                        </div>
+                                    )}
 
-                                {pnl === 0 && (
-                                    <span className="text-[var(--text-tertiary)] text-[10px] md:text-xs mt-2 md:mt-4">-</span>
-                                )}
-                            </div>
-                        );
-                    })}
+                                    {pnl === 0 && (
+                                        <span className="text-[var(--text-tertiary)] text-[10px] md:text-xs mt-2 md:mt-4">-</span>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
 
