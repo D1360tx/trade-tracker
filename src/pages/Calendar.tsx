@@ -159,13 +159,30 @@ const Calendar = () => {
                         )}
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
+
+                {/* Mobile View Toggle - Full Width on Mobile, Above Navigation */}
+                <div className="md:hidden mb-4">
+                    <button
+                        onClick={() => {
+                            const newView = mobileView === 'monthly' ? 'weekly' : 'monthly';
+                            setMobileView(newView);
+                            localStorage.setItem('calendar_mobile_view', newView);
+                        }}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+                    >
+                        <CalendarIcon size={18} />
+                        <span className="font-medium">{mobileView === 'monthly' ? 'Switch to Weekly View' : 'Switch to Monthly View'}</span>
+                    </button>
+                </div>
+
+                {/* Controls Row - Exchange Filter + Month Navigation */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                     <ExchangeFilter
                         exchanges={uniqueExchanges}
                         selectedExchanges={selectedExchanges}
                         onSelectionChange={setSelectedExchanges}
                     />
-                    <div className="flex items-center gap-4 bg-[var(--bg-secondary)] p-1 rounded-full border border-[var(--border)]">
+                    <div className="flex items-center justify-center gap-4 bg-[var(--bg-secondary)] p-1 rounded-full border border-[var(--border)]">
                         <button onClick={handlePrevMonth} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-full transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                             <ChevronLeft size={20} />
                         </button>
@@ -176,20 +193,6 @@ const Calendar = () => {
                             <ChevronRight size={20} />
                         </button>
                     </div>
-
-                    {/* Mobile View Toggle (only visible on small screens) */}
-                    <button
-                        onClick={() => {
-                            const newView = mobileView === 'monthly' ? 'weekly' : 'monthly';
-                            setMobileView(newView);
-                            localStorage.setItem('calendar_mobile_view', newView);
-                        }}
-                        className="md:hidden flex items-center gap-2 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
-                        title={mobileView === 'monthly' ? 'Switch to Weekly' : 'Switch to Monthly'}
-                    >
-                        <CalendarIcon size={18} />
-                        <span className="text-sm">{mobileView === 'monthly' ? 'Weekly' : 'Monthly'}</span>
-                    </button>
                 </div>
             </div>
 
