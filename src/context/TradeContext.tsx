@@ -342,10 +342,24 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
     // Generate a fingerprint for duplicate detection based on trade content
     const getTradeFingerprint = (trade: Trade): string => {
         // Use key trade characteristics to identify duplicates
-        // Round P&L to 2 decimals to avoid floating point issues
+        // Round P&L to 2 decimals    const getTradeFingerprint = (trade: Trade): string => {
         const pnlRounded = Math.round((trade.pnl || 0) * 100) / 100;
         const exitDateStr = trade.exitDate ? trade.exitDate.split('T')[0] : '';
         return `${trade.exchange}|${trade.ticker}|${exitDateStr}|${pnlRounded}|${trade.quantity}`;
+    };
+
+    // Helper to find string differences
+    const findStringDiff = (a: string, b: string) => {
+        if (a === b) return "IDENTICAL";
+        const len = Math.max(a.length, b.length);
+        for (let i = 0; i < len; i++) {
+            if (a[i] !== b[i]) {
+                const charA = a[i] !== undefined ? `"${a[i]}" (${a.charCodeAt(i)})` : 'undefined';
+                const charB = b[i] !== undefined ? `"${b[i]}" (${b.charCodeAt(i)})` : 'undefined';
+                return `Diff at index ${i}: ${charA} vs ${charB}`;
+            }
+        }
+        return "Length mismatch";
     };
 
     // Normalize ticker for cross-format deduplication
@@ -484,7 +498,21 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
 
                         // Try to find a near match in existing fingerprints to see what's close
                         console.log('  Checking against existing fingerprints...');
-                        // (Simplified check for debug)
+                        let foundNearMatch = false;
+                        for (const key of existingFingerprints.keys()) {
+                            // Check if key contains the ticker (lenient check)
+                            if (key.includes(`|${normalizeTicker(incoming.ticker)}|`)) {
+                                foundNearMatch = true;
+                                console.log(`  Map Key: "${key}"`);
+                                console.log(`  Match? ${key === fuzzyFp}`);
+                                if (!key.startsWith('NORM') && !key.startsWith('FUZZY')) {
+                                    // Skip exact matches
+                                } else if (key.startsWith('FUZZY')) {
+                                    console.log(`  Diff: ${findStringDiff(key, fuzzyFp)}`);
+                                }
+                            }
+                        }
+                        if (!foundNearMatch) console.log("  No keys found containing ticker!");
                     }
                 }
             });
