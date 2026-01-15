@@ -192,20 +192,35 @@ export const subscribeTrades = (
  * Map database trade to app Trade type
  */
 function mapDbTradeToApp(dbTrade: TradeRow): Trade {
+    const pnl = Number(dbTrade.pnl);
+    const storedPnlPct = Number(dbTrade.pnl_percentage);
+    const entryPrice = Number(dbTrade.entry_price);
+    const quantity = Number(dbTrade.quantity);
+    const type = dbTrade.type as any;
+
+    // Calculate pnlPercentage if stored value is 0 but we have P&L
+    let pnlPercentage = storedPnlPct;
+    if (Math.abs(storedPnlPct) < 0.01 && Math.abs(pnl) > 0 && entryPrice > 0 && quantity > 0) {
+        // For options, multiply by 100 (contract multiplier)
+        const multiplier = type === 'OPTION' ? 100 : 1;
+        const entryValue = entryPrice * quantity * multiplier;
+        pnlPercentage = entryValue > 0 ? (pnl / entryValue) * 100 : 0;
+    }
+
     return {
         id: dbTrade.id,
         exchange: dbTrade.exchange as any,
         ticker: dbTrade.ticker,
-        type: dbTrade.type as any,
+        type: type,
         direction: dbTrade.direction as 'LONG' | 'SHORT',
-        entryPrice: Number(dbTrade.entry_price),
+        entryPrice: entryPrice,
         exitPrice: Number(dbTrade.exit_price),
-        quantity: Number(dbTrade.quantity),
+        quantity: quantity,
         entryDate: dbTrade.entry_date,
         exitDate: dbTrade.exit_date,
         status: dbTrade.status as 'OPEN' | 'CLOSED',
-        pnl: Number(dbTrade.pnl),
-        pnlPercentage: Number(dbTrade.pnl_percentage),
+        pnl: pnl,
+        pnlPercentage: pnlPercentage,
         fees: Number(dbTrade.fees),
         notes: dbTrade.notes || undefined,
         strategyId: dbTrade.strategy_id || undefined,
