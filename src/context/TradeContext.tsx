@@ -376,6 +376,15 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
         return `NORM|${trade.exchange}|${normalizedTicker}|${exitDateStr}|${pnlRounded}|${trade.quantity}`;
     };
 
+    // Fuzzy fingerprint - rounds P&L to nearest dollar for lenient matching
+    // Handles Schwab API vs CSV having slightly different P&L values (e.g., $126.71 vs $126.05)
+    const getFuzzyFingerprint = (trade: Trade): string => {
+        const pnlRoundedToDollar = Math.round(trade.pnl || 0);
+        const exitDateStr = trade.exitDate ? trade.exitDate.split('T')[0] : '';
+        const normalizedTicker = normalizeTicker(trade.ticker);
+        return `FUZZY|${trade.exchange}|${normalizedTicker}|${exitDateStr}|${pnlRoundedToDollar}|${trade.quantity}`;
+    };
+
     const mergeTrades = (incomingTrades: Trade[]) => {
         setTrades(prev => {
             const next = [...prev];
@@ -388,6 +397,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             next.forEach((t, idx) => {
                 existingFingerprints.set(getTradeFingerprint(t), idx);
                 existingFingerprints.set(getNormalizedFingerprint(t), idx); // Also store normalized
+                existingFingerprints.set(getFuzzyFingerprint(t), idx); // Fuzzy match (rounded P&L)
             });
 
             incomingTrades.forEach(incoming => {
@@ -408,6 +418,10 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 // Also check normalized fingerprint (handles ticker format differences)
                 const normalizedFp = getNormalizedFingerprint(incoming);
                 const normalizedFpMatchIndex = existingFingerprints.get(normalizedFp);
+
+                // Fuzzy fingerprint - rounds P&L to nearest dollar (handles API vs CSV P&L differences)
+                const fuzzyFp = getFuzzyFingerprint(incoming);
+                const fuzzyFpMatchIndex = existingFingerprints.get(fuzzyFp);
 
                 if (idMatchIndex !== -1) {
                     // Update existing by ID match
@@ -438,11 +452,16 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                     // Duplicate detected by normalized fingerprint (same trade, different ticker format)
                     duplicateCount++;
                     console.log('[Dedup] Skipping duplicate by normalized ticker:', incoming.ticker);
+                } else if (fuzzyFpMatchIndex !== undefined) {
+                    // Duplicate detected by fuzzy P&L match (API vs CSV rounding)
+                    duplicateCount++;
+                    console.log('[Dedup] Skipping duplicate by fuzzy P&L match:', incoming.ticker, incoming.pnl);
                 } else {
                     // New trade - add it
                     next.push(incoming);
                     existingFingerprints.set(fingerprint, next.length - 1);
                     existingFingerprints.set(normalizedFp, next.length - 1); // Also store normalized
+                    existingFingerprints.set(fuzzyFp, next.length - 1); // Also store fuzzy
                     addedCount++;
                 }
             });
