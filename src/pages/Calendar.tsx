@@ -16,6 +16,12 @@ const Calendar = () => {
         return (saved as 'monthly' | 'weekly') || 'monthly';
     });
 
+    // Desktop view mode (monthly grid or weekly)
+    const [desktopView, setDesktopView] = useState<'monthly' | 'weekly'>(() => {
+        const saved = localStorage.getItem('calendar_desktop_view');
+        return (saved as 'monthly' | 'weekly') || 'monthly';
+    });
+
     // Get unique exchanges for filter dropdown
     const uniqueExchanges = useMemo(() => {
         const exchanges = new Set(trades.map(t => t.exchange));
@@ -124,6 +130,21 @@ const Calendar = () => {
         return { greenDays: green, redDays: red };
     }, [dailyData, currentDate]);
 
+    // Weekly stats
+    const weeklyTotalPnL = useMemo(() => {
+        return daysInWeek.reduce((acc, date) => acc + getPnLForDate(date), 0);
+    }, [dailyData, currentDate]);
+
+    const { weeklyGreenDays, weeklyRedDays } = useMemo(() => {
+        let green = 0, red = 0;
+        daysInWeek.forEach(date => {
+            const pnl = getPnLForDate(date);
+            if (pnl > 0) green++;
+            else if (pnl < 0) red++;
+        });
+        return { weeklyGreenDays: green, weeklyRedDays: red };
+    }, [dailyData, currentDate]);
+
     const getDayClass = (pnl: number) => {
         if (pnl > 0) return 'bg-[var(--success)]/20 text-[var(--success)] border-[var(--success)]/30';
         if (pnl < 0) return 'bg-[var(--danger)]/20 text-[var(--danger)] border-[var(--danger)]/30';
@@ -137,30 +158,85 @@ const Calendar = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-bold">P&L Calendar</h2>
-                    <p className={`text-sm font-medium mt-1 ${monthlyTotalPnL >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
-                        {format(currentDate, 'MMMM')} Total: {monthlyTotalPnL >= 0 ? '+' : ''}${monthlyTotalPnL.toLocaleString()}
-                    </p>
-                    <div className="flex items-center gap-4 mt-2 text-xs text-[var(--text-secondary)]">
-                        <span>
-                            <span className="font-medium">Green:</span>{' '}
-                            <span className="font-bold text-[var(--success)]">{greenDays}</span>
-                        </span>
-                        <span>
-                            <span className="font-medium">Red:</span>{' '}
-                            <span className="font-bold text-[var(--danger)]">{redDays}</span>
-                        </span>
-                        {(greenDays + redDays) > 0 && (
-                            <span>
-                                <span className="font-medium">Win Rate:</span>{' '}
-                                <span className={`font-bold ${(greenDays / (greenDays + redDays)) * 100 >= 50 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
-                                    {((greenDays / (greenDays + redDays)) * 100).toFixed(0)}%
-                                </span>
-                            </span>
+                    {/* Show monthly or weekly stats based on desktop view (on desktop) */}
+                    <div className="hidden md:block">
+                        {desktopView === 'monthly' ? (
+                            <>
+                                <p className={`text-sm font-medium mt-1 ${monthlyTotalPnL >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                                    {format(currentDate, 'MMMM')} Total: {monthlyTotalPnL >= 0 ? '+' : ''}${monthlyTotalPnL.toLocaleString()}
+                                </p>
+                                <div className="flex items-center gap-4 mt-2 text-xs text-[var(--text-secondary)]">
+                                    <span>
+                                        <span className="font-medium">Green:</span>{' '}
+                                        <span className="font-bold text-[var(--success)]">{greenDays}</span>
+                                    </span>
+                                    <span>
+                                        <span className="font-medium">Red:</span>{' '}
+                                        <span className="font-bold text-[var(--danger)]">{redDays}</span>
+                                    </span>
+                                    {(greenDays + redDays) > 0 && (
+                                        <span>
+                                            <span className="font-medium">Win Rate:</span>{' '}
+                                            <span className={`font-bold ${(greenDays / (greenDays + redDays)) * 100 >= 50 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                                                {((greenDays / (greenDays + redDays)) * 100).toFixed(0)}%
+                                            </span>
+                                        </span>
+                                    )}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <p className={`text-sm font-medium mt-1 ${weeklyTotalPnL >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                                    Week of {format(weekStart, 'MMM d')}: {weeklyTotalPnL >= 0 ? '+' : ''}${weeklyTotalPnL.toLocaleString()}
+                                </p>
+                                <div className="flex items-center gap-4 mt-2 text-xs text-[var(--text-secondary)]">
+                                    <span>
+                                        <span className="font-medium">Green:</span>{' '}
+                                        <span className="font-bold text-[var(--success)]">{weeklyGreenDays}</span>
+                                    </span>
+                                    <span>
+                                        <span className="font-medium">Red:</span>{' '}
+                                        <span className="font-bold text-[var(--danger)]">{weeklyRedDays}</span>
+                                    </span>
+                                    {(weeklyGreenDays + weeklyRedDays) > 0 && (
+                                        <span>
+                                            <span className="font-medium">Win Rate:</span>{' '}
+                                            <span className={`font-bold ${(weeklyGreenDays / (weeklyGreenDays + weeklyRedDays)) * 100 >= 50 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                                                {((weeklyGreenDays / (weeklyGreenDays + weeklyRedDays)) * 100).toFixed(0)}%
+                                            </span>
+                                        </span>
+                                    )}
+                                </div>
+                            </>
                         )}
+                    </div>
+                    {/* Mobile always shows monthly stats */}
+                    <div className="md:hidden">
+                        <p className={`text-sm font-medium mt-1 ${monthlyTotalPnL >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                            {format(currentDate, 'MMMM')} Total: {monthlyTotalPnL >= 0 ? '+' : ''}${monthlyTotalPnL.toLocaleString()}
+                        </p>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-[var(--text-secondary)]">
+                            <span>
+                                <span className="font-medium">Green:</span>{' '}
+                                <span className="font-bold text-[var(--success)]">{greenDays}</span>
+                            </span>
+                            <span>
+                                <span className="font-medium">Red:</span>{' '}
+                                <span className="font-bold text-[var(--danger)]">{redDays}</span>
+                            </span>
+                            {(greenDays + redDays) > 0 && (
+                                <span>
+                                    <span className="font-medium">Win Rate:</span>{' '}
+                                    <span className={`font-bold ${(greenDays / (greenDays + redDays)) * 100 >= 50 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                                        {((greenDays / (greenDays + redDays)) * 100).toFixed(0)}%
+                                    </span>
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                {/* Controls Row - Exchange Filter + View Toggle + Month Navigation */}
+                {/* Controls Row - Exchange Filter + View Toggle + Navigation */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                         <ExchangeFilter
@@ -168,7 +244,7 @@ const Calendar = () => {
                             selectedExchanges={selectedExchanges}
                             onSelectionChange={setSelectedExchanges}
                         />
-                        {/* Mobile View Toggle - Compact, next to filter */}
+                        {/* Mobile View Toggle */}
                         <button
                             onClick={() => {
                                 const newView = mobileView === 'monthly' ? 'weekly' : 'monthly';
@@ -178,17 +254,39 @@ const Calendar = () => {
                             className="md:hidden flex items-center gap-2 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors whitespace-nowrap"
                         >
                             <CalendarIcon size={16} />
-                            <span className="text-sm">{mobileView === 'monthly' ? 'Weekly View' : 'Monthly View'}</span>
+                            <span className="text-sm">{mobileView === 'monthly' ? 'Weekly' : 'Monthly'}</span>
+                        </button>
+                        {/* Desktop View Toggle */}
+                        <button
+                            onClick={() => {
+                                const newView = desktopView === 'monthly' ? 'weekly' : 'monthly';
+                                setDesktopView(newView);
+                                localStorage.setItem('calendar_desktop_view', newView);
+                            }}
+                            className="hidden md:flex items-center gap-2 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors whitespace-nowrap"
+                        >
+                            <CalendarIcon size={16} />
+                            <span className="text-sm">{desktopView === 'monthly' ? 'Weekly View' : 'Monthly View'}</span>
                         </button>
                     </div>
+                    {/* Navigation - switches between week/month on desktop */}
                     <div className="flex items-center justify-center gap-4 bg-[var(--bg-secondary)] p-1 rounded-full border border-[var(--border)]">
-                        <button onClick={handlePrevMonth} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-full transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                        <button
+                            onClick={desktopView === 'weekly' ? handlePrevWeek : handlePrevMonth}
+                            className="p-2 hover:bg-[var(--bg-tertiary)] rounded-full transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        >
                             <ChevronLeft size={20} />
                         </button>
-                        <span className="text-sm font-medium min-w-[120px] text-center select-none">
-                            {format(currentDate, 'MMMM yyyy')}
+                        <span className="text-sm font-medium min-w-[140px] text-center select-none">
+                            {desktopView === 'weekly'
+                                ? `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`
+                                : format(currentDate, 'MMMM yyyy')
+                            }
                         </span>
-                        <button onClick={handleNextMonth} className="p-2 hover:bg-[var(--bg-tertiary)] rounded-full transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                        <button
+                            onClick={desktopView === 'weekly' ? handleNextWeek : handleNextMonth}
+                            className="p-2 hover:bg-[var(--bg-tertiary)] rounded-full transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        >
                             <ChevronRight size={20} />
                         </button>
                     </div>
@@ -252,8 +350,57 @@ const Calendar = () => {
                     </div>
                 ) : null}
 
-                {/* Monthly Grid (Desktop always, Mobile when monthly mode selected) */}
-                <div className={mobileView === 'weekly' ? 'hidden md:block' : ''}>
+                {/* Desktop Weekly View */}
+                {desktopView === 'weekly' && (
+                    <div className="hidden md:block">
+                        {/* Weekly Row - 7 days across */}
+                        <div className="grid grid-cols-7 gap-2 lg:gap-4 mb-4">
+                            {daysInWeek.map(date => {
+                                const pnl = getPnLForDate(date);
+                                const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+                                const dayTrades = getTradesForDate(date);
+                                const hasTrades = dayTrades.length > 0;
+
+                                return (
+                                    <div
+                                        key={date.toISOString()}
+                                        onClick={() => hasTrades && setSelectedDate(date)}
+                                        className={`
+                                            rounded-xl p-4 border transition-all min-h-[140px] flex flex-col
+                                            ${hasTrades ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-default'}
+                                            ${getDayClass(pnl)}
+                                            ${isToday ? 'ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-secondary)]' : ''}
+                                        `}
+                                    >
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <p className="text-xs font-medium text-[var(--text-secondary)]">{format(date, 'EEE')}</p>
+                                                <p className="text-lg font-bold">{format(date, 'd')}</p>
+                                            </div>
+                                            {hasTrades && (
+                                                <span className="text-xs bg-[var(--bg-secondary)] px-2 py-0.5 rounded-full">
+                                                    {dayTrades.length}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 flex items-center justify-center">
+                                            {pnl !== 0 ? (
+                                                <p className="text-xl font-bold">
+                                                    {pnl > 0 ? '+' : ''}${pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </p>
+                                            ) : (
+                                                <p className="text-[var(--text-tertiary)]">—</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* Monthly Grid (Desktop when monthly mode, Mobile when monthly mode selected) */}
+                <div className={`${desktopView === 'weekly' ? 'hidden' : ''} ${mobileView === 'weekly' ? 'hidden md:block' : ''}`}>
                     {/* Day Headers - Show single letter on mobile */}
                     <div className="grid grid-cols-7 mb-2 md:mb-4">
                         {[
