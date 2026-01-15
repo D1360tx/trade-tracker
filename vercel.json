@@ -3,19 +3,16 @@
   "outputDirectory": "dist",
   "crons": [
     {
-      "path": "/api/sync-all-users",
-      "schedule": "31 13 * * 1",
-      "description": "Monday 8:31 AM EST (13:31 UTC)"
+      "path": "/api/syncusers",
+      "schedule": "31 13 * * 1"
     },
     {
-      "path": "/api/sync-all-users",
-      "schedule": "0 14-20 * * 1-5",
-      "description": "Hourly 9 AM - 3 PM EST (14:00-20:00 UTC)"
+      "path": "/api/syncusers",
+      "schedule": "0 14-20 * * 1-5"
     },
     {
-      "path": "/api/sync-all-users",
-      "schedule": "30 20 * * 1-5",
-      "description": "3:30 PM EST market close (20:30 UTC)"
+      "path": "/api/syncusers",
+      "schedule": "30 20 * * 1-5"
     }
   ],
   "rewrites": [
