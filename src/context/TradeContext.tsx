@@ -465,29 +465,36 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                     updatedForDb.push(next[existingIndex]);
                     updatedCount++;
                 } else {
+                    console.log(`[Dedup OID] Skipped ${incoming.ticker}: existing P&L=${next[existingIndex].pnl}, incoming=${incoming.pnl}`);
                     duplicateCount++;
                 }
             } else if (fingerprintMatchIndex !== undefined) {
                 // Exact fingerprint match - unlikely to need P&L fix (fingerprint includes P&L)
+                console.log(`[Dedup ExactFp] Duplicate: ${incoming.ticker}`);
                 duplicateCount++;
             } else if (normalizedFpMatchIndex !== undefined) {
                 // Normalized ticker match - check if we can update P&L
                 const existingTrade = next[normalizedFpMatchIndex];
-                if (existingTrade.pnl === 0 && incoming.pnl !== 0) {
-                    console.log(`[Dedup Norm] Updating ${incoming.ticker} P&L from $0 to $${incoming.pnl.toFixed(2)}`);
+                // Handle null, undefined, or 0 as "missing" P&L
+                const existingPnlMissing = existingTrade.pnl === null || existingTrade.pnl === undefined || existingTrade.pnl === 0;
+                if (existingPnlMissing && incoming.pnl && incoming.pnl !== 0) {
+                    console.log(`[Dedup Norm] Updating ${incoming.ticker} P&L from ${existingTrade.pnl} to $${incoming.pnl.toFixed(2)}`);
                     next[normalizedFpMatchIndex] = { ...existingTrade, pnl: incoming.pnl, pnlPercentage: incoming.pnlPercentage || existingTrade.pnlPercentage };
                     updatedForDb.push(next[normalizedFpMatchIndex]);
                     updatedCount++;
                 } else {
+                    console.log(`[Dedup Norm] Skipped ${incoming.ticker}: existing P&L=${existingTrade.pnl}, incoming=${incoming.pnl}`);
                     duplicateCount++;
                 }
             } else if (fuzzyFpMatchIndex !== undefined) {
                 // Duplicate detected by fuzzy match
-                // Check if existing has $0 P&L but incoming has valid P&L - if so, UPDATE
+                // Check if existing has missing/zero P&L but incoming has valid P&L - if so, UPDATE
                 const existingTrade = next[fuzzyFpMatchIndex];
-                if (existingTrade.pnl === 0 && incoming.pnl !== 0) {
+                // Handle null, undefined, or 0 as "missing" P&L
+                const existingPnlMissing = existingTrade.pnl === null || existingTrade.pnl === undefined || existingTrade.pnl === 0;
+                if (existingPnlMissing && incoming.pnl && incoming.pnl !== 0) {
                     // Incoming has better data - update existing trade
-                    console.log(`[Dedup] Updating ${incoming.ticker} P&L from $0 to $${incoming.pnl.toFixed(2)}`);
+                    console.log(`[Dedup Fuzzy] ✅ Updating ${incoming.ticker} P&L from ${existingTrade.pnl} to $${incoming.pnl.toFixed(2)}`);
                     next[fuzzyFpMatchIndex] = {
                         ...existingTrade,
                         pnl: incoming.pnl,
@@ -500,6 +507,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                     updatedForDb.push(next[fuzzyFpMatchIndex]);
                     updatedCount++;
                 } else {
+                    console.log(`[Dedup Fuzzy] Skipped ${incoming.ticker}: existing P&L=${existingTrade.pnl}, incoming=${incoming.pnl}`);
                     duplicateCount++;
                 }
             } else {
