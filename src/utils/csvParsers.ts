@@ -123,6 +123,12 @@ const processSchwabRealizedGains = (rows: any[]): ParseResult => {
 
     logs.push(`Found ${dataRows.length} valid trade rows (filtered from ${rows.length} total)`);
 
+    logs.push(`🔍 DEBUG: Processing dataRows. First row keys: ${dataRows.length > 0 ? Object.keys(dataRows[0]).join(', ') : 'NONE'}`);
+    if (dataRows.length > 0) {
+        const firstRow = dataRows[0];
+        logs.push(`🔍 First row sample: Symbol="${safeGet(firstRow, ['Symbol'])}", Gain/Loss="${safeGet(firstRow, ['Gain/Loss ($)', 'Total Gain/Loss ($)'])}"`);
+    }
+
     dataRows.forEach((row) => {
         const symbol = safeGet(row, ['Symbol']);
         const name = safeGet(row, ['Name', 'Description']);
@@ -839,6 +845,7 @@ const detectColumnMapping = (headers: string[]): ColumnMapping => {
 };
 
 export const parseCSV = (file: File, exchange: ExchangeName): Promise<ParseResult> => {
+    console.log(`[parseCSV] 🚨 STARTING PARSE with exchange="${exchange}", file="${file.name}"`);
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -907,14 +914,18 @@ export const parseCSV = (file: File, exchange: ExchangeName): Promise<ParseResul
                             logs: [...debugLogs, ...result.logs]
                         });
                     } else if (exchange === 'Schwab') {
+                        console.log('[parseCSV] ✅ Entering Schwab branch');
+                        debugLogs.push('✅ Exchange is Schwab - entering Schwab parsing logic');
                         // Auto-detect format: Realized Gain/Loss vs Transactions
                         const headers = results.meta.fields || [];
                         const cleanHeaders = headers.map((h: string) => h.replace(/['"]/g, '').toLowerCase());
+                        console.log('[parseCSV] Headers:', cleanHeaders.slice(0, 5));
 
                         // Check for Realized Gain/Loss format (has Total Gain/Loss column)
                         const isRealizedGains = cleanHeaders.some((h: string) =>
-                            h.includes('total gain/loss') || h.includes('cost basis') || h.includes('proceeds')
+                            h.includes('total gain/loss') || h.includes('cost basis') || h.includes('proceeds') || h.includes('gain/loss')
                         );
+                        console.log('[parseCSV] isRealizedGains:', isRealizedGains);
 
                         if (isRealizedGains) {
                             debugLogs.push('Detected Schwab Realized Gain/Loss format (preferred)');
