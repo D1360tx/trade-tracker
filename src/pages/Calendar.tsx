@@ -350,48 +350,129 @@ const Calendar = () => {
                     </div>
                 ) : null}
 
-                {/* Desktop Weekly View */}
+                {/* Desktop Weekly View - Enhanced */}
                 {desktopView === 'weekly' && (
                     <div className="hidden md:block">
-                        {/* Weekly Row - 7 days across */}
-                        <div className="grid grid-cols-7 gap-2 lg:gap-4 mb-4">
+                        {/* Weekly Stats Summary */}
+                        <div className="grid grid-cols-4 gap-4 mb-6">
+                            <div className="bg-[var(--bg-tertiary)] rounded-xl p-4">
+                                <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">Total Trades</p>
+                                <p className="text-2xl font-bold">{daysInWeek.reduce((sum, d) => sum + getTradesForDate(d).length, 0)}</p>
+                            </div>
+                            <div className="bg-[var(--bg-tertiary)] rounded-xl p-4">
+                                <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">Best Day</p>
+                                {(() => {
+                                    const best = daysInWeek.reduce((best, d) => {
+                                        const pnl = getPnLForDate(d);
+                                        return pnl > best.pnl ? { date: d, pnl } : best;
+                                    }, { date: daysInWeek[0], pnl: -Infinity });
+                                    return best.pnl > -Infinity && best.pnl !== 0 ? (
+                                        <p className="text-2xl font-bold text-[var(--success)]">
+                                            {format(best.date, 'EEE')} +${best.pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                        </p>
+                                    ) : <p className="text-lg text-[var(--text-tertiary)]">—</p>;
+                                })()}
+                            </div>
+                            <div className="bg-[var(--bg-tertiary)] rounded-xl p-4">
+                                <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">Worst Day</p>
+                                {(() => {
+                                    const worst = daysInWeek.reduce((worst, d) => {
+                                        const pnl = getPnLForDate(d);
+                                        return pnl < worst.pnl && pnl !== 0 ? { date: d, pnl } : worst;
+                                    }, { date: daysInWeek[0], pnl: Infinity });
+                                    return worst.pnl < Infinity && worst.pnl !== 0 ? (
+                                        <p className="text-2xl font-bold text-[var(--danger)]">
+                                            {format(worst.date, 'EEE')} ${worst.pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                        </p>
+                                    ) : <p className="text-lg text-[var(--text-tertiary)]">—</p>;
+                                })()}
+                            </div>
+                            <div className="bg-[var(--bg-tertiary)] rounded-xl p-4">
+                                <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">Avg Per Day</p>
+                                {(() => {
+                                    const tradingDays = daysInWeek.filter(d => getPnLForDate(d) !== 0).length;
+                                    const avg = tradingDays > 0 ? weeklyTotalPnL / tradingDays : 0;
+                                    return avg !== 0 ? (
+                                        <p className={`text-2xl font-bold ${avg >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                                            {avg >= 0 ? '+' : ''}${avg.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                        </p>
+                                    ) : <p className="text-lg text-[var(--text-tertiary)]">—</p>;
+                                })()}
+                            </div>
+                        </div>
+
+                        {/* Weekly Day Cards - Larger & More Detailed */}
+                        <div className="grid grid-cols-7 gap-3">
                             {daysInWeek.map(date => {
                                 const pnl = getPnLForDate(date);
                                 const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
                                 const dayTrades = getTradesForDate(date);
                                 const hasTrades = dayTrades.length > 0;
+                                const wins = dayTrades.filter(t => t.pnl > 0).length;
+                                const losses = dayTrades.filter(t => t.pnl < 0).length;
+
+                                // Get unique tickers
+                                const tickers = [...new Set(dayTrades.map(t => t.ticker))].slice(0, 3);
 
                                 return (
                                     <div
                                         key={date.toISOString()}
                                         onClick={() => hasTrades && setSelectedDate(date)}
                                         className={`
-                                            rounded-xl p-4 border transition-all min-h-[140px] flex flex-col
-                                            ${hasTrades ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-default'}
+                                            rounded-xl p-4 border transition-all min-h-[220px] flex flex-col
+                                            ${hasTrades ? 'cursor-pointer hover:scale-[1.01] hover:shadow-lg' : 'cursor-default opacity-60'}
                                             ${getDayClass(pnl)}
                                             ${isToday ? 'ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-secondary)]' : ''}
                                         `}
                                     >
-                                        <div className="flex justify-between items-start mb-2">
+                                        {/* Day Header */}
+                                        <div className="flex justify-between items-start mb-3">
                                             <div>
-                                                <p className="text-xs font-medium text-[var(--text-secondary)]">{format(date, 'EEE')}</p>
-                                                <p className="text-lg font-bold">{format(date, 'd')}</p>
+                                                <p className="text-sm font-semibold">{format(date, 'EEEE')}</p>
+                                                <p className="text-xs text-[var(--text-secondary)]">{format(date, 'MMM d')}</p>
                                             </div>
-                                            {hasTrades && (
-                                                <span className="text-xs bg-[var(--bg-secondary)] px-2 py-0.5 rounded-full">
-                                                    {dayTrades.length}
+                                            {isToday && (
+                                                <span className="text-[10px] uppercase tracking-wide bg-[var(--accent-primary)] text-white px-2 py-0.5 rounded-full">
+                                                    Today
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="flex-1 flex items-center justify-center">
+
+                                        {/* P&L Amount */}
+                                        <div className="flex-1 flex flex-col items-center justify-center">
                                             {pnl !== 0 ? (
-                                                <p className="text-xl font-bold">
-                                                    {pnl > 0 ? '+' : ''}${pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                </p>
+                                                <>
+                                                    <p className="text-2xl font-bold">
+                                                        {pnl > 0 ? '+' : ''}${pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </p>
+                                                    <p className="text-xs mt-1">
+                                                        <span className="text-[var(--success)]">{wins}W</span>
+                                                        <span className="mx-1 text-[var(--text-tertiary)]">/</span>
+                                                        <span className="text-[var(--danger)]">{losses}L</span>
+                                                    </p>
+                                                </>
                                             ) : (
-                                                <p className="text-[var(--text-tertiary)]">—</p>
+                                                <p className="text-[var(--text-tertiary)] text-lg">No Trades</p>
                                             )}
                                         </div>
+
+                                        {/* Tickers Preview */}
+                                        {hasTrades && tickers.length > 0 && (
+                                            <div className="mt-3 pt-3 border-t border-[var(--border)]/50">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {tickers.map(ticker => (
+                                                        <span key={ticker} className="text-[10px] bg-[var(--bg-secondary)]/50 px-1.5 py-0.5 rounded">
+                                                            {ticker}
+                                                        </span>
+                                                    ))}
+                                                    {dayTrades.length > 3 && (
+                                                        <span className="text-[10px] text-[var(--text-tertiary)]">
+                                                            +{dayTrades.length - 3} more
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -400,7 +481,7 @@ const Calendar = () => {
                 )}
 
                 {/* Monthly Grid (Desktop when monthly mode, Mobile when monthly mode selected) */}
-                <div className={`${desktopView === 'weekly' ? 'hidden' : ''} ${mobileView === 'weekly' ? 'hidden md:block' : ''}`}>
+                <div className={`${desktopView === 'weekly' ? 'md:hidden' : ''} ${mobileView === 'weekly' ? 'hidden' : ''}`}>
                     {/* Day Headers - Show single letter on mobile */}
                     <div className="grid grid-cols-7 mb-2 md:mb-4">
                         {[
