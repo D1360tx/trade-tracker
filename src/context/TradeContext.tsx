@@ -447,12 +447,25 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 // Fuzzy fingerprint - rounds P&L to nearest dollar (handles API vs CSV P&L differences)
                 const fuzzyFp = getFuzzyFingerprint(incoming);
                 const fuzzyFpMatchIndex = existingFingerprints.get(fuzzyFp);
+                let fuzzyFpMatchIndex = existingFingerprints.get(fuzzyFp);
+
+                // Manual fallback for fuzzy match if Map.get() fails (handling V8/string edge cases)
+                if (fuzzyFpMatchIndex === undefined) {
+                    for (const [key, idx] of existingFingerprints.entries()) {
+                        if (key === fuzzyFp) {
+                            // Found it manually!
+                            fuzzyFpMatchIndex = idx; // Update const? No, need to change variable to let
+                            break;
+                        }
+                    }
+                }
 
                 if (idMatchIndex !== -1) {
-                    // Update existing by ID match
-                    const existing = next[idMatchIndex];
+                    // Exact ID match (update logic)
+                    const existingIndex = idMatchIndex;
+                    const existing = next[existingIndex];
                     if (existing.status !== incoming.status || existing.pnl !== incoming.pnl || existing.isBot !== incoming.isBot || existing.type !== incoming.type || existing.margin !== incoming.margin) {
-                        next[idMatchIndex] = {
+                        next[existingIndex] = {
                             ...incoming,
                             notes: existing.notes || incoming.notes,
                             screenshotIds: existing.screenshotIds
@@ -462,25 +475,23 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                         duplicateCount++;
                     }
                 } else if (externalOidMatchIndex !== -1) {
-                    // Duplicate detected by Schwab externalOid - skip
+                    // External OID match (Schwab) - logic to update
+                    const existingIndex = externalOidMatchIndex;
+                    if (!next[existingIndex].externalOid) next[existingIndex].externalOid = incoming.externalOid;
                     duplicateCount++;
-                    console.log('[Dedup] Skipping Schwab duplicate by externalOid:', incoming.externalOid);
-                } else if (fpMatchIndex !== undefined) {
-                    // Duplicate detected by fingerprint - skip but preserve user data
+                    // console.log('[Dedup] Skipping Schwab duplicate by externalOid:', incoming.externalOid);
+                } else if (fingerprintMatchIndex !== undefined) {
+                    // Exact fingerprint match
                     duplicateCount++;
-                    // Optionally update if the incoming has more info
-                    const existing = next[fpMatchIndex];
-                    if (!existing.notes && incoming.notes) {
-                        next[fpMatchIndex] = { ...existing, notes: incoming.notes };
-                    }
+                    // console.log('[Dedup] Skipping duplicate by exact fingerprint:', incoming.ticker);
                 } else if (normalizedFpMatchIndex !== undefined) {
-                    // Duplicate detected by normalized fingerprint (same trade, different ticker format)
+                    // Normalized ticker match
                     duplicateCount++;
-                    console.log('[Dedup] Skipping duplicate by normalized ticker:', incoming.ticker);
+                    // console.log('[Dedup] Skipping duplicate by normalized ticker:', incoming.ticker);
                 } else if (fuzzyFpMatchIndex !== undefined) {
                     // Duplicate detected by fuzzy match
                     duplicateCount++;
-                    console.log('[Dedup] Skipping duplicate by fuzzy match:', incoming.ticker);
+                    // console.log('[Dedup] Skipping duplicate by fuzzy match:', incoming.ticker);
                 } else {
                     // New trade - add it
                     next.push(incoming);
