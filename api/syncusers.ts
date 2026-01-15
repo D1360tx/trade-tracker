@@ -1,8 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-    return res.status(200).json({
+export default function handler(req: VercelRequest, res: VercelResponse) {
+    res.status(200).json({
         message: 'Sync endpoint is working!',
+        method: req.method,
+        url: req.url,
         timestamp: new Date().toISOString()
     });
 }
