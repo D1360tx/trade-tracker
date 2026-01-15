@@ -381,8 +381,8 @@ const Calendar = () => {
                                         return pnl < worst.pnl && pnl !== 0 ? { date: d, pnl } : worst;
                                     }, { date: daysInWeek[0], pnl: Infinity });
                                     return worst.pnl < Infinity && worst.pnl !== 0 ? (
-                                        <p className="text-2xl font-bold text-[var(--danger)]">
-                                            {format(worst.date, 'EEE')} ${worst.pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                        <p className={`text-2xl font-bold ${worst.pnl >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                                            {format(worst.date, 'EEE')} {worst.pnl >= 0 ? '+' : ''}${worst.pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                         </p>
                                     ) : <p className="text-lg text-[var(--text-tertiary)]">—</p>;
                                 })()}
