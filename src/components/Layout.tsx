@@ -38,24 +38,30 @@ const Layout = () => {
 
     // Handle sync button click
     const handleSyncExchanges = async () => {
+        const exchanges: Array<'MEXC' | 'ByBit' | 'Schwab'> = ['MEXC', 'ByBit', 'Schwab'];
         const toSync: string[] = [];
 
-        // Check for Schwab OAuth (stored in localStorage or context)
-        const schwabTokens = localStorage.getItem('schwab_access_token');
-        if (schwabTokens) {
-            toSync.push('Schwab');
-        }
+        for (const ex of exchanges) {
+            // Check Supabase first (async), fallback to localStorage
+            try {
+                const { getExchangeCredentials } = await import('../lib/supabase/apiCredentials');
+                const credentials = await getExchangeCredentials(ex);
+                if (credentials) {
+                    toSync.push(ex);
+                    continue;
+                }
+            } catch (e) {
+                // Supabase check failed, try localStorage
+            }
 
-        // Check for MEXC credentials
-        const mexcKey = localStorage.getItem('mexc_api_key');
-        if (mexcKey) {
-            toSync.push('MEXC');
-        }
+            // Fallback: check localStorage
+            const apiKey = localStorage.getItem(ex.toLowerCase() + "_api_key");
+            const apiSecret = localStorage.getItem(ex.toLowerCase() + "_api_secret");
+            const hasSchwabTokens = ex === 'Schwab' && !!localStorage.getItem('schwab_tokens');
 
-        // Check for ByBit credentials
-        const bybitKey = localStorage.getItem('bybit_api_key');
-        if (bybitKey) {
-            toSync.push('ByBit');
+            if ((apiKey && apiSecret) || hasSchwabTokens) {
+                toSync.push(ex);
+            }
         }
 
         if (toSync.length === 0) {
