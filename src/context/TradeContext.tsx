@@ -464,16 +464,28 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                     duplicateCount++;
                     console.log('[Dedup] Skipping duplicate by normalized ticker:', incoming.ticker);
                 } else if (fuzzyFpMatchIndex !== undefined) {
-                    // Duplicate detected by fuzzy P&L match (API vs CSV rounding)
+                    // Duplicate detected by fuzzy match
                     duplicateCount++;
-                    console.log('[Dedup] Skipping duplicate by fuzzy P&L match:', incoming.ticker, incoming.pnl);
+                    console.log('[Dedup] Skipping duplicate by fuzzy match:', incoming.ticker);
                 } else {
                     // New trade - add it
                     next.push(incoming);
                     existingFingerprints.set(fingerprint, next.length - 1);
-                    existingFingerprints.set(normalizedFp, next.length - 1); // Also store normalized
-                    existingFingerprints.set(fuzzyFp, next.length - 1); // Also store fuzzy
+                    existingFingerprints.set(normalizedFp, next.length - 1);
+                    existingFingerprints.set(fuzzyFp, next.length - 1);
                     addedCount++;
+
+                    // DEBUG: Log why this wasn't caught
+                    if (incoming.exchange === 'Schwab' && incoming.exitDate?.startsWith('2026')) {
+                        console.log('--------------------------------------------------');
+                        console.log(`[Dedup FAIL] Adding potential duplicate: ${incoming.ticker}`);
+                        console.log(`  Incoming Fuzzy: "${fuzzyFp}"`);
+                        console.log(`  Incoming Norm:  "${normalizedFp}"`);
+
+                        // Try to find a near match in existing fingerprints to see what's close
+                        console.log('  Checking against existing fingerprints...');
+                        // (Simplified check for debug)
+                    }
                 }
             });
 
