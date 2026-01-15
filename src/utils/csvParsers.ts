@@ -133,6 +133,10 @@ const processSchwabRealizedGains = (rows: any[]): ParseResult => {
         const proceeds = parseSchwabMoney(safeGet(row, ['Proceeds']));
         const costBasis = parseSchwabMoney(safeGet(row, ['Cost Basis (CB)', 'Cost Basis']));
         const totalGainLoss = parseSchwabMoney(safeGet(row, ['Total Gain/Loss ($)', 'Total Gain/Loss', 'Gain/Loss ($)']));
+        if (totalGainLoss === 0 && safeGet(row, ['Total Gain/Loss ($)', 'Total Gain/Loss', 'Gain/Loss ($)'])) {
+            // Debug: Why is P&L 0?
+            console.warn(`[CSV Parse Warning] P&L is 0 for ${symbol}. Raw value: "${safeGet(row, ['Total Gain/Loss ($)', 'Total Gain/Loss', 'Gain/Loss ($)'])}"`);
+        }
         const gainLossPercent = parseFloat(safeGet(row, ['Total Gain/Loss (%)', 'Total Gain/Loss Pct', 'Gain/Loss (%)']).replace('%', '')) || 0;
 
         // Detect if this is an options trade
