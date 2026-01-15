@@ -411,9 +411,6 @@ const Calendar = () => {
                                 const wins = dayTrades.filter(t => t.pnl > 0).length;
                                 const losses = dayTrades.filter(t => t.pnl < 0).length;
 
-                                // Get unique tickers
-                                const tickers = [...new Set(dayTrades.map(t => t.ticker))].slice(0, 3);
-
                                 return (
                                     <div
                                         key={date.toISOString()}
@@ -456,20 +453,26 @@ const Calendar = () => {
                                             )}
                                         </div>
 
-                                        {/* Tickers Preview */}
-                                        {hasTrades && tickers.length > 0 && (
+                                        {/* Quick Stats */}
+                                        {hasTrades && (
                                             <div className="mt-3 pt-3 border-t border-[var(--border)]/50">
-                                                <div className="flex flex-wrap gap-1">
-                                                    {tickers.map(ticker => (
-                                                        <span key={ticker} className="text-[10px] bg-[var(--bg-secondary)]/50 px-1.5 py-0.5 rounded">
-                                                            {ticker}
-                                                        </span>
-                                                    ))}
-                                                    {dayTrades.length > 3 && (
-                                                        <span className="text-[10px] text-[var(--text-tertiary)]">
-                                                            +{dayTrades.length - 3} more
-                                                        </span>
-                                                    )}
+                                                <div className="grid grid-cols-3 gap-2 text-center">
+                                                    <div>
+                                                        <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Trades</p>
+                                                        <p className="text-sm font-semibold">{dayTrades.length}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Win%</p>
+                                                        <p className={`text-sm font-semibold ${(wins / dayTrades.length) >= 0.5 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                                                            {((wins / dayTrades.length) * 100).toFixed(0)}%
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Avg</p>
+                                                        <p className={`text-sm font-semibold ${(pnl / dayTrades.length) >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                                                            ${Math.abs(pnl / dayTrades.length).toFixed(0)}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
