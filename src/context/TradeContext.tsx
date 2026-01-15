@@ -401,146 +401,119 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
         return `FUZZY|${trade.exchange}|${normalizedTicker}|${exitDateStr}|${trade.quantity}`;
     };
 
-    const mergeTrades = (incomingTrades: Trade[]) => {
-        setTrades(prev => {
-            const next = [...prev];
-            let addedCount = 0;
-            let updatedCount = 0;
-            let duplicateCount = 0;
+    const mergeTrades = (currentTrades: Trade[], incomingTrades: Trade[]): [Trade[], Trade[]] => {
+        const next = [...currentTrades];
+        let addedCount = 0;
+        let updatedCount = 0;
+        let duplicateCount = 0;
 
-            // Build a fingerprint map of existing trades for fast lookup
-            const existingFingerprints = new Map<string, number>();
-            next.forEach((t, idx) => {
-                existingFingerprints.set(getTradeFingerprint(t), idx);
-                existingFingerprints.set(getNormalizedFingerprint(t), idx); // Also store normalized
-                existingFingerprints.set(getFuzzyFingerprint(t), idx); // Fuzzy match (rounded P&L)
-            });
+        // Track new trades for DB insertion
+        const addedForDb: Trade[] = [];
 
-            // Debug: Log first few fingerprints for Schwab trades
-            const schwabTrades = next.filter(t => t.exchange === 'Schwab').slice(0, 3);
-            if (schwabTrades.length > 0) {
-                console.log('[Dedup Debug] Sample existing Schwab fingerprints:');
-                schwabTrades.forEach(t => {
-                    console.log(`  Ticker: "${t.ticker}" → Fuzzy: "${getFuzzyFingerprint(t)}"`);
-                });
-            }
-
-            incomingTrades.forEach(incoming => {
-                // First check by ID (for API-sourced trades that have consistent IDs)
-                const idMatchIndex = next.findIndex(t => t.id === incoming.id);
-
-                // For Schwab trades, check externalOid (the closing transaction activityId)
-                // The activityId is unique per closing transaction, so we don't need ticker matching
-                // This prevents duplicates when the same trade is imported with different ticker formats
-                const externalOidMatchIndex = incoming.externalOid && incoming.exchange === 'Schwab'
-                    ? next.findIndex(t => t.exchange === 'Schwab' && t.externalOid === incoming.externalOid)
-                    : -1;
-
-                // Then check by content fingerprint (for CSV imports with random IDs)
-                const fingerprint = getTradeFingerprint(incoming);
-                const fingerprintMatchIndex = existingFingerprints.get(fingerprint);
-
-                // Also check normalized fingerprint (handles ticker format differences)
-                const normalizedFp = getNormalizedFingerprint(incoming);
-                const normalizedFpMatchIndex = existingFingerprints.get(normalizedFp);
-
-                // Fuzzy fingerprint - rounds P&L to nearest dollar (handles API vs CSV P&L differences)
-                const fuzzyFp = getFuzzyFingerprint(incoming);
-                let fuzzyFpMatchIndex = existingFingerprints.get(fuzzyFp);
-
-                // Manual fallback for fuzzy match if Map.get() fails (handling V8/string edge cases)
-                if (fuzzyFpMatchIndex === undefined) {
-                    for (const [key, idx] of existingFingerprints.entries()) {
-                        if (key === fuzzyFp) {
-                            // Found it manually!
-                            fuzzyFpMatchIndex = idx; // Update const? No, need to change variable to let
-                            break;
-                        }
-                    }
-                }
-
-                if (idMatchIndex !== -1) {
-                    // Exact ID match (update logic)
-                    const existingIndex = idMatchIndex;
-                    const existing = next[existingIndex];
-                    if (existing.status !== incoming.status || existing.pnl !== incoming.pnl || existing.isBot !== incoming.isBot || existing.type !== incoming.type || existing.margin !== incoming.margin) {
-                        next[existingIndex] = {
-                            ...incoming,
-                            notes: existing.notes || incoming.notes,
-                            screenshotIds: existing.screenshotIds
-                        };
-                        updatedCount++;
-                    } else {
-                        duplicateCount++;
-                    }
-                } else if (externalOidMatchIndex !== -1) {
-                    // External OID match (Schwab) - logic to update
-                    const existingIndex = externalOidMatchIndex;
-                    if (!next[existingIndex].externalOid) next[existingIndex].externalOid = incoming.externalOid;
-                    duplicateCount++;
-                    // console.log('[Dedup] Skipping Schwab duplicate by externalOid:', incoming.externalOid);
-                } else if (fingerprintMatchIndex !== undefined) {
-                    // Exact fingerprint match
-                    duplicateCount++;
-                    // console.log('[Dedup] Skipping duplicate by exact fingerprint:', incoming.ticker);
-                } else if (normalizedFpMatchIndex !== undefined) {
-                    // Normalized ticker match
-                    duplicateCount++;
-                    // console.log('[Dedup] Skipping duplicate by normalized ticker:', incoming.ticker);
-                } else if (fuzzyFpMatchIndex !== undefined) {
-                    // Duplicate detected by fuzzy match
-                    duplicateCount++;
-                    // console.log('[Dedup] Skipping duplicate by fuzzy match:', incoming.ticker);
-                } else {
-                    // New trade - add it
-                    next.push(incoming);
-                    existingFingerprints.set(fingerprint, next.length - 1);
-                    existingFingerprints.set(normalizedFp, next.length - 1);
-                    existingFingerprints.set(fuzzyFp, next.length - 1);
-                    addedCount++;
-
-                    // DEBUG: Log why this wasn't caught
-                    if (incoming.exchange === 'Schwab' && incoming.exitDate?.startsWith('2026')) {
-                        console.log('--------------------------------------------------');
-                        console.log(`[Dedup FAIL] Adding potential duplicate: ${incoming.ticker}`);
-                        console.log(`  Incoming Fuzzy: "${fuzzyFp}"`);
-                        console.log(`  Incoming Norm:  "${normalizedFp}"`);
-
-                        // Try to find a near match in existing fingerprints to see what's close
-                        console.log('  Checking against existing fingerprints...');
-                        let foundNearMatch = false;
-                        for (const key of existingFingerprints.keys()) {
-                            // Check if key contains the ticker (lenient check)
-                            if (key.includes(`|${normalizeTicker(incoming.ticker)}|`)) {
-                                foundNearMatch = true;
-                                console.log(`  Map Key: "${key}"`);
-                                console.log(`  Match? ${key === fuzzyFp}`);
-                                if (!key.startsWith('NORM') && !key.startsWith('FUZZY')) {
-                                    // Skip exact matches
-                                } else if (key.startsWith('FUZZY')) {
-                                    console.log(`  Diff: ${findStringDiff(key, fuzzyFp)}`);
-                                }
-                            }
-                        }
-                        if (!foundNearMatch) console.log("  No keys found containing ticker!");
-                    }
-                }
-            });
-
-            if (addedCount > 0 || updatedCount > 0 || duplicateCount > 0) {
-                // Merge complete - stats available in dev tools if needed
-            }
-            return next;
+        // Build a fingerprint map of existing trades for fast lookup
+        const existingFingerprints = new Map<string, number>();
+        next.forEach((t, idx) => {
+            existingFingerprints.set(getTradeFingerprint(t), idx);
+            existingFingerprints.set(getNormalizedFingerprint(t), idx); // Also store normalized
+            existingFingerprints.set(getFuzzyFingerprint(t), idx); // Fuzzy match (rounded P&L)
         });
+
+        incomingTrades.forEach(incoming => {
+            // First check by ID (for API-sourced trades that have consistent IDs)
+            const idMatchIndex = next.findIndex(t => t.id === incoming.id);
+
+            // For Schwab trades, check externalOid (the closing transaction activityId)
+            // The activityId is unique per closing transaction, so we don't need ticker matching
+            // This prevents duplicates when the same trade is imported with different ticker formats
+            const externalOidMatchIndex = incoming.externalOid && incoming.exchange === 'Schwab'
+                ? next.findIndex(t => t.exchange === 'Schwab' && t.externalOid === incoming.externalOid)
+                : -1;
+
+            // Then check by content fingerprint (for CSV imports with random IDs)
+            const fingerprint = getTradeFingerprint(incoming);
+            const fingerprintMatchIndex = existingFingerprints.get(fingerprint);
+
+            // Also check normalized fingerprint (handles ticker format differences)
+            const normalizedFp = getNormalizedFingerprint(incoming);
+            const normalizedFpMatchIndex = existingFingerprints.get(normalizedFp);
+
+            // Fuzzy fingerprint - rounds P&L to nearest dollar (handles API vs CSV P&L differences)
+            const fuzzyFp = getFuzzyFingerprint(incoming);
+            let fuzzyFpMatchIndex = existingFingerprints.get(fuzzyFp);
+
+            // Manual fallback for fuzzy match if Map.get() fails (handling V8/string edge cases)
+            if (fuzzyFpMatchIndex === undefined) {
+                for (const [key, idx] of existingFingerprints.entries()) {
+                    if (key === fuzzyFp) {
+                        // Found it manually!
+                        fuzzyFpMatchIndex = idx;
+                        break;
+                    }
+                }
+            }
+
+            if (idMatchIndex !== -1) {
+                // Exact ID match (update logic)
+                const existingIndex = idMatchIndex;
+                const existing = next[existingIndex];
+                if (existing.status !== incoming.status || existing.pnl !== incoming.pnl || existing.isBot !== incoming.isBot || existing.type !== incoming.type || existing.margin !== incoming.margin) {
+                    next[existingIndex] = {
+                        ...incoming,
+                        notes: existing.notes || incoming.notes,
+                        screenshotIds: existing.screenshotIds
+                    };
+                    updatedCount++;
+                } else {
+                    duplicateCount++;
+                }
+            } else if (externalOidMatchIndex !== -1) {
+                // External OID match (Schwab) - logic to update
+                const existingIndex = externalOidMatchIndex;
+                if (!next[existingIndex].externalOid) next[existingIndex].externalOid = incoming.externalOid;
+                duplicateCount++;
+            } else if (fingerprintMatchIndex !== undefined) {
+                // Exact fingerprint match
+                duplicateCount++;
+            } else if (normalizedFpMatchIndex !== undefined) {
+                // Normalized ticker match
+                duplicateCount++;
+            } else if (fuzzyFpMatchIndex !== undefined) {
+                // Duplicate detected by fuzzy match
+                duplicateCount++;
+            } else {
+                // New trade - add it
+                next.push(incoming);
+                addedForDb.push(incoming);
+                existingFingerprints.set(fingerprint, next.length - 1);
+                existingFingerprints.set(normalizedFp, next.length - 1);
+                existingFingerprints.set(fuzzyFp, next.length - 1);
+                addedCount++;
+            }
+        });
+
+        if (addedCount > 0 || updatedCount > 0 || duplicateCount > 0) {
+            console.log(`[TradeContext] Merged ${incomingTrades.length} trades: ${addedCount} added, ${updatedCount} updated, ${duplicateCount} duplicates`);
+        } else {
+            console.log(`[TradeContext] No new trades or updates found (${duplicateCount} duplicates)`);
+        }
+
+        return [next, addedForDb];
     };
 
     const addTrades = (newTrades: Trade[]) => {
         // Update local state immediately (optimistic update)
-        mergeTrades(newTrades);
+        // Only insert trades that were actually added (passed deduplication)
+        setTrades(prev => {
+            const [updatedTrades, addedForDb] = mergeTrades(prev, newTrades);
 
-        // Sync to Supabase in background (fire-and-forget)
-        dbInsertTrades(newTrades).catch(error => {
-            console.error('Error syncing trades to Supabase:', error);
+            // Sync to Supabase in background (fire-and-forget)
+            // We do this inside the setState callback to ensure we use the deduplication logic against the LATEST state
+            if (addedForDb.length > 0) {
+                dbInsertTrades(addedForDb).catch(error => {
+                    console.error('Error syncing trades to Supabase:', error);
+                });
+            }
+            return updatedTrades;
         });
     };
 
