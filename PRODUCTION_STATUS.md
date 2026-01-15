@@ -1,23 +1,27 @@
-# 🎉 Trade Tracker Pro - v1.2.0 Production Ready!
+# 🎉 Trade Tracker Pro - v1.4.0 Production Ready!
 
-**Date**: January 9, 2026  
-**Version**: 1.2.0  
+**Date**: January 15, 2026  
+**Version**: 1.4.0  
 **Status**: ✅ **ALL SYSTEMS OPERATIONAL**
 
 ---
 
-## 🏆 Latest Updates (v1.2.0)
+## 🏆 Latest Updates (v1.4.0)
 
-### ✅ Schwab Data Accuracy - FIXED!
-- **P&L Calculation**: Now matches Schwab's reports exactly
-- **CSV Import**: Supports "Lot Details" format with accurate entry/exit dates
-- **API Window**: Extended to 180 days for better FIFO matching
-- **Auto-Sync**: Hourly updates during market hours (9 AM - 3 PM)
+### ✅ Scheduled Auto-Sync - NEW!
+- **Daily Cron Job**: Syncs all users at 3:30 PM EST (market close)
+- **Server-Side Execution**: Runs automatically via Vercel cron
+- **Protected Endpoint**: Secured with CRON_SECRET
+- **All Exchanges**: Schwab + MEXC synced together
 
-### ✅ MEXC API - WORKING!
--  **Futures & Spot**: Fully functional in production
-- **Signature Fix**: Resolved Vercel URL rewrite issue
-- **Real-Time Sync**: Automatic hourly updates
+### ✅ Global Sync Button - NEW!
+- **Header Location**: Always visible from any page
+- **One-Click Sync**: Simultaneous Schwab + MEXC + ByBit
+- **Loading State**: Spinner animation during sync
+
+### ✅ Schwab Deduplication - FIXED!
+- **No More Duplicates**: Enhanced matching on closing transaction ID
+- **Accurate P&L**: Calendar and reports now show correct totals
 
 ---
 
@@ -25,7 +29,7 @@
 
 | Integration | Status | Features |
 |-------------|--------|----------|
-| **Schwab OAuth API** | ✅ Working | 180-day history, hourly auto-sync (market hours), OAuth refresh |
+| **Schwab OAuth API** | ✅ Working | 180-day history, daily auto-sync, OAuth refresh |
 | **MEXC Futures API** | ✅ Working | Real-time trade import with P&L |
 | **MEXC Spot API** | ✅ Working | Real-time trade import |
 | **CSV Imports** | ✅ Working | All exchanges (IB, Binance, ByBit, BloFin, Schwab, etc.) |
@@ -37,21 +41,15 @@
 
 ## 📅 Auto-Sync Schedule
 
-### Schwab (Aggressive - for Day Traders)
-- 🕘 **9:00 AM** - Opening sync
-- 🕙 **10:00 AM** - Mid-morning
-- 🕚 **11:00 AM** - Late morning  
-- 🕛 **12:00 PM** - Lunch check
-- 🕐 **1:00 PM** - Early afternoon
-- 🕑 **2:00 PM** - Late afternoon
-- 🕒 **3:00 PM** - Pre-close
-- 🕞 **3:30 PM** - Final daily sync (market close)
-- 🕣 **Monday 8:31 AM** - Weekend catchup
+### Daily Automated Sync (Vercel Cron)
+- 🕞 **3:30 PM EST** - Market close sync (Monday-Friday)
 
-**Total**: ~9-10 syncs/day (~20 API calls/day, well within limits)
+**Note**: Vercel Hobby plan limits cron jobs to once per day.  
+For more frequent syncs, upgrade to Pro or use external cron service.
 
-### MEXC & ByBit
-- ⏰ **Hourly** - Top of every hour (silent background sync)
+### Manual Sync (Header Button)
+- 🔄 **Click anytime** - Instant sync from any page
+- Syncs all configured exchanges simultaneously
 
 ---
 

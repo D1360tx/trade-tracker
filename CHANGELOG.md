@@ -2,6 +2,63 @@
 
 All notable changes to Trade Tracker will be documented in this file.
 
+## [v1.4.0-stable] - 2026-01-15
+
+### 🚀 Scheduled Auto-Sync
+
+#### Vercel Cron Jobs
+- **Daily automatic sync**: Trades sync at 3:30 PM EST (market close) every weekday
+- **Server-side execution**: Runs for ALL users with configured credentials
+- **Protected endpoint**: Secured with `CRON_SECRET` environment variable
+- **Comprehensive logging**: Full sync summary with per-user results
+
+#### Sync Endpoint (`/api/schwab/syncusers`)
+- Fetches all users from Supabase
+- Syncs Schwab trades (OAuth tokens)
+- Syncs MEXC trades (Futures + Spot)
+- Upserts to database with deduplication
+- Detailed error handling per exchange
+
+### 🔄 Global Sync Button
+
+- **Moved to header**: Sync button now appears in the top navigation bar
+- **Accessible from any page**: No longer limited to Journal page
+- **Loading state**: Spinning icon while sync is in progress
+- **Smart credential detection**: Checks Supabase first, localStorage fallback
+- **Support for all exchanges**: Schwab, MEXC, ByBit
+
+### 📊 Data Quality Improvements
+
+#### Schwab Trade Deduplication
+- Enhanced `mergeTrades` with `externalOid` matching
+- Prevents duplicate entries from same closing transaction
+- Fixes P&L double-counting issues on Calendar and reports
+
+#### Calendar P&L Formatting
+- **Desktop**: 2 decimal places for precision
+- **Mobile**: 0 decimal places (rounded) for space efficiency
+
+### 🔧 Technical Improvements
+
+#### Vercel Configuration
+- Fixed cron schedule for Hobby plan (once per day limit)
+- Removed conflicting `builds` section for cleaner URL routing
+- Proper TypeScript function deployment
+
+#### Loading States
+- Added skeleton loading to Overview page
+- Prevents "No trades found" flash during initial load
+
+### 📝 Documentation
+- Created `docs/SCHEDULED_SYNC_SETUP.md` with full setup instructions
+- Updated environment variable requirements
+
+### ⚠️ Known Limitations
+- Vercel Hobby plan limits cron jobs to once per day
+- For hourly syncs, upgrade to Pro ($20/month) or use external cron service
+
+---
+
 ## [v1.3.0-stable] - 2026-01-13
 
 ### 🎉 Major Mobile UX Improvements
