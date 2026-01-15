@@ -5,7 +5,7 @@ import { useStrategies } from '../context/StrategyContext';
 import { useMistakes } from '../context/MistakeContext';
 import { Link } from 'react-router-dom';
 import { isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
-import { Search, Filter, RefreshCw, RotateCcw, GripVertical, Grid, List } from 'lucide-react';
+import { Search, Filter, RotateCcw, GripVertical, Grid, List } from 'lucide-react';
 import TradeDetailsModal from '../components/TradeDetailsModal';
 import ExchangeFilter from '../components/ExchangeFilter';
 import TimeRangeFilter, { getDateRangeForFilter } from '../components/TimeRangeFilter';
@@ -15,7 +15,7 @@ import { useColumnOrder } from '../hooks/useColumnOrder';
 import { TableHeader, TableCell } from '../components/TableRenderers';
 
 const Journal = () => {
-    const { trades, updateTrade, fetchTradesFromAPI, isLoading } = useTrades();
+    const { trades, updateTrade, isLoading } = useTrades();
     const { strategies } = useStrategies();
     const { mistakes } = useMistakes();
     const [filterTicker, setFilterTicker] = useState('');
@@ -231,49 +231,6 @@ const Journal = () => {
                 <h2 className="text-3xl font-bold">Trade Journal</h2>
 
                 <div className="flex flex-wrap gap-2">
-                    <button
-                        onClick={async () => {
-                            // Sync all exchanges that have credentials saved
-                            const exchanges: Array<'MEXC' | 'ByBit' | 'Schwab'> = ['MEXC', 'ByBit', 'Schwab'];
-                            const toSync = [];
-
-                            for (const ex of exchanges) {
-                                // Check Supabase first (async), fallback to localStorage
-                                try {
-                                    const { getExchangeCredentials } = await import('../lib/supabase/apiCredentials');
-                                    const credentials = await getExchangeCredentials(ex);
-                                    if (credentials) {
-                                        toSync.push(ex);
-                                        continue;
-                                    }
-                                } catch (e) {
-                                    // Supabase check failed, try localStorage
-                                }
-
-                                // Fallback: check localStorage
-                                const apiKey = localStorage.getItem(ex.toLowerCase() + "_api_key");
-                                const apiSecret = localStorage.getItem(ex.toLowerCase() + "_api_secret");
-                                const hasSchwabTokens = ex === 'Schwab' && !!localStorage.getItem('schwab_tokens');
-
-                                if ((apiKey && apiSecret) || hasSchwabTokens) {
-                                    toSync.push(ex);
-                                }
-                            }
-
-                            if (toSync.length === 0) {
-                                alert('No exchange API keys configured. Please add API keys in Settings first.');
-                                return;
-                            }
-
-                            await Promise.all(toSync.map(ex => fetchTradesFromAPI(ex as any)));
-                        }}
-                        disabled={isLoading}
-                        className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-primary)] text-white rounded-lg hover:bg-[var(--accent-primary)]/90 disabled:opacity-50 transition-colors whitespace-nowrap"
-                    >
-                        <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
-                        <span className="hidden sm:inline">{isLoading ? 'Syncing...' : 'Sync Exchanges'}</span>
-                        <span className="sm:hidden">{isLoading ? 'Sync' : 'Sync'}</span>
-                    </button>
                     <button
                         onClick={resetToDefault}
                         className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors whitespace-nowrap"

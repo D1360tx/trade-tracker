@@ -1,12 +1,12 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, Wallet, Settings, Menu, X, Bell, Calendar, Brain, Upload, BarChart2, FileText, ChevronLeft, ChevronRight, Bot, TrendingUp, LogOut } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Wallet, Settings, Menu, X, Bell, Calendar, Brain, Upload, BarChart2, FileText, ChevronLeft, ChevronRight, Bot, TrendingUp, LogOut, RefreshCw } from 'lucide-react';
 import AIChat from './AIChat';
 import { useTrades } from '../context/TradeContext';
 import { useAuth } from '../context/AuthContext';
 
 const Layout = () => {
-    const { lastUpdated } = useTrades();
+    const { lastUpdated, fetchTradesFromAPI, isLoading } = useTrades();
     const { user, signOut } = useAuth();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
     const [isCollapsed, setIsCollapsed] = React.useState(() => {
@@ -36,6 +36,35 @@ const Layout = () => {
         };
     }, [isMobileMenuOpen]);
 
+    // Handle sync button click
+    const handleSyncExchanges = async () => {
+        const toSync: string[] = [];
+
+        // Check for Schwab OAuth (stored in localStorage or context)
+        const schwabTokens = localStorage.getItem('schwab_access_token');
+        if (schwabTokens) {
+            toSync.push('Schwab');
+        }
+
+        // Check for MEXC credentials
+        const mexcKey = localStorage.getItem('mexc_api_key');
+        if (mexcKey) {
+            toSync.push('MEXC');
+        }
+
+        // Check for ByBit credentials
+        const bybitKey = localStorage.getItem('bybit_api_key');
+        if (bybitKey) {
+            toSync.push('ByBit');
+        }
+
+        if (toSync.length === 0) {
+            alert('No exchange API keys configured. Please add API keys in Settings or connect via OAuth.');
+            return;
+        }
+
+        await Promise.all(toSync.map(ex => fetchTradesFromAPI(ex as any)));
+    };
 
     const navItems = [
         { icon: TrendingUp, label: 'Overview', path: '/overview' },
@@ -148,6 +177,15 @@ const Layout = () => {
                                 {user.email}
                             </span>
                         )}
+                        <button
+                            onClick={handleSyncExchanges}
+                            disabled={isLoading}
+                            className="flex items-center gap-2 px-3 py-2 text-sm bg-[var(--accent-primary)] text-white rounded-lg hover:bg-[var(--accent-primary)]/90 disabled:opacity-50 transition-colors"
+                            title="Sync all connected exchanges"
+                        >
+                            <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
+                            <span className="hidden sm:inline">{isLoading ? 'Syncing...' : 'Sync'}</span>
+                        </button>
                         <button
                             onClick={() => signOut()}
                             className="flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--danger)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
