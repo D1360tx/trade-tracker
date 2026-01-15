@@ -10,14 +10,6 @@
   "crons": [
     {
       "path": "/api/schwab/syncusers",
-      "schedule": "31 13 * * 1"
-    },
-    {
-      "path": "/api/schwab/syncusers",
-      "schedule": "0 14-20 * * 1-5"
-    },
-    {
-      "path": "/api/schwab/syncusers",
       "schedule": "30 20 * * 1-5"
     }
   ],
