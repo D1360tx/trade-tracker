@@ -376,14 +376,15 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
         return `NORM|${trade.exchange}|${normalizedTicker}|${exitDateStr}|${pnlRounded}|${trade.quantity}`;
     };
 
-    // Fuzzy fingerprint - matches by date/ticker/quantity WITHOUT P&L
+    // Fuzzy fingerprint - matches by date/ticker/quantity WITHOUT P&L or direction
     // Handles Schwab API vs CSV having different P&L values (e.g., $126.71 vs $126.05)
+    // and potentially different direction interpretations
     // This is safe because same ticker + same date + same quantity = same trade
     const getFuzzyFingerprint = (trade: Trade): string => {
         const exitDateStr = trade.exitDate ? trade.exitDate.split('T')[0] : '';
         const normalizedTicker = normalizeTicker(trade.ticker);
-        // Don't include P&L - match by ticker, date, quantity, direction only
-        return `FUZZY|${trade.exchange}|${normalizedTicker}|${exitDateStr}|${trade.quantity}|${trade.direction}`;
+        // Match by ticker, date, quantity only (no P&L, no direction)
+        return `FUZZY|${trade.exchange}|${normalizedTicker}|${exitDateStr}|${trade.quantity}`;
     };
 
     const mergeTrades = (incomingTrades: Trade[]) => {
