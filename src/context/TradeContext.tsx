@@ -512,11 +512,12 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 }
             } else {
                 // New trade - add it
+                // NOTE: We do NOT add fingerprints to the map here.
+                // This ensures we only deduplicate against PRE-EXISTING trades,
+                // not against other trades from the same import batch.
+                // Each row in a CSV is a distinct realized gain/loss event.
                 next.push(incoming);
                 addedForDb.push(incoming);
-                existingFingerprints.set(fingerprint, next.length - 1);
-                existingFingerprints.set(normalizedFp, next.length - 1);
-                existingFingerprints.set(fuzzyFp, next.length - 1);
                 addedCount++;
             }
         });
