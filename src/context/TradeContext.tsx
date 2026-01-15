@@ -438,7 +438,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
 
                 // Then check by content fingerprint (for CSV imports with random IDs)
                 const fingerprint = getTradeFingerprint(incoming);
-                const fpMatchIndex = existingFingerprints.get(fingerprint);
+                const fingerprintMatchIndex = existingFingerprints.get(fingerprint);
 
                 // Also check normalized fingerprint (handles ticker format differences)
                 const normalizedFp = getNormalizedFingerprint(incoming);
@@ -446,7 +446,6 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
 
                 // Fuzzy fingerprint - rounds P&L to nearest dollar (handles API vs CSV P&L differences)
                 const fuzzyFp = getFuzzyFingerprint(incoming);
-                const fuzzyFpMatchIndex = existingFingerprints.get(fuzzyFp);
                 let fuzzyFpMatchIndex = existingFingerprints.get(fuzzyFp);
 
                 // Manual fallback for fuzzy match if Map.get() fails (handling V8/string edge cases)
