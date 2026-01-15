@@ -106,13 +106,12 @@ interface Trade {
 
 ## Important Design Decisions
 
-### 1. Client-Side Storage
-All trade data is stored in **browser LocalStorage**. This was chosen for:
-- Privacy (no server-side data storage)
-- Simplicity (no database setup required)
-- Offline capability
+### 1. Hybrid Storage (Local + Supabase)
+Trade data is stored in **Supabase (PostgreSQL)** for persistence and sync across devices.
+A local cache is maintained for performance and offline capability.
 
-**Limitation**: ~5-10MB storage limit. Large trade histories may need export/import.
+- **Supabase**: Primary source of truth.
+- **LocalStorage**: Caching and fallback API credentials.
 
 ### 2. API Proxies for CORS
 MEXC API calls go through Vercel serverless functions (`/api/mexc-*`) to avoid CORS issues and protect API secrets.
@@ -125,9 +124,12 @@ The HeroFX/TradeLocker parser (`tradeLockerParser.ts`) handles:
   - XAGUSD: 5,000 oz per lot
   - XAUUSD: 100 oz per lot
 
-### 4. Duplicate Detection
-CSV imports use content-based duplicate detection comparing:
-- Ticker, direction, entry/exit dates, P&L
+### 4. Duplicate Detection (Advanced)
+A sophisticated multi-layer deduplication system prevents duplicate trades from API syncs and CSV imports:
+- **Exact Match**: Hash of all trade fields.
+- **External OID**: Matches exchange-provided IDs (e.g. Schwab Activity ID).
+- **Fuzzy Match**: Matches Normalized Ticker + Date + Quantity (ignores P&L micro-differences).
+- **Manual Fallback**: Robust handling of Map lookup failures.
 
 ## Environment Variables
 
@@ -174,6 +176,8 @@ npm run lint
 |-------|-----------------|---------|
 | **MEXC Futures & Spot API** | Jan 9, 2026 | Vercel URL rewrite was adding `path` parameter, breaking signatures. Fixed by explicitly removing it. |
 | **Schwab OAuth Integration** | Jan 9, 2026 | Full 90-day sync with auto-refresh, scheduled daily syncs. |
+| **Schwab Duplicate Fix** | Jan 15, 2026 | Fixed "impossible" fuzzy match failure and prevented API sync from inserting duplicates of CSV trades. |
+| **Schwab $0 P&L Fix** | Jan 15, 2026 | Resolved issue where API aggregated trades with $0 P&L were overriding correct CSV data. |
 
 ### ✅ Recently Completed
 

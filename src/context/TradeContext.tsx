@@ -387,7 +387,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
         return `FUZZY|${trade.exchange}|${normalizedTicker}|${exitDateStr}|${trade.quantity}`;
     };
 
-    const mergeTrades = (currentTrades: Trade[], incomingTrades: Trade[]): [Trade[], Trade[]] => {
+    const mergeTrades = (currentTrades: Trade[], incomingTrades: Trade[]): [Trade[], Trade[], Trade[]] => {
         const next = [...currentTrades];
         let addedCount = 0;
         let updatedCount = 0;
@@ -395,6 +395,8 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
 
         // Track new trades for DB insertion
         const addedForDb: Trade[] = [];
+        // Track trades with updated P&L for DB sync
+        const updatedForDb: Trade[] = [];
 
         // Build a fingerprint map of existing trades for fast lookup
         const existingFingerprints = new Map<string, number>();
@@ -453,19 +455,53 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                     duplicateCount++;
                 }
             } else if (externalOidMatchIndex !== -1) {
-                // External OID match (Schwab) - logic to update
+                // External OID match (Schwab) - check if we can update P&L
                 const existingIndex = externalOidMatchIndex;
                 if (!next[existingIndex].externalOid) next[existingIndex].externalOid = incoming.externalOid;
-                duplicateCount++;
+                // Fix $0 P&L if incoming has better data
+                if (next[existingIndex].pnl === 0 && incoming.pnl !== 0) {
+                    console.log(`[Dedup OID] Updating ${incoming.ticker} P&L from $0 to $${incoming.pnl.toFixed(2)}`);
+                    next[existingIndex] = { ...next[existingIndex], pnl: incoming.pnl, pnlPercentage: incoming.pnlPercentage || next[existingIndex].pnlPercentage };
+                    updatedForDb.push(next[existingIndex]);
+                    updatedCount++;
+                } else {
+                    duplicateCount++;
+                }
             } else if (fingerprintMatchIndex !== undefined) {
-                // Exact fingerprint match
+                // Exact fingerprint match - unlikely to need P&L fix (fingerprint includes P&L)
                 duplicateCount++;
             } else if (normalizedFpMatchIndex !== undefined) {
-                // Normalized ticker match
-                duplicateCount++;
+                // Normalized ticker match - check if we can update P&L
+                const existingTrade = next[normalizedFpMatchIndex];
+                if (existingTrade.pnl === 0 && incoming.pnl !== 0) {
+                    console.log(`[Dedup Norm] Updating ${incoming.ticker} P&L from $0 to $${incoming.pnl.toFixed(2)}`);
+                    next[normalizedFpMatchIndex] = { ...existingTrade, pnl: incoming.pnl, pnlPercentage: incoming.pnlPercentage || existingTrade.pnlPercentage };
+                    updatedForDb.push(next[normalizedFpMatchIndex]);
+                    updatedCount++;
+                } else {
+                    duplicateCount++;
+                }
             } else if (fuzzyFpMatchIndex !== undefined) {
                 // Duplicate detected by fuzzy match
-                duplicateCount++;
+                // Check if existing has $0 P&L but incoming has valid P&L - if so, UPDATE
+                const existingTrade = next[fuzzyFpMatchIndex];
+                if (existingTrade.pnl === 0 && incoming.pnl !== 0) {
+                    // Incoming has better data - update existing trade
+                    console.log(`[Dedup] Updating ${incoming.ticker} P&L from $0 to $${incoming.pnl.toFixed(2)}`);
+                    next[fuzzyFpMatchIndex] = {
+                        ...existingTrade,
+                        pnl: incoming.pnl,
+                        pnlPercentage: incoming.pnlPercentage || existingTrade.pnlPercentage,
+                        entryPrice: incoming.entryPrice || existingTrade.entryPrice,
+                        exitPrice: incoming.exitPrice || existingTrade.exitPrice,
+                        entryDate: incoming.entryDate || existingTrade.entryDate,
+                        notes: incoming.notes || existingTrade.notes
+                    };
+                    updatedForDb.push(next[fuzzyFpMatchIndex]);
+                    updatedCount++;
+                } else {
+                    duplicateCount++;
+                }
             } else {
                 // New trade - add it
                 next.push(incoming);
@@ -483,20 +519,29 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             console.log(`[TradeContext] No new trades or updates found (${duplicateCount} duplicates)`);
         }
 
-        return [next, addedForDb];
+        return [next, addedForDb, updatedForDb];
     };
 
     const addTrades = (newTrades: Trade[]) => {
         // Update local state immediately (optimistic update)
         // Only insert trades that were actually added (passed deduplication)
         setTrades(prev => {
-            const [updatedTrades, addedForDb] = mergeTrades(prev, newTrades);
+            const [updatedTrades, addedForDb, updatedForDb] = mergeTrades(prev, newTrades);
 
             // Sync to Supabase in background (fire-and-forget)
             // We do this inside the setState callback to ensure we use the deduplication logic against the LATEST state
             if (addedForDb.length > 0) {
                 dbInsertTrades(addedForDb).catch(error => {
                     console.error('Error syncing trades to Supabase:', error);
+                });
+            }
+            // Also update trades that had their P&L fixed
+            if (updatedForDb.length > 0) {
+                console.log(`[TradeContext] Syncing ${updatedForDb.length} updated trades to Supabase`);
+                updatedForDb.forEach(trade => {
+                    dbUpdateTrade(trade.id, { pnl: trade.pnl, pnlPercentage: trade.pnlPercentage, entryPrice: trade.entryPrice, exitPrice: trade.exitPrice }).catch(error => {
+                        console.error('Error updating trade in Supabase:', error);
+                    });
                 });
             }
             return updatedTrades;
