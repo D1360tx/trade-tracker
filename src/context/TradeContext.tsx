@@ -348,20 +348,6 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
         return `${trade.exchange}|${trade.ticker}|${exitDateStr}|${pnlRounded}|${trade.quantity}`;
     };
 
-    // Helper to find string differences
-    const findStringDiff = (a: string, b: string) => {
-        if (a === b) return "IDENTICAL";
-        const len = Math.max(a.length, b.length);
-        for (let i = 0; i < len; i++) {
-            if (a[i] !== b[i]) {
-                const charA = a[i] !== undefined ? `"${a[i]}" (${a.charCodeAt(i)})` : 'undefined';
-                const charB = b[i] !== undefined ? `"${b[i]}" (${b.charCodeAt(i)})` : 'undefined';
-                return `Diff at index ${i}: ${charA} vs ${charB}`;
-            }
-        }
-        return "Length mismatch";
-    };
-
     // Normalize ticker for cross-format deduplication
     // Handles: "SPXW 6550P" vs "SPXW 11/24/2025 6550.00 P" (same underlying trade)
     const normalizeTicker = (ticker: string): string => {
