@@ -348,6 +348,34 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
         return `${trade.exchange}|${trade.ticker}|${exitDateStr}|${pnlRounded}|${trade.quantity}`;
     };
 
+    // Normalize ticker for cross-format deduplication
+    // Handles: "SPXW 6550P" vs "SPXW 11/24/2025 6550.00 P" (same underlying trade)
+    const normalizeTicker = (ticker: string): string => {
+        // Extract core components: symbol, strike, put/call from various formats
+        // Format 1: "SPXW 6550P" or "SPXW 6550.00 P"
+        // Format 2: "SPXW 11/24/2025 6550.00 P" (with expiration date)
+
+        // Remove any expiration dates (MM/DD/YYYY pattern)
+        let normalized = ticker.replace(/\d{1,2}\/\d{1,2}\/\d{4}\s*/g, '');
+
+        // Standardize strike format: remove .00 suffix, normalize spacing
+        normalized = normalized
+            .replace(/\.00\s*/g, '')  // Remove .00
+            .replace(/\s+/g, ' ')     // Normalize spaces
+            .replace(/\s*([PC])\s*$/i, '$1')  // Attach P/C to end without space
+            .trim();
+
+        return normalized.toUpperCase();
+    };
+
+    // Normalized fingerprint for cross-format duplicate detection
+    const getNormalizedFingerprint = (trade: Trade): string => {
+        const pnlRounded = Math.round((trade.pnl || 0) * 100) / 100;
+        const exitDateStr = trade.exitDate ? trade.exitDate.split('T')[0] : '';
+        const normalizedTicker = normalizeTicker(trade.ticker);
+        return `NORM|${trade.exchange}|${normalizedTicker}|${exitDateStr}|${pnlRounded}|${trade.quantity}`;
+    };
+
     const mergeTrades = (incomingTrades: Trade[]) => {
         setTrades(prev => {
             const next = [...prev];
@@ -359,21 +387,27 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             const existingFingerprints = new Map<string, number>();
             next.forEach((t, idx) => {
                 existingFingerprints.set(getTradeFingerprint(t), idx);
+                existingFingerprints.set(getNormalizedFingerprint(t), idx); // Also store normalized
             });
 
             incomingTrades.forEach(incoming => {
                 // First check by ID (for API-sourced trades that have consistent IDs)
                 const idMatchIndex = next.findIndex(t => t.id === incoming.id);
 
-                // For Schwab trades, also check externalOid (the closing transaction activityId)
-                // This prevents creating duplicate trades when the same close matches multiple opens
-                const externalOidMatchIndex = incoming.externalOid
-                    ? next.findIndex(t => t.exchange === incoming.exchange && t.externalOid === incoming.externalOid && t.ticker === incoming.ticker)
+                // For Schwab trades, check externalOid (the closing transaction activityId)
+                // The activityId is unique per closing transaction, so we don't need ticker matching
+                // This prevents duplicates when the same trade is imported with different ticker formats
+                const externalOidMatchIndex = incoming.externalOid && incoming.exchange === 'Schwab'
+                    ? next.findIndex(t => t.exchange === 'Schwab' && t.externalOid === incoming.externalOid)
                     : -1;
 
                 // Then check by content fingerprint (for CSV imports with random IDs)
                 const fingerprint = getTradeFingerprint(incoming);
                 const fpMatchIndex = existingFingerprints.get(fingerprint);
+
+                // Also check normalized fingerprint (handles ticker format differences)
+                const normalizedFp = getNormalizedFingerprint(incoming);
+                const normalizedFpMatchIndex = existingFingerprints.get(normalizedFp);
 
                 if (idMatchIndex !== -1) {
                     // Update existing by ID match
@@ -391,7 +425,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 } else if (externalOidMatchIndex !== -1) {
                     // Duplicate detected by Schwab externalOid - skip
                     duplicateCount++;
-                    console.log('[Dedup] Skipping Schwab duplicate by externalOid:', incoming.externalOid, incoming.ticker);
+                    console.log('[Dedup] Skipping Schwab duplicate by externalOid:', incoming.externalOid);
                 } else if (fpMatchIndex !== undefined) {
                     // Duplicate detected by fingerprint - skip but preserve user data
                     duplicateCount++;
@@ -400,10 +434,15 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                     if (!existing.notes && incoming.notes) {
                         next[fpMatchIndex] = { ...existing, notes: incoming.notes };
                     }
+                } else if (normalizedFpMatchIndex !== undefined) {
+                    // Duplicate detected by normalized fingerprint (same trade, different ticker format)
+                    duplicateCount++;
+                    console.log('[Dedup] Skipping duplicate by normalized ticker:', incoming.ticker);
                 } else {
                     // New trade - add it
                     next.push(incoming);
                     existingFingerprints.set(fingerprint, next.length - 1);
+                    existingFingerprints.set(normalizedFp, next.length - 1); // Also store normalized
                     addedCount++;
                 }
             });
