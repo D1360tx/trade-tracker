@@ -679,7 +679,7 @@ const Calendar = () => {
                             {/* Trade List */}
                             <div>
                                 <h4 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">All Trades ({selectedDayStats.trades.length})</h4>
-                                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                                <div className="space-y-2">
                                     {selectedDayStats.trades.sort((a, b) => b.pnl - a.pnl).map(trade => (
                                         <div key={trade.id} className="flex items-center justify-between bg-[var(--bg-tertiary)] rounded-lg px-4 py-3">
                                             <div>
