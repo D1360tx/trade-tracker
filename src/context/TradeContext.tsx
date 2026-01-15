@@ -402,6 +402,15 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 existingFingerprints.set(getFuzzyFingerprint(t), idx); // Fuzzy match (rounded P&L)
             });
 
+            // Debug: Log first few fingerprints for Schwab trades
+            const schwabTrades = next.filter(t => t.exchange === 'Schwab').slice(0, 3);
+            if (schwabTrades.length > 0) {
+                console.log('[Dedup Debug] Sample existing Schwab fingerprints:');
+                schwabTrades.forEach(t => {
+                    console.log(`  Ticker: "${t.ticker}" → Fuzzy: "${getFuzzyFingerprint(t)}"`);
+                });
+            }
+
             incomingTrades.forEach(incoming => {
                 // First check by ID (for API-sourced trades that have consistent IDs)
                 const idMatchIndex = next.findIndex(t => t.id === incoming.id);
