@@ -252,8 +252,14 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
                 console.log('[Schwab Mapper] Created trade:', {
                     symbol: displaySymbol,
                     pnl,
+                    grossPnl,
                     entryPrice: openPos.price,
-                    exitPrice: price
+                    exitPrice: price,
+                    entryFees: openPos.fees,
+                    exitFees: fees,
+                    totalFees,
+                    quantity: matchQty,
+                    multiplier
                 });
 
                 // Update remaining quantities
