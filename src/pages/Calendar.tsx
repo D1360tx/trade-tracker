@@ -244,6 +244,34 @@ const Calendar = () => {
                             selectedExchanges={selectedExchanges}
                             onSelectionChange={setSelectedExchanges}
                         />
+                        {/* Current Week/Month Button (Left side) */}
+                        {(() => {
+                            const now = new Date();
+                            const isCurrentPeriod = desktopView === 'weekly'
+                                ? format(currentDate, 'yyyy-ww') === format(now, 'yyyy-ww')
+                                : format(currentDate, 'yyyy-MM') === format(now, 'yyyy-MM');
+
+                            if (isCurrentPeriod) return null;
+
+                            return (
+                                <>
+                                    {/* Mobile button - always shows "Current Month" */}
+                                    <button
+                                        onClick={() => setCurrentDate(new Date())}
+                                        className="md:hidden px-3 py-2 text-xs font-medium bg-[var(--accent-primary)] text-white rounded-lg hover:bg-[var(--accent-primary)]/90 transition-colors whitespace-nowrap"
+                                    >
+                                        Current Month
+                                    </button>
+                                    {/* Desktop button - shows based on view mode */}
+                                    <button
+                                        onClick={() => setCurrentDate(new Date())}
+                                        className="hidden md:flex items-center gap-2 px-3 py-2 text-xs font-medium bg-[var(--accent-primary)] text-white rounded-lg hover:bg-[var(--accent-primary)]/90 transition-colors whitespace-nowrap"
+                                    >
+                                        {desktopView === 'weekly' ? 'Current Week' : 'Current Month'}
+                                    </button>
+                                </>
+                            );
+                        })()}
                         {/* Mobile View Toggle */}
                         <button
                             onClick={() => {
@@ -270,70 +298,40 @@ const Calendar = () => {
                         </button>
                     </div>
                     {/* Navigation - switches between week/month on desktop, always monthly on mobile */}
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center justify-center gap-4 bg-[var(--bg-secondary)] p-1 rounded-full border border-[var(--border)]">
-                            <button
-                                onClick={handlePrevMonth}
-                                className="p-2 hover:bg-[var(--bg-tertiary)] rounded-full transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] md:hidden"
-                            >
-                                <ChevronLeft size={20} />
-                            </button>
-                            <button
-                                onClick={desktopView === 'weekly' ? handlePrevWeek : handlePrevMonth}
-                                className="hidden md:block p-2 hover:bg-[var(--bg-tertiary)] rounded-full transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                            >
-                                <ChevronLeft size={20} />
-                            </button>
-                            <span className="text-sm font-medium min-w-[140px] text-center select-none">
-                                <span className="md:hidden">{format(currentDate, 'MMMM yyyy')}</span>
-                                <span className="hidden md:inline">
-                                    {desktopView === 'weekly'
-                                        ? `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`
-                                        : format(currentDate, 'MMMM yyyy')
-                                    }
-                                </span>
+                    <div className="flex items-center justify-center gap-4 bg-[var(--bg-secondary)] p-1 rounded-full border border-[var(--border)]">
+                        <button
+                            onClick={handlePrevMonth}
+                            className="p-2 hover:bg-[var(--bg-tertiary)] rounded-full transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] md:hidden"
+                        >
+                            <ChevronLeft size={20} />
+                        </button>
+                        <button
+                            onClick={desktopView === 'weekly' ? handlePrevWeek : handlePrevMonth}
+                            className="hidden md:block p-2 hover:bg-[var(--bg-tertiary)] rounded-full transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        >
+                            <ChevronLeft size={20} />
+                        </button>
+                        <span className="text-sm font-medium min-w-[140px] text-center select-none">
+                            <span className="md:hidden">{format(currentDate, 'MMMM yyyy')}</span>
+                            <span className="hidden md:inline">
+                                {desktopView === 'weekly'
+                                    ? `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`
+                                    : format(currentDate, 'MMMM yyyy')
+                                }
                             </span>
-                            <button
-                                onClick={handleNextMonth}
-                                className="p-2 hover:bg-[var(--bg-tertiary)] rounded-full transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] md:hidden"
-                            >
-                                <ChevronRight size={20} />
-                            </button>
-                            <button
-                                onClick={desktopView === 'weekly' ? handleNextWeek : handleNextMonth}
-                                className="hidden md:block p-2 hover:bg-[var(--bg-tertiary)] rounded-full transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                            >
-                                <ChevronRight size={20} />
-                            </button>
-                        </div>
-                        {/* Current Week/Month Button */}
-                        {(() => {
-                            const now = new Date();
-                            const isCurrentPeriod = desktopView === 'weekly'
-                                ? format(currentDate, 'yyyy-ww') === format(now, 'yyyy-ww')
-                                : format(currentDate, 'yyyy-MM') === format(now, 'yyyy-MM');
-
-                            if (isCurrentPeriod) return null;
-
-                            return (
-                                <>
-                                    {/* Mobile button - always shows "Current Month" */}
-                                    <button
-                                        onClick={() => setCurrentDate(new Date())}
-                                        className="md:hidden px-3 py-2 text-xs font-medium bg-[var(--accent-primary)] text-white rounded-lg hover:bg-[var(--accent-primary)]/90 transition-colors whitespace-nowrap"
-                                    >
-                                        Current Month
-                                    </button>
-                                    {/* Desktop button - shows based on view mode */}
-                                    <button
-                                        onClick={() => setCurrentDate(new Date())}
-                                        className="hidden md:block px-3 py-2 text-xs font-medium bg-[var(--accent-primary)] text-white rounded-lg hover:bg-[var(--accent-primary)]/90 transition-colors whitespace-nowrap"
-                                    >
-                                        {desktopView === 'weekly' ? 'Current Week' : 'Current Month'}
-                                    </button>
-                                </>
-                            );
-                        })()}
+                        </span>
+                        <button
+                            onClick={handleNextMonth}
+                            className="p-2 hover:bg-[var(--bg-tertiary)] rounded-full transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] md:hidden"
+                        >
+                            <ChevronRight size={20} />
+                        </button>
+                        <button
+                            onClick={desktopView === 'weekly' ? handleNextWeek : handleNextMonth}
+                            className="hidden md:block p-2 hover:bg-[var(--bg-tertiary)] rounded-full transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        >
+                            <ChevronRight size={20} />
+                        </button>
                     </div>
                 </div>
             </div>
