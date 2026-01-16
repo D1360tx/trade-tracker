@@ -69,7 +69,7 @@ const extractExpirationDate = (fullSymbol: string): string | null => {
  * Uses FIFO matching to pair opening and closing transactions
  */
 export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[]): Trade[] => {
-    console.log('[Schwab Mapper] Processing', transactions.length, 'transactions');
+    console.log('[Schwab Mapper] v2.0 - Processing', transactions.length, 'transactions with precise pricing');
 
     // Filter to only TRADE type transactions with transferItems
     const tradeTransactions = transactions.filter(t =>
