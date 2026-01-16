@@ -45,6 +45,26 @@ interface OpenPosition {
 }
 
 /**
+ * Extract expiration date from Schwab option symbol format
+ * Schwab format: "SPXW  251124C00672000" -> YYMMDD embedded
+ * Returns: "11/24/2025" (MM/DD/YYYY format to match CSV)
+ */
+const extractExpirationDate = (fullSymbol: string): string | null => {
+    // Schwab option format: SYMBOL  YYMMDDCPSTRIKE
+    // Example: "SPXW  251124C00672000"
+    //           SPXW  25 11 24 C 00672000
+    //                 YY MM DD P STRIKE
+
+    const match = fullSymbol.match(/\s+(\d{2})(\d{2})(\d{2})[CP]/);
+    if (!match) return null;
+
+    const [, yy, mm, dd] = match;
+    const year = 2000 + parseInt(yy, 10);
+
+    return `${mm}/${dd}/${year}`;
+};
+
+/**
  * Map Schwab API transactions to Trade objects
  * Uses FIFO matching to pair opening and closing transactions
  */
@@ -68,6 +88,7 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
 
     const trades: Trade[] = [];
     const openPositions: Map<string, OpenPosition[]> = new Map();
+    const orphanedTrades: Array<{symbol: string, date: string, activityId: number}> = [];
 
     for (const tx of sorted) {
         // Find the trade item (non-fee item with price)
@@ -140,7 +161,25 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
             const positions = openPositions.get(positionKey) || [];
 
             if (positions.length === 0) {
-                console.warn(`[Schwab Mapper] ORPHANED CLOSING TRADE: Could not find opening position for ${positionKey} (TxId: ${tx.activityId}). This trade will be skipped. Try increasing sync window.`);
+                // Track orphaned trade for summary
+                orphanedTrades.push({
+                    symbol: positionKey,
+                    date: tx.time,
+                    activityId: tx.activityId
+                });
+
+                // Enhanced warning with more context
+                const syncWindowStart = sorted[0]?.time ? new Date(sorted[0].time).toISOString().split('T')[0] : 'unknown';
+                const daysSinceStart = sorted[0]?.time
+                    ? Math.ceil((Date.now() - new Date(sorted[0].time).getTime()) / (24 * 60 * 60 * 1000))
+                    : 0;
+
+                console.warn(
+                    `[Schwab Mapper] ORPHANED CLOSING TRADE: Could not find opening position for ${positionKey} (TxId: ${tx.activityId}).`,
+                    `\nClosed: ${tx.time.split('T')[0]}`,
+                    `\nThis position was likely opened before ${syncWindowStart}.`,
+                    `\nTrade will be skipped. Consider extending sync window beyond ${daysSinceStart} days.`
+                );
             }
 
             let remainingQty = quantity;
@@ -172,11 +211,23 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
                 else if (tradeItem.instrument.assetType === 'INDEX') assetType = 'OPTION';
 
                 // Build the display symbol (include option details if applicable)
+                // Format to match CSV: "SYMBOL MM/DD/YYYY STRIKE.00 P/C"
                 let displaySymbol = symbol;
                 if (tradeItem.instrument.assetType === 'OPTION') {
                     const putCall = tradeItem.instrument.putCall || '';
-                    const strike = tradeItem.instrument.strikePrice || '';
-                    displaySymbol = `${symbol} ${strike}${putCall.charAt(0)}`;
+                    const strikePrice = tradeItem.instrument.strikePrice || 0;
+                    const fullSymbol = tradeItem.instrument.symbol || '';
+
+                    // Extract expiration from Schwab's internal format (e.g., "SPXW  251124C00672000")
+                    const expirationDate = extractExpirationDate(fullSymbol);
+
+                    if (expirationDate && strikePrice > 0) {
+                        // Format to match CSV: "SPXW 11/24/2025 6720.00 C"
+                        displaySymbol = `${symbol} ${expirationDate} ${strikePrice.toFixed(2)} ${putCall.charAt(0)}`;
+                    } else {
+                        // Fallback if we can't extract expiration (shouldn't happen for standard options)
+                        displaySymbol = `${symbol} ${strikePrice}${putCall.charAt(0)}`;
+                    }
                 }
 
                 trades.push({
@@ -239,7 +290,15 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
                 if (expirationDate < now) {
                     const strike = parseInt(strikeStr) / 1000; // Strike is in thousandths
                     const putCallLabel = putCall === 'C' ? 'CALL' : 'PUT';
-                    const displaySymbol = `${baseSymbol} ${strike}${putCallLabel.charAt(0)}`;
+
+                    // Format expiration date as MM/DD/YYYY to match CSV
+                    const mm = String(expirationDate.getMonth() + 1).padStart(2, '0');
+                    const dd = String(expirationDate.getDate()).padStart(2, '0');
+                    const yyyy = expirationDate.getFullYear();
+                    const expirationStr = `${mm}/${dd}/${yyyy}`;
+
+                    // Format symbol to match CSV: "SYMBOL MM/DD/YYYY STRIKE.00 P/C"
+                    const displaySymbol = `${baseSymbol} ${expirationStr} ${strike.toFixed(2)} ${putCallLabel.charAt(0)}`;
 
                     // For expired options, exit price is $0 and we lost the full premium paid
                     const multiplier = 100; // Options multiplier
@@ -329,6 +388,20 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
     });
 
     console.log('[Schwab Mapper] Created', aggregatedTrades.length, 'trades (aggregated from', trades.length, 'raw trades)');
+
+    // Display orphaned trades summary
+    if (orphanedTrades.length > 0) {
+        const uniqueSymbols = [...new Set(orphanedTrades.map(t => t.symbol))];
+        console.warn(
+            `\n⚠️  [Schwab Mapper] SYNC INCOMPLETE: ${orphanedTrades.length} orphaned closing trades detected.`,
+            `\nThese positions were opened before the sync window started.`,
+            `\nOrphaned symbols (${uniqueSymbols.length}):`, uniqueSymbols.join(', '),
+            `\nTo include these trades, extend the sync window or manually import CSV data.`
+        );
+    } else {
+        console.log('[Schwab Mapper] ✅ All closing trades successfully matched with opening positions.');
+    }
+
     return aggregatedTrades;
 };
 

@@ -258,6 +258,12 @@ export const fetchSchwabTransactions = async (startDate?: string, endDate?: stri
     if (startDate) url.searchParams.set('startDate', startDate);
     if (endDate) url.searchParams.set('endDate', endDate);
 
+    // Log sync window for debugging
+    if (startDate && endDate) {
+        const daysDiff = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
+        console.log(`[Schwab Sync] Fetching transactions from ${startDate} to ${endDate} (${daysDiff} days)`);
+    }
+
     const response = await fetch(url.toString(), {
         headers: {
             'Authorization': `Bearer ${accessToken}`

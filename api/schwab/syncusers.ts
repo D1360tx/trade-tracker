@@ -77,7 +77,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (schwabTokens?.access_token) {
                 try {
                     console.log(`[Cron] Syncing Schwab for ${email}`);
-                    const schwabRes = await fetch(`${baseUrl}/api/schwab/transactions`, {
+
+                    // Calculate 180-day sync window
+                    const endDate = new Date().toISOString().split('T')[0];
+                    const startDate = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+                    const schwabRes = await fetch(`${baseUrl}/api/schwab/transactions?startDate=${startDate}&endDate=${endDate}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({

@@ -88,9 +88,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     // Build transactions URL
                     const transactionsUrl = new URL(`https://api.schwabapi.com/trader/v1/accounts/${accId}/transactions`);
 
-                    // Set date range (default: last 30 days)
+                    // Set date range (default: last 180 days - extended to capture all opening positions)
                     const endDateObj = endDate ? new Date(endDate as string) : new Date();
-                    const startDateObj = startDate ? new Date(startDate as string) : new Date(endDateObj.getTime() - 30 * 24 * 60 * 60 * 1000);
+                    const startDateObj = startDate ? new Date(startDate as string) : new Date(endDateObj.getTime() - 180 * 24 * 60 * 60 * 1000);
 
                     // Schwab requires full ISO 8601 format with time component
                     // Create copies to avoid mutation
@@ -102,6 +102,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                     transactionsUrl.searchParams.set('startDate', startISO.toISOString());
                     transactionsUrl.searchParams.set('endDate', endISO.toISOString());
+
+                    // Log sync window for debugging
+                    const daysDiff = Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24));
+                    console.log(`[Schwab API] Fetching transactions from ${startDateObj.toISOString().split('T')[0]} to ${endDateObj.toISOString().split('T')[0]} (${daysDiff} days)`);
 
                     const txResponse = await fetch(transactionsUrl.toString(), {
                         headers: {

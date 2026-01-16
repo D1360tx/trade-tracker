@@ -59,15 +59,15 @@ const ImportPage = () => {
         setSuccessCount(null);
 
         try {
-            // Fetch last 90 days of transactions (testing extended range with ISO 8601 format)
+            // Fetch last 180 days of transactions (extended window to capture all opening positions)
             const endDate = new Date().toISOString().split('T')[0];
-            const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            const startDate = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
             const transactions = await fetchSchwabTransactions(startDate, endDate);
             const trades = mapSchwabTransactionsToTrades(transactions);
 
             if (trades.length === 0) {
-                setError('No completed trades found in the last 90 days.');
+                setError('No completed trades found in the last 180 days.');
             } else {
                 addTrades(trades);
                 setSuccessCount(trades.length);
