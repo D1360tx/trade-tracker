@@ -169,7 +169,7 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
                 price,
                 quantity,
                 direction,
-                fees
+                fees: 0 // Fees already included in price (cost/amount calculation)
             });
         } else {
             // CLOSING transaction - match with open position (FIFO)
@@ -213,8 +213,9 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
                     grossPnl = (openPos.price - price) * matchQty * multiplier;
                 }
 
-                // Subtract fees to get NET P&L (matching Schwab's Realized Gain/Loss report)
-                const pnl = grossPnl - totalFees;
+                // Schwab's cost/netAmount already includes fees in the price (like CSV)
+                // So we don't subtract fees separately
+                const pnl = grossPnl;
 
                 const entryValue = openPos.price * matchQty * multiplier;
                 const pnlPercentage = entryValue > 0 ? (pnl / entryValue) * 100 : 0;
@@ -255,8 +256,8 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
                     quantity: matchQty,
                     entryDate: openPos.date,
                     exitDate: tx.time,
-                    fees: totalFees,
-                    pnl, // Now NET P&L (gross - fees)
+                    fees: 0, // Fees already included in Schwab's cost/proceeds (matching CSV)
+                    pnl, // P&L = grossPnl (fees already in price)
                     pnlPercentage,
                     status: 'CLOSED',
                     notes: `Imported from Schwab API`,
