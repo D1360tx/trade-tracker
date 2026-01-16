@@ -190,16 +190,17 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
 
                 // Calculate P&L using the multiplier for options (usually 100)
                 const multiplier = tradeItem.instrument.assetType === 'OPTION' ? 100 : 1;
+                const totalFees = fees + openPos.fees; // Total fees for both entry and exit
 
-                // NOTE: Schwab's transaction prices already include fees in the execution price
-                // So we calculate gross P&L directly without separate fee adjustment
-                // This matches how Schwab CSV reports work (fees already embedded)
-                let pnl: number;
+                let grossPnl: number;
                 if (openPos.direction === 'LONG') {
-                    pnl = (price - openPos.price) * matchQty * multiplier;
+                    grossPnl = (price - openPos.price) * matchQty * multiplier;
                 } else {
-                    pnl = (openPos.price - price) * matchQty * multiplier;
+                    grossPnl = (openPos.price - price) * matchQty * multiplier;
                 }
+
+                // Subtract fees to get NET P&L (matching Schwab's Realized Gain/Loss report)
+                const pnl = grossPnl - totalFees;
 
                 const entryValue = openPos.price * matchQty * multiplier;
                 const pnlPercentage = entryValue > 0 ? (pnl / entryValue) * 100 : 0;
@@ -240,8 +241,8 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
                     quantity: matchQty,
                     entryDate: openPos.date,
                     exitDate: tx.time,
-                    fees: 0, // Fees already embedded in Schwab's transaction prices
-                    pnl, // Calculated from execution prices (which include fees)
+                    fees: totalFees,
+                    pnl, // Now NET P&L (gross - fees)
                     pnlPercentage,
                     status: 'CLOSED',
                     notes: `Imported from Schwab API`,
@@ -301,7 +302,7 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
 
                     // For expired options, exit price is $0 and we lost the full premium paid
                     const multiplier = 100; // Options multiplier
-                    const pnl = -(openPos.price * openPos.quantity * multiplier); // Fees already in price
+                    const pnl = -(openPos.price * openPos.quantity * multiplier) - openPos.fees;
                     const pnlPercentage = -100; // Total loss
 
                     trades.push({
@@ -315,7 +316,7 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
                         quantity: openPos.quantity,
                         entryDate: openPos.date,
                         exitDate: expirationDate.toISOString(),
-                        fees: 0, // Fees already embedded in entry price
+                        fees: openPos.fees,
                         pnl,
                         pnlPercentage,
                         status: 'CLOSED',
