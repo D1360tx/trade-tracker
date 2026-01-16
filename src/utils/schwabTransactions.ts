@@ -116,12 +116,11 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
         const positionEffect = tradeItem.positionEffect;
         const isOpening = positionEffect === 'OPENING';
 
-        // Use cost/amount to get actual price with precision (not rounded price field)
+        // Schwab's API rounds both price and cost fields, losing precision
+        // Use price field as it's slightly more accurate than cost/amount calculation
         const quantity = Math.abs(tradeItem.amount);
         const multiplier = tradeItem.instrument.assetType === 'OPTION' ? 100 : 1;
-        const price = tradeItem.cost && quantity > 0
-            ? Math.abs(tradeItem.cost) / (quantity * multiplier)
-            : (tradeItem.price || 0);
+        const price = tradeItem.price || 0;
 
         // For position tracking, we MUST use the unique instrument symbol match specific options contracts
         // ignoring underlyingSymbol for the key, otherwise COIN calls and puts get mixed in the same FIFO queue!
