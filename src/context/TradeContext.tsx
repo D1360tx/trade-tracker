@@ -266,6 +266,20 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
         const loadTrades = async () => {
             try {
                 setIsLoading(true);
+
+                // Load Schwab tokens from cloud if not in local cache
+                try {
+                    const { loadSchwabTokensFromCloud, getSchwabTokens } = await import('../utils/schwabAuth');
+                    if (!getSchwabTokens()) {
+                        const cloudTokens = await loadSchwabTokensFromCloud();
+                        if (cloudTokens) {
+                            console.log('[TradeContext] Loaded Schwab tokens from cloud');
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[TradeContext] Failed to load Schwab tokens from cloud:', e);
+                }
+
                 const cloudTrades = await fetchTrades();
 
                 // Deduplicate on load (in case duplicates exist in database)

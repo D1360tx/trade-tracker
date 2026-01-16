@@ -2,7 +2,10 @@
  * Schwab OAuth Authentication Utilities
  * 
  * Handles token storage, refresh, and API communication
+ * Tokens are stored in Supabase for persistence, with localStorage as cache
  */
+
+import { supabase } from '../lib/supabase/client';
 
 export interface SchwabTokens {
     accessToken: string;
@@ -18,14 +21,14 @@ const STORAGE_KEY = 'schwab_tokens';
  * Check if user is connected to Schwab
  */
 export const isConnectedToSchwab = (): boolean => {
-    const tokens = getSchwabTokens();
+    const tokens = getSchwabTokensFromCache();
     return tokens !== null && tokens.refreshToken !== undefined;
 };
 
 /**
- * Get stored tokens (decrypted)
+ * Get stored tokens from localStorage cache
  */
-export const getSchwabTokens = (): SchwabTokens | null => {
+export const getSchwabTokensFromCache = (): SchwabTokens | null => {
     try {
         const encoded = localStorage.getItem(STORAGE_KEY);
         if (!encoded) return null;
@@ -36,18 +39,104 @@ export const getSchwabTokens = (): SchwabTokens | null => {
 };
 
 /**
- * Store tokens (encrypted with base64)
+ * Get stored tokens (checks cache first, then Supabase)
  */
-export const saveSchwabTokens = (tokens: SchwabTokens): void => {
+export const getSchwabTokens = (): SchwabTokens | null => {
+    // First check localStorage cache
+    return getSchwabTokensFromCache();
+};
+
+/**
+ * Load Schwab tokens from Supabase and cache locally
+ * Call this on app startup
+ */
+export const loadSchwabTokensFromCloud = async (): Promise<SchwabTokens | null> => {
+    try {
+        const { data, error } = await supabase
+            .from('api_credentials')
+            .select('*')
+            .eq('exchange', 'Schwab')
+            .eq('is_active', true)
+            .single();
+
+        if (error || !data) {
+            return null;
+        }
+
+        // Reconstruct tokens from stored data
+        const cred = data as any;
+        const tokens: SchwabTokens = {
+            accessToken: cred.api_key, // We store access token in api_key field
+            refreshToken: cred.api_secret, // We store refresh token in api_secret field
+            expiresAt: cred.expires_at ? new Date(cred.expires_at).getTime() : Date.now() + 1800000,
+            tokenType: 'Bearer'
+        };
+
+        // Cache locally
+        const encoded = btoa(JSON.stringify(tokens));
+        localStorage.setItem(STORAGE_KEY, encoded);
+
+        return tokens;
+    } catch (e) {
+        console.error('[Schwab] Failed to load tokens from cloud:', e);
+        return null;
+    }
+};
+
+/**
+ * Store tokens (saves to both localStorage and Supabase)
+ */
+export const saveSchwabTokens = async (tokens: SchwabTokens): Promise<void> => {
+    // Save to localStorage immediately (cache)
     const encoded = btoa(JSON.stringify(tokens));
     localStorage.setItem(STORAGE_KEY, encoded);
+
+    // Save to Supabase for persistence
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            console.warn('[Schwab] No user, tokens saved to localStorage only');
+            return;
+        }
+
+        const { error } = await supabase
+            .from('api_credentials')
+            .upsert({
+                user_id: user.id,
+                exchange: 'Schwab',
+                api_key: tokens.accessToken,
+                api_secret: tokens.refreshToken,
+                expires_at: new Date(tokens.expiresAt).toISOString(),
+                is_active: true
+            } as any, {
+                onConflict: 'user_id,exchange'
+            });
+
+        if (error) {
+            console.error('[Schwab] Failed to save tokens to cloud:', error);
+        } else {
+            console.log('[Schwab] Tokens saved to cloud successfully');
+        }
+    } catch (e) {
+        console.error('[Schwab] Error saving tokens to cloud:', e);
+    }
 };
 
 /**
  * Clear stored tokens (disconnect)
  */
-export const disconnectSchwab = (): void => {
+export const disconnectSchwab = async (): Promise<void> => {
     localStorage.removeItem(STORAGE_KEY);
+
+    // Also remove from Supabase
+    try {
+        await supabase
+            .from('api_credentials')
+            .delete()
+            .eq('exchange', 'Schwab');
+    } catch (e) {
+        console.error('[Schwab] Error removing tokens from cloud:', e);
+    }
 };
 
 /**
@@ -89,11 +178,11 @@ export const connectSchwab = (): Promise<SchwabTokens> => {
             }
 
             // Listen for message from popup
-            const handleMessage = (event: MessageEvent) => {
+            const handleMessage = async (event: MessageEvent) => {
                 if (event.data?.type === 'SCHWAB_AUTH_SUCCESS') {
                     window.removeEventListener('message', handleMessage);
                     const tokens = event.data.data as SchwabTokens;
-                    saveSchwabTokens(tokens);
+                    await saveSchwabTokens(tokens);
                     resolve(tokens);
                 }
             };
@@ -147,14 +236,14 @@ export const getValidAccessToken = async (): Promise<string> => {
     if (!response.ok) {
         const error = await response.json();
         if (error.requiresReauth) {
-            disconnectSchwab();
+            await disconnectSchwab();
             throw new Error('Session expired. Please reconnect to Schwab.');
         }
         throw new Error(error.message || 'Failed to refresh token');
     }
 
     const newTokens = await response.json() as SchwabTokens;
-    saveSchwabTokens(newTokens);
+    await saveSchwabTokens(newTokens);
 
     return newTokens.accessToken;
 };
