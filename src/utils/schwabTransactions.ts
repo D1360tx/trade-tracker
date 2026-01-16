@@ -108,8 +108,13 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
         const symbol = tradeItem.instrument.underlyingSymbol || tradeItem.instrument.symbol;
         const positionEffect = tradeItem.positionEffect;
         const isOpening = positionEffect === 'OPENING';
-        const price = tradeItem.price || 0;
+
+        // Use cost/amount to get actual price with precision (not rounded price field)
         const quantity = Math.abs(tradeItem.amount);
+        const multiplier = tradeItem.instrument.assetType === 'OPTION' ? 100 : 1;
+        const price = tradeItem.cost && quantity > 0
+            ? Math.abs(tradeItem.cost) / (quantity * multiplier)
+            : (tradeItem.price || 0);
 
         // For position tracking, we MUST use the unique instrument symbol match specific options contracts
         // ignoring underlyingSymbol for the key, otherwise COIN calls and puts get mixed in the same FIFO queue!
@@ -119,8 +124,11 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
             activityId: tx.activityId,
             symbol,
             positionEffect,
-            price,
+            rawPrice: tradeItem.price,
+            rawCost: tradeItem.cost,
+            calculatedPrice: price,
             quantity,
+            multiplier,
             assetType: tradeItem.instrument.assetType
         });
 
@@ -188,9 +196,8 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
                 const openPos = positions[0];
                 const matchQty = Math.min(remainingQty, openPos.quantity);
 
-                // Calculate P&L using the multiplier for options (usually 100)
-                const multiplier = tradeItem.instrument.assetType === 'OPTION' ? 100 : 1;
-                const totalFees = fees + openPos.fees; // Total fees for both entry and exit
+                // Total fees for both entry and exit
+                const totalFees = fees + openPos.fees;
 
                 let grossPnl: number;
                 if (openPos.direction === 'LONG') {
