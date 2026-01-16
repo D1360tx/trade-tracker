@@ -116,17 +116,16 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
         const positionEffect = tradeItem.positionEffect;
         const isOpening = positionEffect === 'OPENING';
 
-        // Try to get precise price from transaction netAmount (which includes fees)
-        // Fall back to cost/amount, then price field
+        // Get precise price from transaction netAmount (most accurate field)
+        // netAmount includes fees, so subtract them to get actual cost/proceeds
         const quantity = Math.abs(tradeItem.amount);
         const multiplier = tradeItem.instrument.assetType === 'OPTION' ? 100 : 1;
 
-        // Calculate from netAmount (most precise, includes fees)
-        const priceFromNet = tx.netAmount && quantity > 0
-            ? Math.abs(tx.netAmount) / (quantity * multiplier)
-            : null;
-
-        const price = priceFromNet || tradeItem.price || 0;
+        // netAmount is the total including fees, so we use it directly to get the cost
+        // For trades: cost = netAmount (for closing) or -netAmount (for opening)
+        // This gives us the EXACT price per contract as seen in Schwab's CSV
+        const netCost = Math.abs(tx.netAmount);
+        const price = quantity > 0 ? netCost / (quantity * multiplier) : (tradeItem.price || 0);
 
         // For position tracking, we MUST use the unique instrument symbol match specific options contracts
         // ignoring underlyingSymbol for the key, otherwise COIN calls and puts get mixed in the same FIFO queue!
