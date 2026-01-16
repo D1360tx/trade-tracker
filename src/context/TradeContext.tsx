@@ -253,7 +253,18 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
     const [trades, setTrades] = useState<Trade[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [lastDebugData, setLastDebugData] = useState<any>(null);
-    const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+    const [lastUpdated, setLastUpdated] = useState<number | null>(() => {
+        // Load last sync timestamp from localStorage on mount
+        const stored = localStorage.getItem('lastSyncTimestamp');
+        return stored ? parseInt(stored, 10) : null;
+    });
+
+    // Persist lastUpdated to localStorage whenever it changes
+    useEffect(() => {
+        if (lastUpdated !== null) {
+            localStorage.setItem('lastSyncTimestamp', String(lastUpdated));
+        }
+    }, [lastUpdated]);
 
     // Load trades from Supabase on mount (no loading spinner - just loading cached data)
     useEffect(() => {
