@@ -102,8 +102,15 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
         }
 
         // Calculate total fees from fee items
-        const fees = tx.transferItems?.filter(item => item.feeType)
-            .reduce((sum, item) => sum + Math.abs(item.cost || 0), 0) || 0;
+        const feeItems = tx.transferItems?.filter(item => item.feeType) || [];
+        const fees = feeItems.reduce((sum, item) => sum + Math.abs(item.cost || 0), 0);
+
+        if (feeItems.length > 0) {
+            console.log('[Schwab Mapper] Fees for transaction', tx.activityId, ':', {
+                fees,
+                feeBreakdown: feeItems.map(f => ({ type: f.feeType, cost: f.cost }))
+            });
+        }
 
         const symbol = tradeItem.instrument.underlyingSymbol || tradeItem.instrument.symbol;
         const positionEffect = tradeItem.positionEffect;
