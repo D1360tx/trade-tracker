@@ -244,7 +244,31 @@ const Calendar = () => {
                             selectedExchanges={selectedExchanges}
                             onSelectionChange={setSelectedExchanges}
                         />
-                        {/* Current Week/Month Button (Left side) */}
+                        {/* Mobile View Toggle */}
+                        <button
+                            onClick={() => {
+                                const newView = mobileView === 'monthly' ? 'weekly' : 'monthly';
+                                setMobileView(newView);
+                                localStorage.setItem('calendar_mobile_view', newView);
+                            }}
+                            className="md:hidden flex items-center gap-2 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors whitespace-nowrap"
+                        >
+                            <CalendarIcon size={16} />
+                            <span className="text-sm">{mobileView === 'monthly' ? 'Weekly' : 'Monthly'}</span>
+                        </button>
+                        {/* Desktop View Toggle */}
+                        <button
+                            onClick={() => {
+                                const newView = desktopView === 'monthly' ? 'weekly' : 'monthly';
+                                setDesktopView(newView);
+                                localStorage.setItem('calendar_desktop_view', newView);
+                            }}
+                            className="hidden md:flex items-center gap-2 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors whitespace-nowrap"
+                        >
+                            <CalendarIcon size={16} />
+                            <span className="text-sm">{desktopView === 'monthly' ? 'Weekly View' : 'Monthly View'}</span>
+                        </button>
+                        {/* Current Week/Month Button (Between toggle and navigation) */}
                         {(() => {
                             const now = new Date();
                             const isCurrentPeriod = desktopView === 'weekly'
@@ -272,30 +296,6 @@ const Calendar = () => {
                                 </>
                             );
                         })()}
-                        {/* Mobile View Toggle */}
-                        <button
-                            onClick={() => {
-                                const newView = mobileView === 'monthly' ? 'weekly' : 'monthly';
-                                setMobileView(newView);
-                                localStorage.setItem('calendar_mobile_view', newView);
-                            }}
-                            className="md:hidden flex items-center gap-2 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors whitespace-nowrap"
-                        >
-                            <CalendarIcon size={16} />
-                            <span className="text-sm">{mobileView === 'monthly' ? 'Weekly' : 'Monthly'}</span>
-                        </button>
-                        {/* Desktop View Toggle */}
-                        <button
-                            onClick={() => {
-                                const newView = desktopView === 'monthly' ? 'weekly' : 'monthly';
-                                setDesktopView(newView);
-                                localStorage.setItem('calendar_desktop_view', newView);
-                            }}
-                            className="hidden md:flex items-center gap-2 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors whitespace-nowrap"
-                        >
-                            <CalendarIcon size={16} />
-                            <span className="text-sm">{desktopView === 'monthly' ? 'Weekly View' : 'Monthly View'}</span>
-                        </button>
                     </div>
                     {/* Navigation - switches between week/month on desktop, always monthly on mobile */}
                     <div className="flex items-center justify-center gap-4 bg-[var(--bg-secondary)] p-1 rounded-full border border-[var(--border)]">
