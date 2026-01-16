@@ -4,10 +4,21 @@
 [![React](https://img.shields.io/badge/React-18.3-blue.svg)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-6.0-purple.svg)](https://vitejs.dev/)
+[![Version](https://img.shields.io/badge/Version-1.5.0--stable-green.svg)](CHANGELOG.md)
 
 ## 🌐 Live Demo
 
 **Production**: [https://trade-tracker-eight.vercel.app](https://trade-tracker-eight.vercel.app)
+
+## 📰 Latest Release - v1.5.0-stable (2026-01-16)
+
+### Critical Fixes
+✅ **Schwab P&L Precision Fixed** - Now matches official Schwab reports exactly (resolved $42.71 discrepancy)
+✅ **Orphaned Trades Fixed** - Extended sync window to 180 days, no more missing closing transactions
+✅ **Duplicate Prevention** - API and CSV imports now use matching symbol formats for proper deduplication
+✅ **Calendar Navigation** - Added "Current Week/Month" buttons to quickly return to today
+
+See [CHANGELOG.md](CHANGELOG.md) for full details.
 
 A comprehensive trading journal and analytics platform with AI-powered insights, supporting multiple exchanges including Schwab, HeroFX/TradeLocker, and more.
 
