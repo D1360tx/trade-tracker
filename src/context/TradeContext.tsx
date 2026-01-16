@@ -255,7 +255,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
     const [lastDebugData, setLastDebugData] = useState<any>(null);
     const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
-    // Load trades from Supabase on mount
+    // Load trades from Supabase on mount (no loading spinner - just loading cached data)
     useEffect(() => {
         if (!user) {
             setTrades([]);
@@ -265,7 +265,8 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
 
         const loadTrades = async () => {
             try {
-                setIsLoading(true);
+                // Don't show loading spinner when just loading from database
+                // setIsLoading(true); // REMOVED - only show spinner when syncing from APIs
 
                 // Load Schwab tokens from cloud if not in local cache
                 try {
@@ -302,7 +303,8 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 }
 
                 setTrades(uniqueTrades);
-                setLastUpdated(Date.now());
+                // Don't update lastSynced timestamp - we're just loading cached data
+                // setLastUpdated(Date.now()); // REMOVED - only update when syncing from APIs/CSV
             } catch (error) {
                 console.error('Error loading trades:', error);
             } finally {
@@ -569,6 +571,9 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             }
             return updatedTrades;
         });
+
+        // Update last synced timestamp (for CSV imports and API syncs)
+        setLastUpdated(Date.now());
     };
 
     const clearTrades = () => {
