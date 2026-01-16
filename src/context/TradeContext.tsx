@@ -251,7 +251,7 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
 export const TradeProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuth();
     const [trades, setTrades] = useState<Trade[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const [lastDebugData, setLastDebugData] = useState<any>(null);
     const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 

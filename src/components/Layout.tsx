@@ -151,7 +151,7 @@ const Layout = () => {
                     {lastUpdated ? (
                         <span>Last Synced: {new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     ) : (
-                        <span>Sync Active</span>
+                        <span>Ready to Sync</span>
                     )}
                 </div>
 
