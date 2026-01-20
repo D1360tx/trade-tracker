@@ -101,7 +101,6 @@ function generatePremium(
     volatility: number = 0.3
 ): number {
     const isITM = putCall === 'C' ? strike < basePrice : strike > basePrice;
-    const moneyness = Math.abs(basePrice - strike) / basePrice;
 
     // Intrinsic value
     const intrinsic = isITM ? Math.abs(basePrice - strike) : 0;
