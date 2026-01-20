@@ -7,6 +7,7 @@ import { Upload, FileText, CheckCircle, AlertCircle, Trash2, Link, Unlink, Refre
 import { isConnectedToSchwab, connectSchwab, disconnectSchwab, fetchSchwabTransactions } from '../utils/schwabAuth';
 import { mapSchwabTransactionsToTrades } from '../utils/schwabTransactions';
 import TradeManagement from '../components/TradeManagement';
+import DemoAccountSeeder from '../components/DemoAccountSeeder';
 
 const EXCHANGES: ExchangeName[] = ['MEXC', 'ByBit', 'Binance', 'Coinbase', 'BloFin', 'Schwab', 'Interactive Brokers', 'HeroFX'];
 
@@ -182,6 +183,9 @@ const ImportPage = () => {
                 <h2 className="text-3xl font-bold bg-gradient-to-r from-[var(--accent-primary)] to-purple-500 bg-clip-text text-transparent">Import Trades</h2>
                 <p className="text-[var(--text-secondary)]">Upload your trade history CSV files from your exchange.</p>
             </div>
+
+            {/* Demo Account Seeder - Only visible for demo@tradetracker.app */}
+            <DemoAccountSeeder />
 
             {/* Quick Paste Import Section */}
             <div className="glass-panel p-6 rounded-xl space-y-4">
