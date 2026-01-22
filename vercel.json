@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/schwab/syncusers",
-      "schedule": "30 20 * * 1-5"
+      "schedule": "30 21 * * 1-5"
     }
   ],
   "rewrites": [
