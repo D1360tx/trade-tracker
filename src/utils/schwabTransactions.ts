@@ -312,8 +312,13 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
                 const day = parseInt(dateStr.substring(4, 6));
                 const expirationDate = new Date(year, month, day);
 
-                // If expired, create a loss trade
-                if (expirationDate < now) {
+                // Compare dates only (not times) - options expire at market close, not midnight
+                // Only mark as expired if expiration date is strictly BEFORE today
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const expirationDay = new Date(year, month, day);
+
+                // If expired (expiration date is before today), create a loss trade
+                if (expirationDay < today) {
                     const strike = parseInt(strikeStr) / 1000; // Strike is in thousandths
                     const putCallLabel = putCall === 'C' ? 'CALL' : 'PUT';
 
