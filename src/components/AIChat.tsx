@@ -185,16 +185,16 @@ const AIChat = () => {
                                 ) : (
                                     <ReactMarkdown
                                         components={{
-                                            p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
-                                            ul: ({ node, ...props }) => <ul className="list-disc ml-4 mb-2 space-y-1" {...props} />,
-                                            ol: ({ node, ...props }) => <ol className="list-decimal ml-4 mb-2 space-y-1" {...props} />,
-                                            li: ({ node, ...props }) => <li className="" {...props} />,
-                                            strong: ({ node, ...props }) => <strong className="font-bold text-[var(--text-primary)]" {...props} />,
-                                            h1: ({ node, ...props }) => <h1 className="text-lg font-bold mb-2 mt-4 first:mt-0" {...props} />,
-                                            h2: ({ node, ...props }) => <h2 className="text-base font-bold mb-2 mt-3" {...props} />,
-                                            h3: ({ node, ...props }) => <h3 className="text-sm font-bold mb-1 mt-2" {...props} />,
-                                            code: ({ node, ...props }) => <code className="bg-black/20 px-1 py-0.5 rounded text-xs font-mono" {...props} />,
-                                            blockquote: ({ node, ...props }) => <blockquote className="border-l-2 border-[var(--accent-primary)] pl-3 italic my-2" {...props} />,
+                                            p: (props) => <p className="mb-2 last:mb-0" {...props} />,
+                                            ul: (props) => <ul className="list-disc ml-4 mb-2 space-y-1" {...props} />,
+                                            ol: (props) => <ol className="list-decimal ml-4 mb-2 space-y-1" {...props} />,
+                                            li: (props) => <li className="" {...props} />,
+                                            strong: (props) => <strong className="font-bold text-[var(--text-primary)]" {...props} />,
+                                            h1: (props) => <h1 className="text-lg font-bold mb-2 mt-4 first:mt-0" {...props} />,
+                                            h2: (props) => <h2 className="text-base font-bold mb-2 mt-3" {...props} />,
+                                            h3: (props) => <h3 className="text-sm font-bold mb-1 mt-2" {...props} />,
+                                            code: (props) => <code className="bg-black/20 px-1 py-0.5 rounded text-xs font-mono" {...props} />,
+                                            blockquote: (props) => <blockquote className="border-l-2 border-[var(--accent-primary)] pl-3 italic my-2" {...props} />,
                                         }}
                                     >
                                         {msg.text}

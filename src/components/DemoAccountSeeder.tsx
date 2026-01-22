@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTrades } from '../context/TradeContext';
 import { useAuth } from '../context/AuthContext';
+import type { Trade } from '../types';
 import {
     generateCompleteDemoAccount,
     generateDemoTrades,
@@ -42,7 +43,7 @@ const DemoAccountSeeder: React.FC = () => {
         return null;
     }
 
-    const handleSeed = async (seedFunction: () => any, description: string) => {
+    const handleSeed = async (seedFunction: () => Trade[], description: string) => {
         if (isSeeding) return;
 
         const confirmed = confirm(
@@ -56,8 +57,8 @@ const DemoAccountSeeder: React.FC = () => {
             const demoTrades = seedFunction();
             await addTrades(demoTrades);
             alert(`✅ Successfully added ${demoTrades.length} demo trades!`);
-        } catch (error: any) {
-            alert(`❌ Error seeding data: ${error.message}`);
+        } catch (error: unknown) {
+            alert(`❌ Error seeding data: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setIsSeeding(false);
         }
@@ -74,8 +75,8 @@ const DemoAccountSeeder: React.FC = () => {
         try {
             await clearTrades();
             alert('✅ All demo data cleared!');
-        } catch (error: any) {
-            alert(`❌ Error clearing data: ${error.message}`);
+        } catch (error: unknown) {
+            alert(`❌ Error clearing data: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setIsSeeding(false);
         }

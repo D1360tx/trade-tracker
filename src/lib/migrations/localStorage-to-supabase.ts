@@ -37,9 +37,9 @@ export const migrateFromLocalStorage = async () => {
                     console.log(`[Migration] ✅ Migrated ${trades.length} trades`);
                 }
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('[Migration] Error migrating trades:', error);
-            results.errors.push(`Trades: ${error.message}`);
+            results.errors.push(`Trades: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
 
         // 2. Migrate Strategies
@@ -55,9 +55,9 @@ export const migrateFromLocalStorage = async () => {
                 }
                 console.log(`[Migration] ✅ Migrated ${strategies.length} strategies`);
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('[Migration] Error migrating strategies:', error);
-            results.errors.push(`Strategies: ${error.message}`);
+            results.errors.push(`Strategies: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
 
         // 3. Migrate Mistakes
@@ -73,9 +73,9 @@ export const migrateFromLocalStorage = async () => {
                 }
                 console.log(`[Migration] ✅ Migrated ${mistakes.length} mistakes`);
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('[Migration] Error migrating mistakes:', error);
-            results.errors.push(`Mistakes: ${error.message}`);
+            results.errors.push(`Mistakes: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
 
         console.log('[Migration] Migration complete:', results);

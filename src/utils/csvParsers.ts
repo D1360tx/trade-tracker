@@ -11,7 +11,7 @@ const parseNumber = (val: string) => {
     return parseFloat(val.replace(/[$,]/g, ''));
 };
 
-const safeGet = (row: any, keys: string[]): string => {
+const safeGet = (row: Record<string, string>, keys: string[]): string => {
     const rowKeys = Object.keys(row);
     for (const key of keys) {
         if (row[key] !== undefined) return row[key];
@@ -24,7 +24,7 @@ const safeGet = (row: any, keys: string[]): string => {
     return '';
 };
 
-const mapRowToGeneric = (row: any, exchange: ExchangeName): Partial<Trade> => {
+const mapRowToGeneric = (row: Record<string, string>, exchange: ExchangeName): Partial<Trade> => {
     const id = Math.random().toString(36).substr(2, 9);
     const entryDate = new Date().toISOString();
     const price = parseNumber(safeGet(row, ['Price', 'Avg Price', 'Fill Price', 'Average Filled Price', 'Exec Price']));
@@ -99,7 +99,7 @@ const parseSchwabMoney = (value: string): number => {
 };
 
 // Schwab Realized Gain/Loss CSV Processor (PREFERRED - uses pre-calculated P&L)
-const processSchwabRealizedGains = (rows: any[]): ParseResult => {
+const processSchwabRealizedGains = (rows: Record<string, string>[]): ParseResult => {
     const logs: string[] = [];
     logs.push(`Starting Schwab Realized Gain/Loss processing with ${rows.length} rows`);
 
@@ -238,7 +238,7 @@ const processSchwabRealizedGains = (rows: any[]): ParseResult => {
 };
 
 // Schwab CSV FIFO Processor
-const processSchwabRows = (rows: any[]): ParseResult => {
+const processSchwabRows = (rows: Record<string, string>[]): ParseResult => {
     const logs: string[] = [];
     logs.push(`Starting Schwab CSV processing with ${rows.length} rows`);
 
@@ -409,7 +409,7 @@ const processSchwabRows = (rows: any[]): ParseResult => {
 //    Columns: Instrument, Entry Time (EET), Type, Side, Amount, Entry Price, SL Price, TP Price, 
 //             Exit Time (EET), Exit Price, Fee, Swap, P&L, Net P&L, Order ID, Position ID
 // 2. Transactions format - Open/Close as separate rows matched by Position ID
-const processHeroFXRows = (rows: any[]): ParseResult => {
+const processHeroFXRows = (rows: Record<string, string>[]): ParseResult => {
     const logs: string[] = [];
     logs.push(`Starting HeroFX CSV processing with ${rows.length} rows`);
 
@@ -438,7 +438,7 @@ const processHeroFXRows = (rows: any[]): ParseResult => {
 
 // Process Complete Trading History format (PREFERRED)
 // Each row is already a complete closed trade with all data
-const processHeroFXCompleteHistory = (rows: any[], logs: string[]): ParseResult => {
+const processHeroFXCompleteHistory = (rows: Record<string, string>[], logs: string[]): ParseResult => {
     const trades: Trade[] = [];
     let skipped = 0;
 
@@ -506,7 +506,7 @@ const processHeroFXCompleteHistory = (rows: any[], logs: string[]): ParseResult 
             id: Math.random().toString(36).substr(2, 9),
             exchange: 'HeroFX',
             ticker: instrument,
-            type: assetType as any,
+            type: assetType,
             direction,
             entryPrice,
             exitPrice,
@@ -531,11 +531,11 @@ const processHeroFXCompleteHistory = (rows: any[], logs: string[]): ParseResult 
 
 // Process Transactions format (fallback for older export format)
 // Open/Close as separate rows matched by Position ID
-const processHeroFXTransactions = (rows: any[], logs: string[]): ParseResult => {
+const processHeroFXTransactions = (rows: Record<string, string>[], logs: string[]): ParseResult => {
     const trades: Trade[] = [];
 
     // Group rows by Position ID for matching
-    const positionMap: Record<string, any[]> = {};
+    const positionMap: Record<string, Record<string, string>[]> = {};
 
     rows.forEach((row) => {
         const positionId = safeGet(row, ['Position ID', 'PositionID', 'position_id']);
@@ -562,8 +562,8 @@ const processHeroFXTransactions = (rows: any[], logs: string[]): ParseResult => 
 
         // Find the opening trade (P&L = $0.00, usually first BUY)
         // and closing trade (P&L != $0.00, usually last SELL)
-        let openRow: any = null;
-        let closeRow: any = null;
+        let openRow: Record<string, string> | null = null;
+        let closeRow: Record<string, string> | null = null;
 
         sorted.forEach(row => {
             const pnl = parseHeroFXMoney(safeGet(row, ['P&L', 'PnL', 'Profit']));
@@ -602,7 +602,7 @@ const processHeroFXTransactions = (rows: any[], logs: string[]): ParseResult => 
                 id: Math.random().toString(36).substr(2, 9),
                 exchange: 'HeroFX',
                 ticker: instrument,
-                type: 'FOREX' as any,
+                type: 'FOREX',
                 direction,
                 entryPrice,
                 exitPrice,
@@ -663,7 +663,7 @@ const parseHeroFXPrice = (value: string): number => {
     return parseFloat(clean) || 0;
 };
 
-const mapRowToTrade = (row: any, exchange: ExchangeName): Partial<Trade> | null => {
+const mapRowToTrade = (row: Record<string, string>, exchange: ExchangeName): Partial<Trade> | null => {
     // Boilerplate mapping for simple exchanges, not aggregation
     try {
         const id = Math.random().toString(36).substr(2, 9);
@@ -710,7 +710,15 @@ interface ColumnMapping {
     direction: string[];
 }
 
-const processAggregatedRows = (rows: any[], exchangeName: string, map: ColumnMapping): ParseResult => {
+interface OpenPositionEntry {
+    time: string;
+    price: number;
+    qty: number;
+    direction: 'LONG' | 'SHORT';
+    fees: number;
+}
+
+const processAggregatedRows = (rows: Record<string, string>[], exchangeName: string, map: ColumnMapping): ParseResult => {
     const logs: string[] = [];
     // Sort oldest first
     const sortedRows = [...rows].sort((a, b) => {
@@ -720,7 +728,7 @@ const processAggregatedRows = (rows: any[], exchangeName: string, map: ColumnMap
     });
 
     const trades: Trade[] = [];
-    const openPositions: Record<string, any[]> = {};
+    const openPositions: Record<string, OpenPositionEntry[]> = {};
     let processedCount = 0;
     let symbolMissingCount = 0;
 
@@ -786,7 +794,7 @@ const processAggregatedRows = (rows: any[], exchangeName: string, map: ColumnMap
 
             trades.push({
                 id: Math.random().toString(36).substr(2, 9),
-                exchange: exchangeName as any,
+                exchange: exchangeName as ExchangeName,
                 ticker: symbol,
                 type: 'CRYPTO',
                 direction: openRow.direction,
@@ -818,7 +826,7 @@ const processAggregatedRows = (rows: any[], exchangeName: string, map: ColumnMap
 
 const detectColumnMapping = (headers: string[]): ColumnMapping => {
     const normalize = (h: string) => h.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const dictionary = {
+    const dictionary: Record<keyof ColumnMapping, string[]> = {
         time: ['transactiontime', 'createtime', 'tradetime', 'timeutc', 'dateutc', 'time', 'date', 'datetime', 'timestamp'],
         symbol: ['futurestradingpair', 'contracts', 'symbol', 'pair', 'instrument', 'ticker', 'market', 'product', 'contract'],
         price: ['averagefilledprice', 'execprice', 'fillprice', 'avgprice', 'price', 'entryprice', 'spotprice', 'avgentryprice', 'filledprice'],
@@ -828,7 +836,7 @@ const detectColumnMapping = (headers: string[]): ColumnMapping => {
         direction: ['direction', 'side', 'type', 'action', 'buysell']
     };
 
-    const map: any = {};
+    const map: ColumnMapping = { time: [], symbol: [], price: [], qty: [], pnl: [], fee: [], direction: [] };
     const normalizedHeaders = headers.map(h => ({ original: h, norm: normalize(h) }));
 
     for (const [field, synonyms] of Object.entries(dictionary)) {
@@ -839,9 +847,9 @@ const detectColumnMapping = (headers: string[]): ColumnMapping => {
             const partial = normalizedHeaders.find(h => h.norm.includes(synonym));
             if (partial) { match = partial.original; break; }
         }
-        map[field] = match ? [match] : [];
+        map[field as keyof ColumnMapping] = match ? [match] : [];
     }
-    return map as ColumnMapping;
+    return map;
 };
 
 export const parseCSV = (file: File, exchange: ExchangeName): Promise<ParseResult> => {
@@ -882,12 +890,13 @@ export const parseCSV = (file: File, exchange: ExchangeName): Promise<ParseResul
 
                     // CRITICAL FIX: Normalize data to strip quotes from headers
                     // Some CSVs (especially Schwab) have headers like "Date","Action" with literal quotes
-                    const normalizedData = results.data.map((row: any) => {
-                        const cleanRow: any = {};
-                        Object.keys(row).forEach(key => {
+                    const normalizedData = results.data.map((row: unknown) => {
+                        const cleanRow: Record<string, string> = {};
+                        const rowRecord = row as Record<string, string>;
+                        Object.keys(rowRecord).forEach(key => {
                             // Strip surrounding quotes from key names
                             const cleanKey = key.replace(/^["']|["']$/g, '').trim();
-                            cleanRow[cleanKey] = row[key];
+                            cleanRow[cleanKey] = rowRecord[key];
                         });
                         return cleanRow;
                     });
@@ -952,8 +961,8 @@ export const parseCSV = (file: File, exchange: ExchangeName): Promise<ParseResul
                     } else {
                         const trades: Trade[] = [];
                         let skipped = 0;
-                        results.data.forEach((row: any) => {
-                            const tradePart = mapRowToTrade(row, exchange);
+                        results.data.forEach((row: unknown) => {
+                            const tradePart = mapRowToTrade(row as Record<string, string>, exchange);
                             if (tradePart && tradePart.ticker && tradePart.ticker !== 'UNKNOWN') {
                                 trades.push(tradePart as Trade);
                             } else {
@@ -964,7 +973,7 @@ export const parseCSV = (file: File, exchange: ExchangeName): Promise<ParseResul
                         resolve({ trades, logs: debugLogs });
                     }
                 },
-                error: (error: any) => reject(error)
+                error: (error: Error) => reject(error)
             });
         };
         reader.onerror = (err) => reject(err);

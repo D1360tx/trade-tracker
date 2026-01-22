@@ -24,12 +24,13 @@ export const insertMistake = async (mistake: Omit<Mistake, 'id'>): Promise<Mista
 
     const { data, error } = await supabase
         .from('mistakes')
+        // @ts-expect-error - Supabase type inference issue
         .insert({
             user_id: user.id,
             name: mistake.name,
             description: mistake.description || null,
             color: mistake.color
-        } as any)
+        })
         .select()
         .single();
 
@@ -42,15 +43,15 @@ export const insertMistake = async (mistake: Omit<Mistake, 'id'>): Promise<Mista
 };
 
 export const updateMistake = async (id: string, updates: Partial<Mistake>): Promise<Mistake> => {
-    const dbUpdates: any = {};
+    const dbUpdates: Partial<{ name: string; description: string | null; color: string }> = {};
     if (updates.name) dbUpdates.name = updates.name;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
     if (updates.color) dbUpdates.color = updates.color;
 
     const { data, error } = await supabase
         .from('mistakes')
-        // @ts-ignore - Supabase type inference issue
-        .update(dbUpdates as any)
+        // @ts-expect-error - Supabase type inference issue
+        .update(dbUpdates)
         .eq('id', id)
         .select()
         .single();

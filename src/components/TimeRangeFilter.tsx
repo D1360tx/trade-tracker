@@ -40,14 +40,16 @@ export const getDateRangeForFilter = (range: TimeRange): { start: Date; end: Dat
             return { start: subDays(today, 1), end: today };
         case 'this_week':
             return { start: startOfWeek(now, { weekStartsOn: 1 }), end: now };
-        case 'last_week':
+        case 'last_week': {
             const lastWeekStart = startOfWeek(subDays(now, 7), { weekStartsOn: 1 });
             return { start: lastWeekStart, end: addDays(lastWeekStart, 7) };
+        }
         case 'this_month':
             return { start: startOfMonth(now), end: now };
-        case 'last_month':
+        case 'last_month': {
             const lastMonthStart = startOfMonth(subMonths(now, 1));
             return { start: lastMonthStart, end: endOfMonth(lastMonthStart) };
+        }
         case '30d':
             return { start: subDays(now, 30), end: now };
         case '60d':
@@ -56,9 +58,10 @@ export const getDateRangeForFilter = (range: TimeRange): { start: Date; end: Dat
             return { start: subDays(now, 90), end: now };
         case 'ytd':
             return { start: startOfYear(now), end: now };
-        case 'last_year':
+        case 'last_year': {
             const lastYearStart = startOfYear(subYears(now, 1));
             return { start: lastYearStart, end: endOfYear(lastYearStart) };
+        }
         case 'all':
             return { start: new Date(0), end: now };
         case 'custom':

@@ -86,7 +86,8 @@ export const insertTrades = async (trades: Trade[]): Promise<Trade[]> => {
 
     const { data, error } = await supabase
         .from('trades')
-        .insert(dbTrades as any)
+        // @ts-expect-error - Supabase type inference issue with generated types
+        .insert(dbTrades)
         .select();
 
     if (error) {
@@ -105,8 +106,8 @@ export const updateTrade = async (id: string, updates: Partial<Trade>): Promise<
 
     const { data, error } = await supabase
         .from('trades')
-        // @ts-ignore - Supabase type inference issue
-        .update(dbUpdates as any)
+        // @ts-expect-error - Supabase type inference issue
+        .update(dbUpdates)
         .eq('id', id)
         .select()
         .single();
@@ -196,7 +197,7 @@ function mapDbTradeToApp(dbTrade: TradeRow): Trade {
     const storedPnlPct = Number(dbTrade.pnl_percentage);
     const entryPrice = Number(dbTrade.entry_price);
     const quantity = Number(dbTrade.quantity);
-    const type = dbTrade.type as any;
+    const type = dbTrade.type as Trade['type'];
 
     // Calculate pnlPercentage if stored value is 0 but we have P&L
     let pnlPercentage = storedPnlPct;
@@ -209,7 +210,7 @@ function mapDbTradeToApp(dbTrade: TradeRow): Trade {
 
     return {
         id: dbTrade.id,
-        exchange: dbTrade.exchange as any,
+        exchange: dbTrade.exchange as Trade['exchange'],
         ticker: dbTrade.ticker,
         type: type,
         direction: dbTrade.direction as 'LONG' | 'SHORT',
@@ -245,7 +246,7 @@ function mapDbTradesToApp(dbTrades: TradeRow[]): Trade[] {
  * Map app Trade to database format
  */
 function mapAppTradeToDb(trade: Partial<Trade>): TradeInsert | TradeUpdate {
-    const dbTrade: any = {};
+    const dbTrade: Record<string, unknown> = {};
 
     // Map all fields
     // ID handling: Only pass ID if it's a valid UUID. Otherwise treat it as external_oid.

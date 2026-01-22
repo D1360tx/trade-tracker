@@ -70,11 +70,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             tokenType: tokens.token_type
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Schwab refresh error:', error);
         return res.status(500).json({
             error: 'Internal server error',
-            message: error.message
+            message: error instanceof Error ? error.message : 'Unknown error'
         });
     }
 }

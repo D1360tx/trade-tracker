@@ -37,8 +37,10 @@ const EquityCurveChart: React.FC<EquityCurveChartProps> = ({
     const returnPercentage = startingBalance > 0 ? ((totalReturn / startingBalance) * 100) : 0;
     const isProfit = totalReturn >= 0;
 
-    // Custom tooltip
-    const CustomTooltip = ({ active, payload }: any) => {
+    // Custom tooltip - render directly in Tooltip content prop
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const renderTooltip = (props: any) => {
+        const { active, payload } = props;
         if (!active || !payload || !payload[0]) return null;
 
         const data = payload[0].payload;
@@ -139,7 +141,7 @@ const EquityCurveChart: React.FC<EquityCurveChartProps> = ({
                         fontSize={11}
                         tickFormatter={(value) => `$${value.toLocaleString()}`}
                     />
-                    <Tooltip content={<CustomTooltip />} />
+                    <Tooltip content={renderTooltip} />
                     <Legend />
 
                     {/* Main equity line */}

@@ -26,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         // First, get list of accounts if no accountId specified
-        let targetAccountId = accountId as string;
+        const targetAccountId = accountId as string;
 
         if (!targetAccountId) {
             // Use accountNumbers endpoint to get hash values
@@ -57,8 +57,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             const accountsList = Array.isArray(accounts) ? accounts : [accounts];
-            const allTransactions: any[] = [];
-            const debugInfo: any[] = [];
+            const allTransactions: Array<Record<string, unknown>> = [];
+            const debugInfo: Array<Record<string, unknown>> = [];
             const processedAccounts = new Set<string>(); // Dedupe accounts
 
             // Iterate through all accounts
@@ -128,7 +128,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         try {
                             const errorBody = await txResponse.text();
                             errorDetail += ` - ${errorBody}`;
-                        } catch (e) {
+                        } catch {
                             // Could not read error body
                         }
                         debugInfo.push({
@@ -141,8 +141,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             }
                         });
                     }
-                } catch (err: any) {
-                    debugInfo.push({ accId, error: err.message });
+                } catch (err: unknown) {
+                    debugInfo.push({ accId, error: err instanceof Error ? err.message : 'Unknown error' });
                 }
             }
 
@@ -179,11 +179,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // I will process the loops.
         }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Schwab transactions error:', error);
         return res.status(500).json({
             error: 'Failed to fetch transactions',
-            message: error.message
+            message: error instanceof Error ? error.message : 'Unknown error'
         });
     }
 }

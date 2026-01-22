@@ -110,7 +110,7 @@ const OverviewPage = () => {
         const sortedDays = Array.from(byDay.entries()).sort((a, b) => a[0].localeCompare(b[0]));
         let maxWinDayStreak = 0, maxLossDayStreak = 0;
         let currentWinDayStreak = 0, currentLossDayStreak = 0;
-        sortedDays.forEach(([_, pnl]) => {
+        sortedDays.forEach(([, pnl]) => {
             if (pnl > 0) {
                 currentWinDayStreak++;
                 currentLossDayStreak = 0;
@@ -192,8 +192,8 @@ const OverviewPage = () => {
             bestMonth,
             worstMonth,
             avgMonth,
-            bestMonthLabel: Array.from(byMonth.entries()).find(([_, v]) => v === bestMonth)?.[0] || '',
-            worstMonthLabel: Array.from(byMonth.entries()).find(([_, v]) => v === worstMonth)?.[0] || '',
+            bestMonthLabel: Array.from(byMonth.entries()).find(([, v]) => v === bestMonth)?.[0] || '',
+            worstMonthLabel: Array.from(byMonth.entries()).find(([, v]) => v === worstMonth)?.[0] || '',
             totalPnL,
             avgDailyVolume: totalPnL / totalTradingDays,
             avgWinningTrade,

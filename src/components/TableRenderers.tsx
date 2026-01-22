@@ -28,14 +28,8 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
     handleDragOver,
     handleDragEnd,
 }) => {
-    const SortIcon = () => {
-        if (!column.sortKey || sortConfig.key !== column.sortKey) return null;
-        return sortConfig.direction === 'asc' ?
-            <ChevronUp size={14} className="ml-1" /> :
-            <ChevronDown size={14} className="ml-1" />;
-    };
-
     const isRightAligned = ['quantity', 'entryPrice', 'exitPrice', 'pnl', 'pnlPercentage', 'risk', 'rMultiple'].includes(column.id);
+    const showSortIcon = column.sortKey && sortConfig.key === column.sortKey;
 
     return (
         <th
@@ -45,7 +39,7 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
             onDragEnd={handleDragEnd}
             onClick={() => column.sortKey && handleSort(column.sortKey)}
             className={`
-                cursor-move hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)] 
+                cursor-move hover:text-[var(--text-primary)] px-6 py-4 text-[var(--text-secondary)]
                 font-medium text-sm transition-all relative z-10 ${column.width}
                 ${column.sortKey ? 'cursor-pointer' : ''}
                 ${isRightAligned ? 'text-right' : ''}
@@ -57,7 +51,9 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
             <div className={`flex items-center ${isRightAligned ? 'justify-end' : ''}`}>
                 <GripVertical size={14} className="mr-1 opacity-50" />
                 {column.label}
-                <SortIcon />
+                {showSortIcon && (sortConfig.direction === 'asc' ?
+                    <ChevronUp size={14} className="ml-1" /> :
+                    <ChevronDown size={14} className="ml-1" />)}
             </div>
         </th>
     );

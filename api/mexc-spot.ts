@@ -74,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let data;
         try {
             data = await response.json();
-        } catch (e) {
+        } catch {
             const text = await response.text();
             console.error('[MEXC Spot] Failed to parse JSON:', text);
             return res.status(response.status).json({
@@ -91,11 +91,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         res.status(response.status).json(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('[MEXC Spot] Exception:', error);
         res.status(500).json({
             error: 'Proxy error',
-            message: error.message,
+            message: error instanceof Error ? error.message : 'Unknown error',
         });
     }
 }

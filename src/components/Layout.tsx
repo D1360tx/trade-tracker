@@ -50,7 +50,7 @@ const Layout = () => {
                     toSync.push(ex);
                     continue;
                 }
-            } catch (e) {
+            } catch {
                 // Supabase check failed, try localStorage
             }
 
@@ -69,7 +69,7 @@ const Layout = () => {
             return;
         }
 
-        await Promise.all(toSync.map(ex => fetchTradesFromAPI(ex as any)));
+        await Promise.all(toSync.map(ex => fetchTradesFromAPI(ex as 'MEXC' | 'ByBit' | 'Schwab')));
     };
 
     const navItems = [

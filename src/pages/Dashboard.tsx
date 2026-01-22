@@ -154,8 +154,8 @@ const Dashboard = () => {
         const dailyValues = Object.values(dailyPnL);
         const bestDay = dailyValues.length > 0 ? Math.max(...dailyValues) : 0;
         const worstDay = dailyValues.length > 0 ? Math.min(...dailyValues) : 0;
-        const bestDayDate = dailyEntries.find(([_, v]) => v === bestDay)?.[0] || null;
-        const worstDayDate = dailyEntries.find(([_, v]) => v === worstDay)?.[0] || null;
+        const bestDayDate = dailyEntries.find(([, v]) => v === bestDay)?.[0] || null;
+        const worstDayDate = dailyEntries.find(([, v]) => v === worstDay)?.[0] || null;
         const winDays = dailyValues.filter(v => v > 0).length;
         const loseDays = dailyValues.filter(v => v < 0).length;
 

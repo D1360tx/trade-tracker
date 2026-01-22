@@ -24,8 +24,8 @@ const TradeManagement = () => {
             alert(`✅ Cleanup complete!\n\nRemoved: ${result.removed} duplicates\nKept: ${result.kept} unique trades`);
             // Reload page to refresh data
             window.location.reload();
-        } catch (error: any) {
-            alert(`❌ Cleanup failed: ${error.message}`);
+        } catch (error: unknown) {
+            alert(`❌ Cleanup failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
             console.error(error);
         } finally {
             setIsCleaningDuplicates(false);
@@ -41,7 +41,7 @@ const TradeManagement = () => {
 
     // Filter trades by exchange and sort by date (newest first)
     const filteredTrades = useMemo(() => {
-        let filtered = filterExchange === 'ALL'
+        const filtered = filterExchange === 'ALL'
             ? trades
             : trades.filter(t => t.exchange === filterExchange);
 

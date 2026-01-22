@@ -24,12 +24,13 @@ export const insertStrategy = async (strategy: Omit<Strategy, 'id'>): Promise<St
 
     const { data, error } = await supabase
         .from('strategies')
+        // @ts-expect-error - Supabase type inference issue
         .insert({
             user_id: user.id,
             name: strategy.name,
             description: strategy.description || null,
             color: strategy.color
-        } as any)
+        })
         .select()
         .single();
 
@@ -42,15 +43,15 @@ export const insertStrategy = async (strategy: Omit<Strategy, 'id'>): Promise<St
 };
 
 export const updateStrategy = async (id: string, updates: Partial<Strategy>): Promise<Strategy> => {
-    const dbUpdates: any = {};
+    const dbUpdates: Partial<{ name: string; description: string | null; color: string }> = {};
     if (updates.name) dbUpdates.name = updates.name;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
     if (updates.color) dbUpdates.color = updates.color;
 
     const { data, error } = await supabase
         .from('strategies')
-        // @ts-ignore - Supabase type inference issue
-        .update(dbUpdates as any)
+        // @ts-expect-error - Supabase type inference issue
+        .update(dbUpdates)
         .eq('id', id)
         .select()
         .single();

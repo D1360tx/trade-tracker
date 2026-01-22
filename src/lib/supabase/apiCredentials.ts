@@ -16,7 +16,7 @@ export const fetchAPICredentials = async (): Promise<Record<string, { key: strin
 
     // Convert to Record format
     const credentials: Record<string, { key: string; secret: string }> = {};
-    data?.forEach((cred: any) => {
+    data?.forEach((cred: { exchange: string; api_key: string; api_secret: string }) => {
         credentials[cred.exchange] = {
             key: cred.api_key,
             secret: cred.api_secret
@@ -36,13 +36,14 @@ export const saveAPICredentials = async (exchange: string, apiKey: string, apiSe
     // Upsert (insert or update)
     const { error } = await supabase
         .from('api_credentials')
+        // @ts-expect-error - Supabase type inference issue
         .upsert({
             user_id: user.id,
             exchange,
             api_key: apiKey,
             api_secret: apiSecret,
             is_active: true
-        } as any, {
+        }, {
             onConflict: 'user_id,exchange'
         });
 
@@ -84,8 +85,9 @@ export const getExchangeCredentials = async (exchange: string): Promise<{ key: s
         throw error;
     }
 
+    const credData = data as { api_key: string; api_secret: string };
     return {
-        key: (data as any).api_key,
-        secret: (data as any).api_secret
+        key: credData.api_key,
+        secret: credData.api_secret
     };
 };

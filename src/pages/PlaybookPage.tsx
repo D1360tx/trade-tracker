@@ -214,7 +214,11 @@ const PlaybookPage = () => {
                             <button
                                 onClick={() => {
                                     if (confirm(`Delete this ${activeTab === 'strategies' ? 'strategy' : 'mistake'}?`)) {
-                                        activeTab === 'strategies' ? deleteStrategy(item.id) : deleteMistake(item.id);
+                                        if (activeTab === 'strategies') {
+                                            deleteStrategy(item.id);
+                                        } else {
+                                            deleteMistake(item.id);
+                                        }
                                     }
                                 }}
                                 className="text-[var(--text-tertiary)] hover:text-[var(--danger)] opacity-0 group-hover:opacity-100 transition-opacity"

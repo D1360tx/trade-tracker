@@ -43,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         console.log(`[Cron] Found ${usersData.users.length} users to sync`);
 
-        const results: any[] = [];
+        const results: Array<{ email: string; schwab: number; mexc: number; errors: string[] }> = [];
         let totalTradesAdded = 0;
 
         // Get the host for API calls
@@ -58,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             console.log(`[Cron] Syncing user: ${email}`);
 
-            const userResult: any = {
+            const userResult: { email: string; schwab: number; mexc: number; errors: string[] } = {
                 email,
                 schwab: 0,
                 mexc: 0,
@@ -101,7 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             const { error: upsertError } = await supabase
                                 .from('trades')
                                 .upsert(
-                                    trades.map((t: any) => ({ ...t, user_id: userId })),
+                                    trades.map((t: Record<string, unknown>) => ({ ...t, user_id: userId })),
                                     { onConflict: 'id' }
                                 );
 
@@ -118,9 +118,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         console.error(`[Cron] Schwab API error for ${email}:`, errorText);
                         userResult.errors.push(`Schwab API: ${schwabRes.status}`);
                     }
-                } catch (err: any) {
-                    console.error(`[Cron] Schwab sync failed for ${email}:`, err.message);
-                    userResult.errors.push(`Schwab: ${err.message}`);
+                } catch (err: unknown) {
+                    const message = err instanceof Error ? err.message : 'Unknown error';
+                    console.error(`[Cron] Schwab sync failed for ${email}:`, message);
+                    userResult.errors.push(`Schwab: ${message}`);
                 }
             }
 
@@ -154,7 +155,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                         if (trades.length > 0) {
                             await supabase.from('trades').upsert(
-                                trades.map((t: any) => ({ ...t, user_id: userId })),
+                                trades.map((t: Record<string, unknown>) => ({ ...t, user_id: userId })),
                                 { onConflict: 'id' }
                             );
                             mexcTrades += trades.length;
@@ -177,7 +178,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                         if (trades.length > 0) {
                             await supabase.from('trades').upsert(
-                                trades.map((t: any) => ({ ...t, user_id: userId })),
+                                trades.map((t: Record<string, unknown>) => ({ ...t, user_id: userId })),
                                 { onConflict: 'id' }
                             );
                             mexcTrades += trades.length;
@@ -187,9 +188,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     userResult.mexc = mexcTrades;
                     totalTradesAdded += mexcTrades;
 
-                } catch (err: any) {
-                    console.error(`[Cron] MEXC sync failed for ${email}:`, err.message);
-                    userResult.errors.push(`MEXC: ${err.message}`);
+                } catch (err: unknown) {
+                    const message = err instanceof Error ? err.message : 'Unknown error';
+                    console.error(`[Cron] MEXC sync failed for ${email}:`, message);
+                    userResult.errors.push(`MEXC: ${message}`);
                 }
             }
 
@@ -211,11 +213,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         return res.status(200).json(summary);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('[Cron] Sync failed:', error);
         return res.status(500).json({
             success: false,
-            error: error.message,
+            error: error instanceof Error ? error.message : 'Unknown error',
             timestamp: new Date().toISOString()
         });
     }

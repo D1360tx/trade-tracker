@@ -64,7 +64,7 @@ export const loadSchwabTokensFromCloud = async (): Promise<SchwabTokens | null> 
         }
 
         // Reconstruct tokens from stored data
-        const cred = data as any;
+        const cred = data as { api_key: string; api_secret: string; expires_at?: string };
         const tokens: SchwabTokens = {
             accessToken: cred.api_key, // We store access token in api_key field
             refreshToken: cred.api_secret, // We store refresh token in api_secret field
@@ -101,6 +101,7 @@ export const saveSchwabTokens = async (tokens: SchwabTokens): Promise<void> => {
 
         const { error } = await supabase
             .from('api_credentials')
+            // @ts-expect-error - Supabase type inference issue
             .upsert({
                 user_id: user.id,
                 exchange: 'Schwab',
@@ -108,7 +109,7 @@ export const saveSchwabTokens = async (tokens: SchwabTokens): Promise<void> => {
                 api_secret: tokens.refreshToken,
                 expires_at: new Date(tokens.expiresAt).toISOString(),
                 is_active: true
-            } as any, {
+            }, {
                 onConflict: 'user_id,exchange'
             });
 
@@ -153,61 +154,54 @@ export const isTokenExpired = (): boolean => {
  * Initiate Schwab OAuth connection
  * Opens a popup window for user to login
  */
-export const connectSchwab = (): Promise<SchwabTokens> => {
-    return new Promise(async (resolve, reject) => {
-        try {
-            // Get authorization URL from backend
-            const response = await fetch('/api/schwab/auth-url');
-            const { authUrl, error } = await response.json();
+export const connectSchwab = async (): Promise<SchwabTokens> => {
+    // Get authorization URL from backend
+    const response = await fetch('/api/schwab/auth-url');
+    const { authUrl, error } = await response.json();
 
-            if (error) {
-                reject(new Error(error));
-                return;
+    if (error) {
+        throw new Error(error);
+    }
+
+    // Open popup for OAuth
+    const popup = window.open(
+        authUrl,
+        'schwab-auth',
+        'width=600,height=700,scrollbars=yes,resizable=yes'
+    );
+
+    if (!popup) {
+        throw new Error('Popup blocked. Please allow popups for this site.');
+    }
+
+    return new Promise<SchwabTokens>((resolve, reject) => {
+        // Listen for message from popup
+        const handleMessage = async (event: MessageEvent) => {
+            if (event.data?.type === 'SCHWAB_AUTH_SUCCESS') {
+                window.removeEventListener('message', handleMessage);
+                const tokens = event.data.data as SchwabTokens;
+                await saveSchwabTokens(tokens);
+                resolve(tokens);
             }
+        };
 
-            // Open popup for OAuth
-            const popup = window.open(
-                authUrl,
-                'schwab-auth',
-                'width=600,height=700,scrollbars=yes,resizable=yes'
-            );
+        window.addEventListener('message', handleMessage);
 
-            if (!popup) {
-                reject(new Error('Popup blocked. Please allow popups for this site.'));
-                return;
-            }
+        // Poll for popup close (in case user closes it)
+        const pollTimer = setInterval(() => {
+            if (popup.closed) {
+                clearInterval(pollTimer);
+                window.removeEventListener('message', handleMessage);
 
-            // Listen for message from popup
-            const handleMessage = async (event: MessageEvent) => {
-                if (event.data?.type === 'SCHWAB_AUTH_SUCCESS') {
-                    window.removeEventListener('message', handleMessage);
-                    const tokens = event.data.data as SchwabTokens;
-                    await saveSchwabTokens(tokens);
+                // Check if tokens were saved via redirect fallback
+                const tokens = getSchwabTokens();
+                if (tokens) {
                     resolve(tokens);
+                } else {
+                    reject(new Error('Authentication cancelled'));
                 }
-            };
-
-            window.addEventListener('message', handleMessage);
-
-            // Poll for popup close (in case user closes it)
-            const pollTimer = setInterval(() => {
-                if (popup.closed) {
-                    clearInterval(pollTimer);
-                    window.removeEventListener('message', handleMessage);
-
-                    // Check if tokens were saved via redirect fallback
-                    const tokens = getSchwabTokens();
-                    if (tokens) {
-                        resolve(tokens);
-                    } else {
-                        reject(new Error('Authentication cancelled'));
-                    }
-                }
-            }, 500);
-
-        } catch (error) {
-            reject(error);
-        }
+            }
+        }, 500);
     });
 };
 
@@ -251,6 +245,7 @@ export const getValidAccessToken = async (): Promise<string> => {
 /**
  * Fetch transactions from Schwab
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const fetchSchwabTransactions = async (startDate?: string, endDate?: string): Promise<any[]> => {
     const accessToken = await getValidAccessToken();
 

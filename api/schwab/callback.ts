@@ -100,11 +100,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.setHeader('Content-Type', 'text/html');
         return res.status(200).send(html);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Schwab callback error:', error);
         return res.status(500).json({
             error: 'Internal server error',
-            message: error.message
+            message: error instanceof Error ? error.message : 'Unknown error'
         });
     }
 }

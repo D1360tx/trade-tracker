@@ -24,7 +24,7 @@ export const parseTradeLockerPaste = (text: string): ParseResult => {
             let line = rawLines[i];
 
             // Skip pure metadata lines (no tabs, not a number)
-            if (!line.includes('\t') && !/^[\d.,\-]+$/.test(line.trim()) && line.trim()) {
+            if (!line.includes('\t') && !/^[\d.,-]+$/.test(line.trim()) && line.trim()) {
                 mergedLines.push(line);
                 i++;
                 continue;
@@ -35,7 +35,7 @@ export const parseTradeLockerPaste = (text: string): ParseResult => {
                 const nextLine = rawLines[i + 1].trim();
 
                 // Check if next line is a standalone number (SL or TP value)
-                if (nextLine && /^[\d.,\-]+$/.test(nextLine) && nextLine.length < 20) {
+                if (nextLine && /^[\d.,-]+$/.test(nextLine) && nextLine.length < 20) {
                     // Add with tab separator (unless line already ends with tab)
                     line += (line.endsWith('\t') ? '' : '\t') + nextLine;
                     logs.push(`Merged: ${nextLine}`);
@@ -203,8 +203,8 @@ export const parseTradeLockerPaste = (text: string): ParseResult => {
                 trades.push(trade);
                 logs.push(`✓ ${instrument} ${direction} P&L:$${finalPnl.toFixed(2)}`);
 
-            } catch (err: any) {
-                logs.push(`Row ${rowIdx}: ERROR - ${err.message}`);
+            } catch (err: unknown) {
+                logs.push(`Row ${rowIdx}: ERROR - ${err instanceof Error ? err.message : 'Unknown error'}`);
             }
 
             rowIdx++;
@@ -213,8 +213,8 @@ export const parseTradeLockerPaste = (text: string): ParseResult => {
         logs.push(`=== ${trades.length} trade(s) imported ===`);
         return { trades, logs };
 
-    } catch (err: any) {
-        logs.push(`FATAL: ${err.message}`);
+    } catch (err: unknown) {
+        logs.push(`FATAL: ${err instanceof Error ? err.message : 'Unknown error'}`);
         return { trades, logs };
     }
 };

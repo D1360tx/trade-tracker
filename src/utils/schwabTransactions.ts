@@ -476,7 +476,7 @@ export const getOpenPositionsSummary = (transactions: SchwabTransaction[]): { sy
     }
 
     return Array.from(openPositions.entries())
-        .filter(([_, pos]) => pos.quantity !== 0)
+        .filter(([, pos]) => pos.quantity !== 0)
         .map(([symbol, pos]) => ({
             symbol,
             quantity: Math.abs(pos.quantity),
