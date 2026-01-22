@@ -41,13 +41,14 @@ const Analytics = () => {
             dailyMap.set(dateStr, (dailyMap.get(dateStr) || 0) + t.pnl);
         });
 
-        // Fill gaps if needed, or just show days with trades?
-        // Showing only active days is usually cleaner for histogram unless strictly time-based.
-        // Let's show last 30 active trading days for clarity.
-        return Array.from(dailyMap.entries()).map(([date, pnl]) => ({
-            date: format(parseISO(date), 'MMM dd'),
-            pnl
-        })).slice(-30);
+        // Convert to array, sort by date descending, take last 30, then reverse for chronological display
+        return Array.from(dailyMap.entries())
+            .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime()) // Sort chronologically
+            .slice(-30) // Take last 30 days
+            .map(([date, pnl]) => ({
+                date: format(parseISO(date), 'MMM dd'),
+                pnl
+            }));
 
     }, [closedTrades]);
 
