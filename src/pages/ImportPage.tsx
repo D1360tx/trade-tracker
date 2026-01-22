@@ -333,7 +333,7 @@ px - 4 py - 2 rounded - lg text - sm border transition - all
                                     {isSyncingSchwab ? 'Syncing Trades...' : 'Sync Trades from Schwab'}
                                 </button>
                                 <p className="text-xs text-[var(--text-tertiary)] text-center">
-                                    Fetches last 90 days of trade history
+                                    Fetches last 180 days of trade history
                                 </p>
                             </div>
                         ) : (
