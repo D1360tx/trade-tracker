@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { mapSchwabTransactionsToTrades } from '../../src/utils/schwabTransactions';
 
 /**
  * Scheduled Sync Endpoint
@@ -82,35 +83,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     const endDate = new Date().toISOString().split('T')[0];
                     const startDate = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
+                    // Use GET with Authorization header (matching the UI flow)
                     const schwabRes = await fetch(`${baseUrl}/api/schwab/transactions?startDate=${startDate}&endDate=${endDate}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            userId,
-                            accessToken: schwabTokens.access_token,
-                            refreshToken: schwabTokens.refresh_token
-                        })
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${schwabTokens.access_token}`,
+                            'Accept': 'application/json'
+                        }
                     });
 
                     if (schwabRes.ok) {
                         const data = await schwabRes.json();
-                        const trades = data.trades || [];
+                        const transactions = data.transactions || [];
 
-                        if (trades.length > 0) {
-                            // Upsert trades to database
-                            const { error: upsertError } = await supabase
-                                .from('trades')
-                                .upsert(
-                                    trades.map((t: Record<string, unknown>) => ({ ...t, user_id: userId })),
-                                    { onConflict: 'id' }
-                                );
+                        console.log(`[Cron] Fetched ${transactions.length} Schwab transactions for ${email}`);
 
-                            if (upsertError) {
-                                console.error(`[Cron] Schwab upsert error for ${email}:`, upsertError.message);
-                                userResult.errors.push(`Schwab upsert: ${upsertError.message}`);
-                            } else {
-                                userResult.schwab = trades.length;
-                                totalTradesAdded += trades.length;
+                        if (transactions.length > 0) {
+                            // Map transactions to trades (this detects expired worthless options)
+                            const trades = mapSchwabTransactionsToTrades(transactions);
+
+                            console.log(`[Cron] Mapped to ${trades.length} trades for ${email}`);
+
+                            if (trades.length > 0) {
+                                // Upsert trades to database
+                                const { error: upsertError } = await supabase
+                                    .from('trades')
+                                    .upsert(
+                                        trades.map((t: Record<string, unknown>) => ({ ...t, user_id: userId })),
+                                        { onConflict: 'id' }
+                                    );
+
+                                if (upsertError) {
+                                    console.error(`[Cron] Schwab upsert error for ${email}:`, upsertError.message);
+                                    userResult.errors.push(`Schwab upsert: ${upsertError.message}`);
+                                } else {
+                                    userResult.schwab = trades.length;
+                                    totalTradesAdded += trades.length;
+                                }
                             }
                         }
                     } else {
