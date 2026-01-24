@@ -41,6 +41,31 @@ vercel --prod
 
 ---
 
+## Vercel CLI
+
+The Vercel CLI is installed and configured for this project. Use these commands to check deployment status:
+
+```bash
+# Check login status
+vercel whoami
+
+# List recent deployments
+vercel ls
+
+# View deployment logs (replace URL with deployment URL from vercel ls)
+vercel logs https://trade-tracker-xxxxx-d1360txs-projects.vercel.app
+
+# Trigger a production deployment manually
+vercel --prod
+
+# View environment variables
+vercel env ls
+```
+
+**Note:** Deployments happen automatically on push to `main` via GitHub integration.
+
+---
+
 ## Post-Deployment Checklist
 
 ### 1. **Test Authentication**
