@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 /**
  * Scheduled Sync Endpoint
  * 
- * Runs daily at 3:30 PM EST (market close) to sync all users' trades
+ * Runs daily at 3:30 PM CST / 4:30 PM CDT (after market close) to sync all users' trades
  * from their connected exchanges (Schwab, MEXC)
  * 
  * Security: Protected by CRON_SECRET environment variable
