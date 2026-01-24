@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTrades } from '../context/TradeContext';
 import { useStrategies } from '../context/StrategyContext';
 import { useMistakes } from '../context/MistakeContext';
@@ -7,11 +7,13 @@ import {
     BarChart, Bar, Cell, PieChart, Pie, Legend
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
-import { TrendingUp, Activity, BarChart2, PieChart as PieIcon, AlertTriangle } from 'lucide-react';
+import { TrendingUp, Activity, BarChart2, PieChart as PieIcon, AlertTriangle, Target } from 'lucide-react';
+import OptionsAnalysis from '../components/charts/OptionsAnalysis';
 
-
+type AnalyticsTab = 'general' | 'options';
 
 const Analytics = () => {
+    const [activeTab, setActiveTab] = useState<AnalyticsTab>('general');
     const { trades } = useTrades();
 
     const closedTrades = useMemo(() => trades.filter(t => t.status === 'CLOSED' || t.pnl !== 0), [trades]);
@@ -383,8 +385,40 @@ const Analytics = () => {
 
     return (
         <div className="space-y-6">
-            <h2 className="text-3xl font-bold">Analytics</h2>
+            <div className="flex items-center justify-between flex-wrap gap-4">
+                <h2 className="text-3xl font-bold">Analytics</h2>
 
+                {/* Tab Navigation */}
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setActiveTab('general')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                            activeTab === 'general'
+                                ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30'
+                                : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--text-secondary)]'
+                        }`}
+                    >
+                        <BarChart2 size={16} />
+                        General
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('options')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                            activeTab === 'options'
+                                ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30'
+                                : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--text-secondary)]'
+                        }`}
+                    >
+                        <Target size={16} />
+                        Options Analysis
+                    </button>
+                </div>
+            </div>
+
+            {activeTab === 'options' ? (
+                <OptionsAnalysis />
+            ) : (
+            <>
             {/* KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {/* Top Strategy */}
@@ -1225,6 +1259,8 @@ const Analytics = () => {
                 )}
 
             </div>
+            </>
+            )}
         </div>
     );
 };
