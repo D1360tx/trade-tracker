@@ -1,4 +1,5 @@
 import Papa from 'papaparse';
+import { fromZonedTime } from 'date-fns-tz';
 import type { Trade, ExchangeName } from '../types';
 
 export interface ParseResult {
@@ -629,22 +630,30 @@ const processHeroFXTransactions = (rows: Record<string, string>[], logs: string[
 };
 
 // Parse HeroFX date format: "YYYY/MM/DD HH:mm:ss" (EET timezone)
+// Uses Europe/Helsinki timezone which observes EET/EEST with proper DST handling
 const parseHeroFXDate = (dateStr: string): Date => {
     if (!dateStr || dateStr.trim() === '') {
         return new Date();
     }
 
-    // HeroFX uses YYYY/MM/DD HH:mm:ss format
-    // Replace slashes with dashes for standard parsing
-    const normalized = dateStr.replace(/\//g, '-');
-    const parsed = new Date(normalized);
+    // HeroFX uses YYYY/MM/DD HH:mm:ss format in EET timezone
+    const normalized = dateStr.replace(/\//g, '-').trim();
 
-    if (isNaN(parsed.getTime())) {
-        console.warn(`HeroFX: Could not parse date: "${dateStr}"`);
+    try {
+        // fromZonedTime converts a date string from a specific timezone to UTC
+        // Europe/Helsinki uses EET (UTC+2) in winter and EEST (UTC+3) in summer
+        const utcDate = fromZonedTime(normalized, 'Europe/Helsinki');
+
+        if (isNaN(utcDate.getTime())) {
+            console.warn(`HeroFX: Could not parse date: "${dateStr}"`);
+            return new Date();
+        }
+
+        return utcDate;
+    } catch (e) {
+        console.warn(`HeroFX: Error parsing date "${dateStr}":`, e);
         return new Date();
     }
-
-    return parsed;
 };
 
 // Parse HeroFX money format: "$123.45" or "-$45.67" or "$0.00"

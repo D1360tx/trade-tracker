@@ -1,3 +1,4 @@
+import { fromZonedTime } from 'date-fns-tz';
 import type { Trade } from '../types';
 
 interface ParseResult {
@@ -89,12 +90,15 @@ export const parseTradeLockerPaste = (text: string): ParseResult => {
             return isNaN(num) ? 0 : num;
         };
 
+        // Parse Trade Locker date format: "YYYY/MM/DD HH:mm:ss" (EET timezone)
+        // Uses Europe/Helsinki timezone which observes EET/EEST with proper DST handling
         const parseDate = (str: string): string => {
             if (!str || str === '-') return new Date().toISOString();
             try {
                 const normalized = str.trim().replace(/\//g, '-');
-                const date = new Date(normalized);
-                return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+                // fromZonedTime converts from EET/EEST to UTC with DST handling
+                const utcDate = fromZonedTime(normalized, 'Europe/Helsinki');
+                return isNaN(utcDate.getTime()) ? new Date().toISOString() : utcDate.toISOString();
             } catch {
                 return new Date().toISOString();
             }
