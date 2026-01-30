@@ -4,15 +4,13 @@
 
 Automated trade syncing runs on a schedule to keep all users' trades up-to-date without manual intervention.
 
-## Schedule (EST/EDT)
+## Schedule
 
-| Time | Day(s) | Purpose |
-|------|--------|---------|
-| **8:31 AM** | Monday | Weekend catchup sync |
-| **Every hour 9 AM - 3 PM** | Mon-Fri | During market hours |
-| **3:30 PM** | Mon-Fri | Market close final sync |
+| Time (UTC) | Time (CST/CDT) | Day(s) | Purpose |
+|------------|----------------|--------|---------|
+| **9:30 PM** | **3:30 PM** | Daily | After market close sync |
 
-**Total:** ~9 syncs per day during market hours
+**Note:** Runs every day (including weekends) to catch any settlement or adjustment transactions.
 
 ## Setup Instructions
 
@@ -57,10 +55,13 @@ After deployment, check:
 
 ### Sync Process
 For each user in the database:
-1. Check if they have Schwab OAuth tokens
-2. Check if they have MEXC API credentials
-3. Fetch new trades from each configured exchange
-4. Store trades in Supabase (deduplication handled automatically)
+1. Check if they have Schwab OAuth tokens (specifically, a `refresh_token`)
+2. **Refresh the access token** - Schwab tokens expire after 30 minutes, so the cron job refreshes tokens before each API call
+3. **Update tokens in database** - New access/refresh tokens are saved for future syncs
+4. Fetch last 180 days of trades from Schwab (includes expired options detection)
+5. Check if they have MEXC API credentials
+6. Fetch MEXC Futures and Spot trades
+7. Store/update trades in Supabase (deduplication via `externalOid` and fingerprinting)
 
 ### Error Handling
 - Failed syncs for individual users don't stop the entire process
@@ -71,12 +72,15 @@ For each user in the database:
 
 View sync results in **Vercel Function Logs**:
 ```
-[Cron] Starting scheduled sync at 2026-01-14T14:00:00.000Z
-[Cron] Found 5 users to sync
+[Cron] Starting scheduled sync at 2026-01-30T21:30:00.000Z
+[Cron] Found 2 users to sync
 [Cron] Syncing user: user@example.com
+[Cron] Refreshing Schwab token for user@example.com
+[Cron] Fetched 145 Schwab transactions for user@example.com
+[Cron] Mapped to 42 trades for user@example.com
 [Cron] Sync complete: {
-  "usersProcessed": 5,
-  "totalTradesAdded": 23
+  "usersProcessed": 2,
+  "totalTradesAdded": 42
 }
 ```
 
@@ -85,7 +89,7 @@ View sync results in **Vercel Function Logs**:
 For testing, you can manually trigger the sync:
 
 ```bash
-curl -X GET "https://your-app.vercel.app/api/cron/sync-all-users?secret=YOUR_CRON_SECRET"
+curl -X GET "https://your-app.vercel.app/api/schwab/syncusers?secret=YOUR_CRON_SECRET"
 ```
 
 ## Troubleshooting
@@ -97,8 +101,9 @@ curl -X GET "https://your-app.vercel.app/api/cron/sync-all-users?secret=YOUR_CRO
 
 ### Syncs failing?
 - Check `SUPABASE_SERVICE_ROLE_KEY` is set
-- Verify user credentials are valid (Schwab tokens not expired)
-- Review error messages in logs
+- Check `SCHWAB_CLIENT_ID` and `SCHWAB_CLIENT_SECRET` are set (required for token refresh)
+- If you see "Token refresh failed: 401" in logs, the user's refresh token has expired (7-day lifetime) - they need to re-authenticate via the Settings page
+- Review error messages in logs for specific user failures
 
 ### Too many API calls?
 - Current schedule: ~180 API calls/month per user
@@ -107,13 +112,16 @@ curl -X GET "https://your-app.vercel.app/api/cron/sync-all-users?secret=YOUR_CRO
 
 ## Cron Schedule Format
 
+Current schedule in `vercel.json`:
 ```
-31 13 * * 1        = Every Monday at 13:31 UTC (8:31 AM EST)
-0 14-20 * * 1-5    = Every hour from 14:00-20:00 UTC, Mon-Fri (9 AM - 3 PM EST)
-30 20 * * 1-5      = Every weekday at 20:30 UTC (3:30 PM EST)
+30 21 * * *        = Every day at 21:30 UTC (3:30 PM CST / 4:30 PM CDT)
 ```
 
-Note: Times are in UTC. EST = UTC-5, EDT = UTC-4.
+Format: `minute hour day month weekday`
+- `*` = every value
+- `1-5` = Monday through Friday only
+
+Note: Times are in UTC. CST = UTC-6, CDT = UTC-5.
 
 ## Maintenance
 
@@ -125,8 +133,8 @@ Edit `vercel.json` crons section and redeploy:
 {
   "crons": [
     {
-      "path": "/api/cron/sync-all-users",
-      "schedule": "0 14 * * *"  // Daily at 2 PM UTC
+      "path": "/api/schwab/syncusers",
+      "schedule": "30 21 * * *"  // Daily at 9:30 PM UTC (3:30 PM CST)
     }
   ]
 }

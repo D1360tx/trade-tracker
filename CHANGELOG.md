@@ -2,6 +2,35 @@
 
 All notable changes to Trade Tracker will be documented in this file.
 
+## [v1.5.1] - 2026-01-30
+
+### Fixed: Daily Auto-Sync Token Expiration
+
+**Problem**: The daily cron job was failing silently because it used stored Schwab access tokens directly. Schwab access tokens expire after **30 minutes**, so by the time the daily sync runs, the token is always expired (401 errors).
+
+**Solution**: The sync now refreshes the token before making API calls:
+
+1. **Token Refresh**: Calls `/api/schwab/refresh` with the stored `refresh_token`
+2. **Database Update**: Saves new `access_token` and `refresh_token` to Supabase
+3. **API Call**: Uses fresh token to fetch transactions
+
+**Technical Details** (`api/schwab/syncusers.ts`):
+- Changed check from `access_token` to `refresh_token` (line 78)
+- Added token refresh step before API calls (lines 82-96)
+- Added database update for new tokens (lines 102-117)
+- Uses fresh `newAccessToken` for transactions fetch (line 127)
+
+**Impact**:
+- Daily syncs now work reliably
+- Tokens stay fresh in database (each sync refreshes them)
+- If refresh token expires (7-day Schwab limit), user is prompted to re-authenticate
+
+**Files Modified**:
+- `api/schwab/syncusers.ts` - Added token refresh logic
+- `docs/SCHEDULED_SYNC_SETUP.md` - Updated documentation
+
+---
+
 ## [v1.5.0-stable] - 2026-01-16
 
 ### 🎯 Critical Schwab API Fixes
