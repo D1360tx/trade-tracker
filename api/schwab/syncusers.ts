@@ -75,19 +75,56 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .single();
 
             // Sync Schwab if tokens exist
-            if (schwabTokens?.access_token) {
+            if (schwabTokens?.refresh_token) {
                 try {
                     console.log(`[Cron] Syncing Schwab for ${email}`);
 
-                    // Calculate 180-day sync window
+                    // Step 1: Refresh the access token (Schwab tokens expire after 30 minutes)
+                    console.log(`[Cron] Refreshing Schwab token for ${email}`);
+                    const refreshRes = await fetch(`${baseUrl}/api/schwab/refresh`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ refreshToken: schwabTokens.refresh_token })
+                    });
+
+                    if (!refreshRes.ok) {
+                        const refreshError = await refreshRes.text();
+                        console.error(`[Cron] Token refresh failed for ${email}:`, refreshError);
+                        userResult.errors.push(`Schwab token refresh failed: ${refreshRes.status}`);
+                        results.push(userResult);
+                        continue;
+                    }
+
+                    const refreshData = await refreshRes.json();
+                    const newAccessToken = refreshData.accessToken;
+                    const newRefreshToken = refreshData.refreshToken;
+
+                    // Step 2: Update tokens in database for future use
+                    const { error: updateError } = await supabase
+                        .from('oauth_tokens')
+                        .update({
+                            access_token: newAccessToken,
+                            refresh_token: newRefreshToken,
+                            expires_at: new Date(refreshData.expiresAt).toISOString(),
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('user_id', userId)
+                        .eq('provider', 'schwab');
+
+                    if (updateError) {
+                        console.warn(`[Cron] Failed to update tokens for ${email}:`, updateError.message);
+                        // Continue anyway - we have a valid token for this request
+                    }
+
+                    // Step 3: Calculate 180-day sync window
                     const endDate = new Date().toISOString().split('T')[0];
                     const startDate = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-                    // Use GET with Authorization header (matching the UI flow)
+                    // Step 4: Fetch transactions using the fresh access token
                     const schwabRes = await fetch(`${baseUrl}/api/schwab/transactions?startDate=${startDate}&endDate=${endDate}`, {
                         method: 'GET',
                         headers: {
-                            'Authorization': `Bearer ${schwabTokens.access_token}`,
+                            'Authorization': `Bearer ${newAccessToken}`,
                             'Accept': 'application/json'
                         }
                     });
