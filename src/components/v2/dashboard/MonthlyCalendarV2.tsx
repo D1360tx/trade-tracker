@@ -56,9 +56,9 @@ const MonthlyCalendarV2 = ({ trades, onDayClick, initialDate = new Date() }: Mon
     const today = format(new Date(), 'yyyy-MM-dd');
 
     return (
-        <div className="glass-panel rounded-xl h-full flex flex-col">
+        <div className="glass-panel rounded-xl">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] flex-shrink-0">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)]">
                 <div className="flex items-center gap-2">
                     <button
                         onClick={goToPrevMonth}
@@ -106,9 +106,9 @@ const MonthlyCalendarV2 = ({ trades, onDayClick, initialDate = new Date() }: Mon
             </div>
 
             {/* Calendar Grid */}
-            <div className="p-4 flex-1 flex flex-col min-h-0">
+            <div className="p-3">
                 {/* Day headers */}
-                <div className="grid grid-cols-7 gap-1 mb-2 flex-shrink-0">
+                <div className="grid grid-cols-7 gap-1 mb-1">
                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                         <div key={day} className="text-center text-xs text-[var(--text-tertiary)] py-1">
                             {day}
@@ -116,8 +116,8 @@ const MonthlyCalendarV2 = ({ trades, onDayClick, initialDate = new Date() }: Mon
                     ))}
                 </div>
 
-                {/* Calendar days - uses CSS grid with auto rows that fill space */}
-                <div className="grid grid-cols-7 gap-1 flex-1" style={{ gridTemplateRows: 'repeat(6, minmax(60px, 1fr))' }}>
+                {/* Calendar days - compact grid */}
+                <div className="grid grid-cols-7 gap-1" style={{ gridTemplateRows: 'repeat(6, minmax(48px, 56px))' }}>
                     {calendarDays.map((day, index) => {
                         const isToday = day.date === today;
 

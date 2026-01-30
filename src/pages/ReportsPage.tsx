@@ -155,7 +155,7 @@ const ReportsPage = () => {
     const hasActiveFilters = filterStartDate || filterEndDate || filterStrategy || filterMistake;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 max-w-7xl mx-auto">
             {/* Header with Time Range */}
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                 <div>

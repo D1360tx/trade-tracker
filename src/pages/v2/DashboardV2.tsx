@@ -128,7 +128,7 @@ const DashboardV2 = () => {
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <h2 className="text-3xl font-bold">Dashboard V2</h2>
@@ -163,9 +163,9 @@ const DashboardV2 = () => {
             <TopStatsBar stats={stats} />
 
             {/* Main Content: Calendar + Sidebar */}
-            <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-                {/* Calendar (4/5 width on xl screens) */}
-                <div className="xl:col-span-4">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                {/* Calendar (3/4 width on lg screens) */}
+                <div className="lg:col-span-3">
                     <MonthlyCalendarV2
                         trades={filteredTrades}
                         onDayClick={handleDayClick}
@@ -173,8 +173,8 @@ const DashboardV2 = () => {
                     />
                 </div>
 
-                {/* Sidebar (1/5 width on xl screens) */}
-                <div className="xl:col-span-1">
+                {/* Sidebar (1/4 width on lg screens) */}
+                <div className="lg:col-span-1">
                     <WeeklySidebar
                         trades={filteredTrades}
                         year={currentCalendarDate.getFullYear()}

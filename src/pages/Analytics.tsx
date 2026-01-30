@@ -384,7 +384,7 @@ const Analytics = () => {
     }, [closedTrades, strategies]);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 max-w-7xl mx-auto">
             <div className="flex items-center justify-between flex-wrap gap-4">
                 <h2 className="text-3xl font-bold">Analytics</h2>
 

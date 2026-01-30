@@ -21,7 +21,7 @@ const AIInsights = () => {
     };
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex items-center gap-3">
                 <div className="p-3 bg-gradient-to-tr from-purple-500 to-indigo-500 rounded-xl shadow-lg shadow-purple-500/20">
