@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, Wallet, Settings, Menu, X, Bell, Calendar, Brain, Upload, BarChart2, FileText, ChevronLeft, ChevronRight, Bot, TrendingUp, LogOut, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Wallet, Settings, Menu, X, Bell, Calendar, Brain, Upload, BarChart2, FileText, ChevronLeft, ChevronRight, Bot, TrendingUp, LogOut, RefreshCw, Sparkles } from 'lucide-react';
 import AIChat from './AIChat';
 import { useTrades } from '../context/TradeContext';
 import { useAuth } from '../context/AuthContext';
@@ -88,6 +88,11 @@ const Layout = () => {
         { icon: Settings, label: 'Settings', path: '/settings' },
     ];
 
+    const v2NavItems = [
+        { icon: LayoutDashboard, label: 'Dashboard V2', path: '/dashboard-v2' },
+        { icon: FileText, label: 'Reports V2', path: '/reports-v2' },
+    ];
+
     return (
         <div className="flex h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden">
             {/* Mobile Menu Backdrop */}
@@ -133,6 +138,39 @@ const Layout = () => {
                 flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 whitespace-nowrap
                 ${isActive
                                     ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] font-medium'
+                                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+                                }
+                ${isCollapsed ? 'justify-center' : ''}
+              `}
+                        >
+                            <item.icon size={20} className="min-w-[20px]" />
+                            <span className={`transition-opacity duration-200 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>
+                                {item.label}
+                            </span>
+                        </NavLink>
+                    ))}
+
+                    {/* V2 Beta Section */}
+                    {!isCollapsed && (
+                        <div className="pt-4 mt-4 border-t border-[var(--border)]">
+                            <div className="flex items-center gap-2 px-3 py-2">
+                                <Sparkles size={14} className="text-[var(--warning)]" />
+                                <span className="text-xs font-medium text-[var(--text-tertiary)] uppercase">V2 Beta</span>
+                            </div>
+                        </div>
+                    )}
+                    {isCollapsed && (
+                        <div className="pt-4 mt-4 border-t border-[var(--border)]" />
+                    )}
+                    {v2NavItems.map((item) => (
+                        <NavLink
+                            key={item.path}
+                            to={item.path}
+                            title={isCollapsed ? item.label : ''}
+                            className={({ isActive }) => `
+                flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 whitespace-nowrap
+                ${isActive
+                                    ? 'bg-[var(--warning)]/10 text-[var(--warning)] font-medium'
                                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
                                 }
                 ${isCollapsed ? 'justify-center' : ''}
@@ -210,9 +248,7 @@ const Layout = () => {
 
                 {/* Page Content */}
                 <main className="flex-1 overflow-auto p-6 scroll-smooth">
-                    <div className="max-w-7xl mx-auto">
-                        <Outlet />
-                    </div>
+                    <Outlet />
                 </main>
             </div>
 
