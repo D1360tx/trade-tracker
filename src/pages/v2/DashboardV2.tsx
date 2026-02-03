@@ -162,10 +162,10 @@ const DashboardV2 = () => {
             {/* Top Stats Bar */}
             <TopStatsBar stats={stats} />
 
-            {/* Main Content: Calendar + Sidebar */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            {/* Main Content: Calendar + Sidebar - aligned heights */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-stretch">
                 {/* Calendar (3/4 width on lg screens) */}
-                <div className="lg:col-span-3">
+                <div className="lg:col-span-3 flex">
                     <MonthlyCalendarV2
                         trades={filteredTrades}
                         onDayClick={handleDayClick}
