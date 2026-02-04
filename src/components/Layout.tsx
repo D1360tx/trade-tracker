@@ -187,7 +187,7 @@ const Layout = () => {
                 {/* Last Updated Footer */}
                 <div className={`px-4 py-2 text-xs text-[var(--text-tertiary)] border-t border-[var(--border)] ${isCollapsed ? 'hidden' : 'block'}`}>
                     {lastUpdated ? (
-                        <span>Last Synced: {new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span>Last Synced: {new Date(lastUpdated).toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                     ) : (
                         <span>Ready to Sync</span>
                     )}
