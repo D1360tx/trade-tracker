@@ -128,7 +128,7 @@ const Layout = () => {
                     </button>
                 </div>
 
-                <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto overflow-x-hidden">
+                <nav className="relative z-10 flex-1 px-4 space-y-2 mt-4 overflow-y-auto overflow-x-hidden">
                     {navItems.map((item) => (
                         <NavLink
                             key={item.path}
@@ -136,7 +136,7 @@ const Layout = () => {
                             title={isCollapsed ? item.label : ''}
                             onClick={() => setIsMobileMenuOpen(false)}
                             className={({ isActive }) => `
-                flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 whitespace-nowrap
+                relative z-10 flex w-full items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 whitespace-nowrap
                 ${isActive
                                     ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] font-medium'
                                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
@@ -144,8 +144,8 @@ const Layout = () => {
                 ${isCollapsed ? 'justify-center' : ''}
               `}
                         >
-                            <item.icon size={20} className="min-w-[20px]" />
-                            <span className={`transition-opacity duration-200 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>
+                            <item.icon size={20} className="pointer-events-none min-w-[20px]" />
+                            <span className={`pointer-events-none transition-opacity duration-200 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>
                                 {item.label}
                             </span>
                         </NavLink>
@@ -170,7 +170,7 @@ const Layout = () => {
                             title={isCollapsed ? item.label : ''}
                             onClick={() => setIsMobileMenuOpen(false)}
                             className={({ isActive }) => `
-                flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 whitespace-nowrap
+                relative z-10 flex w-full items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 whitespace-nowrap
                 ${isActive
                                     ? 'bg-[var(--warning)]/10 text-[var(--warning)] font-medium'
                                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
@@ -178,8 +178,8 @@ const Layout = () => {
                 ${isCollapsed ? 'justify-center' : ''}
               `}
                         >
-                            <item.icon size={20} className="min-w-[20px]" />
-                            <span className={`transition-opacity duration-200 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>
+                            <item.icon size={20} className="pointer-events-none min-w-[20px]" />
+                            <span className={`pointer-events-none transition-opacity duration-200 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>
                                 {item.label}
                             </span>
                         </NavLink>
