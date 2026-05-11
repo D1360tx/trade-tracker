@@ -51,10 +51,10 @@ function App() {
             <Route path="overview" element={<OverviewPage />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="journal" element={<Journal />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/calendar" element={<Calendar />} />
-            <Route path="/playbook" element={<PlaybookPage />} />
-            <Route path="/ai-insights" element={<AIInsights />} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="calendar" element={<Calendar />} />
+            <Route path="playbook" element={<PlaybookPage />} />
+            <Route path="ai-insights" element={<AIInsights />} />
             <Route path="import" element={<ImportPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="bots" element={<BotDashboard />} />

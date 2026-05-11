@@ -134,6 +134,7 @@ const Layout = () => {
                             key={item.path}
                             to={item.path}
                             title={isCollapsed ? item.label : ''}
+                            onClick={() => setIsMobileMenuOpen(false)}
                             className={({ isActive }) => `
                 flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 whitespace-nowrap
                 ${isActive
@@ -167,6 +168,7 @@ const Layout = () => {
                             key={item.path}
                             to={item.path}
                             title={isCollapsed ? item.label : ''}
+                            onClick={() => setIsMobileMenuOpen(false)}
                             className={({ isActive }) => `
                 flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 whitespace-nowrap
                 ${isActive
