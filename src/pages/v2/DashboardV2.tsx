@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { parseISO, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
+import { parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { useTrades } from '../../context/TradeContext';
 import { useV2Stats } from '../../hooks/v2/useV2Stats';
 import TimeRangeFilter, { getDateRangeForFilter } from '../../components/TimeRangeFilter';
@@ -53,7 +53,7 @@ const DashboardV2 = () => {
 
         filtered = filtered.filter(t => {
             const tradeDate = parseISO(t.exitDate);
-            return isAfter(tradeDate, dateRange.start) && isBefore(tradeDate, dateRange.end);
+            return isWithinInterval(tradeDate, dateRange);
         });
 
         // Aggregate Schwab options (same logic as V1)
