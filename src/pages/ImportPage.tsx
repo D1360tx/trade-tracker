@@ -11,6 +11,8 @@ import DemoAccountSeeder from '../components/DemoAccountSeeder';
 
 const EXCHANGES: ExchangeName[] = ['MEXC', 'ByBit', 'Binance', 'Coinbase', 'BloFin', 'Schwab', 'Interactive Brokers', 'HeroFX'];
 
+const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
+
 const ImportPage = () => {
     const { addTrades, fetchTradesFromAPI, clearTrades, clearTradesByExchange, isLoading: isApiLoading } = useTrades();
     const [selectedExchange, setSelectedExchange] = useState<ExchangeName>('Binance');
@@ -40,8 +42,8 @@ const ImportPage = () => {
             await connectSchwab();
             setSchwabConnected(true);
             setSuccessCount(null);
-        } catch (err: any) {
-            setError(`Schwab connection failed: ${err.message} `);
+        } catch (err: unknown) {
+            setError(`Schwab connection failed: ${getErrorMessage(err)} `);
         } finally {
             setIsConnectingSchwab(false);
         }
@@ -73,11 +75,12 @@ const ImportPage = () => {
                 addTrades(trades);
                 setSuccessCount(trades.length);
             }
-        } catch (err: any) {
-            if (err.message.includes('reconnect')) {
+        } catch (err: unknown) {
+            const message = getErrorMessage(err);
+            if (message.includes('reconnect')) {
                 setSchwabConnected(false);
             }
-            setError(`Schwab sync failed: ${err.message} `);
+            setError(`Schwab sync failed: ${message} `);
         } finally {
             setIsSyncingSchwab(false);
         }
@@ -94,8 +97,8 @@ const ImportPage = () => {
             } else {
                 setError('No new trades processed.');
             }
-        } catch (err: any) {
-            setError(`API Sync failed: ${err.message}`);
+        } catch (err: unknown) {
+            setError(`API Sync failed: ${getErrorMessage(err)}`);
         }
     };
 
@@ -124,7 +127,7 @@ const ImportPage = () => {
                 console.error("Import logs:", logs);
                 setError(`No valid trades found.\n\nDiagnostic Logs: \n${logMessage} `);
             } else {
-                addTrades(trades as any); // Typescript cast needed until context updated?
+                addTrades(trades);
                 setSuccessCount(trades.length);
                 setFile(null);
                 if (logs.length > 0) {
@@ -132,8 +135,8 @@ const ImportPage = () => {
                     logs.forEach(log => console.log(log));
                 }
             }
-        } catch (err: any) {
-            setError(`Failed to parse CSV file: ${err.message} `);
+        } catch (err: unknown) {
+            setError(`Failed to parse CSV file: ${getErrorMessage(err)} `);
             console.error(err);
         } finally {
             setIsParsing(false);
@@ -169,8 +172,8 @@ const ImportPage = () => {
                 // Show success message with log summary
                 console.log(`✅ Successfully imported ${trades.length} trade(s)`);
             }
-        } catch (err: any) {
-            setError(`Failed to parse pasted data: ${err.message}`);
+        } catch (err: unknown) {
+            setError(`Failed to parse pasted data: ${getErrorMessage(err)}`);
             console.error(err);
         } finally {
             setIsPasteParsing(false);
@@ -233,7 +236,7 @@ const ImportPage = () => {
                                 key={ex}
                                 onClick={() => setSelectedExchange(ex)}
                                 className={`
-px - 4 py - 2 rounded - lg text - sm border transition - all
+                                    px-4 py-2 rounded-lg text-sm border transition-all
                                     ${selectedExchange === ex
                                         ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)] text-[var(--accent-primary)] font-medium'
                                         : 'border-[var(--border)] text-[var(--text-tertiary)] hover:border-[var(--text-secondary)]'
@@ -390,21 +393,6 @@ px - 4 py - 2 rounded - lg text - sm border transition - all
                 >
                     <Trash2 size={16} />
                     Clear {selectedExchange} Data
-                </button>
-            </div>
-
-            <div className="pt-6 border-t border-[var(--border)]">
-                <button
-                    onClick={() => {
-                        if (confirm('Are you sure you want to delete ALL trades? This cannot be undone.')) {
-                            clearTrades();
-                            alert('All trades cleared.');
-                        }
-                    }}
-                    className="w-full py-3 border border-[var(--danger)] text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                >
-                    <Trash2 size={18} />
-                    Clear All Data
                 </button>
             </div>
 

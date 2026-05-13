@@ -159,7 +159,7 @@ export function groupOptionPositions(trades: Trade[]): OptionPositionGroup[] {
     // Convert to OptionPositionGroup
     const positions: OptionPositionGroup[] = [];
 
-    groups.forEach((groupTrades, _key) => {
+    groups.forEach((groupTrades) => {
         const parsed = parseOptionTicker(groupTrades[0].ticker);
 
         // Sort trades by exit date for scale-out tracking

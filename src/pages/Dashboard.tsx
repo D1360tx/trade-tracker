@@ -10,13 +10,13 @@ import {
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import ExchangeFilter from '../components/ExchangeFilter';
-import TimeRangeFilter, { getDateRangeForFilter } from '../components/TimeRangeFilter';
-import type { TimeRange } from '../components/TimeRangeFilter';
+import TimeRangeFilter from '../components/TimeRangeFilter';
+import { getDateRangeForFilter, type TimeRange } from '../utils/timeRanges';
 import DayDetailModal from '../components/DayDetailModal';
 import KPIDetailModal from '../components/KPIDetailModal';
 import type { KPIModalType } from '../components/KPIDetailModal';
 
-import { format, parseISO, isAfter, isBefore, startOfDay, endOfDay, differenceInMinutes } from 'date-fns';
+import { format, parseISO, isWithinInterval, startOfDay, endOfDay, differenceInMinutes } from 'date-fns';
 import { useTrades } from '../context/TradeContext';
 
 const Dashboard = () => {
@@ -55,7 +55,7 @@ const Dashboard = () => {
 
         filtered = filtered.filter(t => {
             const tradeDate = parseISO(t.exitDate);
-            return isAfter(tradeDate, dateRange.start) && isBefore(tradeDate, dateRange.end);
+            return isWithinInterval(tradeDate, dateRange);
         });
 
 

@@ -11,6 +11,10 @@ const PriceChart = ({ trade }: PriceChartProps) => {
     // Generate mock price data between entry and exit
     // In a real implementation, this would come from actual price history
     const chartData = useMemo(() => {
+        const seededNoise = (index: number) => {
+            const seed = `${trade.id}-${index}`.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+            return (Math.sin(seed * 12.9898) * 43758.5453) % 1;
+        };
         const entryPrice = trade.entryPrice;
         const exitPrice = trade.exitPrice;
 
@@ -27,7 +31,7 @@ const PriceChart = ({ trade }: PriceChartProps) => {
 
             // Add some random noise but trend toward exit price
             const targetPrice = entryPrice + (exitPrice - entryPrice) * progress;
-            const noise = (Math.random() - 0.5) * volatility * (1 - progress);
+            const noise = (seededNoise(i) - 0.5) * volatility * (1 - progress);
             currentPrice = targetPrice + noise;
 
             // Ensure final point is exactly at exit price
@@ -43,7 +47,7 @@ const PriceChart = ({ trade }: PriceChartProps) => {
         }
 
         return data;
-    }, [trade.entryPrice, trade.exitPrice]);
+    }, [trade.entryPrice, trade.exitPrice, trade.id]);
 
     const isProfit = trade.pnl >= 0;
     const minPrice = Math.min(...chartData.map(d => d.price)) * 0.998;

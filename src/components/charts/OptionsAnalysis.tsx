@@ -10,7 +10,8 @@ import {
     BarChart2, PieChart as PieIcon, Zap, X
 } from 'lucide-react';
 import type { Trade } from '../../types';
-import TimeRangeFilter, { getDateRangeForFilter, type TimeRange } from '../TimeRangeFilter';
+import TimeRangeFilter from '../TimeRangeFilter';
+import { getDateRangeForFilter, type TimeRange } from '../../utils/timeRanges';
 import {
     groupOptionPositions,
     calculateOptionsMetrics,
@@ -19,7 +20,7 @@ import {
     getStatusBadgeClass,
     type OptionPositionGroup
 } from '../../utils/optionsAnalysis';
-import { startOfDay, endOfDay, isAfter, isBefore } from 'date-fns';
+import { startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 
 // Modal types
 type ModalType = 'options_trades' | 'free_trades' | 'free_profit' | 'total_pnl' | 'calls' | 'puts' | 'losers' | 'not_scaled' | null;
@@ -65,7 +66,7 @@ const OptionsAnalysis = ({ trades: tradesProp }: OptionsAnalysisProps) => {
         return trades.filter(t => {
             if (!t.exitDate) return false;
             const tradeDate = parseISO(t.exitDate);
-            return isAfter(tradeDate, dateRange.start) && isBefore(tradeDate, dateRange.end);
+            return isWithinInterval(tradeDate, dateRange);
         });
     }, [trades, timeRange, customStart, customEnd]);
 

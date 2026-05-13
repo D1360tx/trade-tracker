@@ -11,10 +11,10 @@ import DrawdownAnalysis from '../components/charts/DrawdownAnalysis';
 import MonthlyPerformance from '../components/charts/MonthlyPerformance';
 import StreakAnalysis from '../components/charts/StreakAnalysis';
 import RiskMetricsDashboard from '../components/RiskMetricsDashboard';
-import TimeRangeFilter, { getDateRangeForFilter } from '../components/TimeRangeFilter';
-import type { TimeRange } from '../components/TimeRangeFilter';
+import TimeRangeFilter from '../components/TimeRangeFilter';
+import { getDateRangeForFilter, type TimeRange } from '../utils/timeRanges';
 import DayDetailModal from '../components/DayDetailModal';
-import { format, parseISO, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
+import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 
 const ReportsPage = () => {
     const { trades } = useTrades();
@@ -53,7 +53,7 @@ const ReportsPage = () => {
                 }
 
                 const tradeDate = parseISO(t.exitDate);
-                matchesDate = isAfter(tradeDate, dateRange.start) && isBefore(tradeDate, dateRange.end);
+                matchesDate = isWithinInterval(tradeDate, dateRange);
             } else {
                 // Legacy date filter support
                 if (filterStartDate) {

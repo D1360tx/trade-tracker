@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, Wallet, Settings, Menu, X, Bell, Calendar, Brain, Upload, BarChart2, FileText, ChevronLeft, ChevronRight, Bot, TrendingUp, LogOut, RefreshCw, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Wallet, Settings, Menu, X, Bell, Calendar, Upload, FileText, ChevronLeft, ChevronRight, TrendingUp, LogOut, RefreshCw, MoreHorizontal } from 'lucide-react';
 import AIChat from './AIChat';
 import { useTrades } from '../context/TradeContext';
 import { useAuth } from '../context/AuthContext';
@@ -77,20 +77,19 @@ const Layout = () => {
         { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
         { icon: FileText, label: 'Journal', path: '/journal' },
         { icon: Calendar, label: 'Calendar', path: '/calendar' },
-
-        { icon: BookOpen, label: 'Playbook', path: '/playbook' },
-        { icon: BarChart2, label: 'Analytics', path: '/analytics' },
         { icon: FileText, label: 'Reports', path: '/reports' },
-        { icon: Brain, label: 'AI Coach', path: '/ai-insights' },
-        { icon: Bot, label: 'Bot Performance', path: '/bots' },
         { icon: Upload, label: 'Import Data', path: '/import' },
-        { icon: Wallet, label: 'Accounts', path: '/accounts' }, // Placeholder
+        { icon: Wallet, label: 'Accounts', path: '/accounts' },
         { icon: Settings, label: 'Settings', path: '/settings' },
     ];
 
-    const v2NavItems = [
-        { icon: LayoutDashboard, label: 'Dashboard V2', path: '/dashboard-v2' },
-        { icon: FileText, label: 'Reports V2', path: '/reports-v2' },
+    const advancedNavItems = [
+        { icon: MoreHorizontal, label: 'Legacy Dashboard', path: '/legacy/dashboard' },
+        { icon: MoreHorizontal, label: 'Legacy Reports', path: '/legacy/reports' },
+        { icon: MoreHorizontal, label: 'Playbook', path: '/playbook' },
+        { icon: MoreHorizontal, label: 'Analytics', path: '/analytics' },
+        { icon: MoreHorizontal, label: 'AI Coach', path: '/ai-insights' },
+        { icon: MoreHorizontal, label: 'Bot Performance', path: '/bots' },
     ];
 
     return (
@@ -151,19 +150,19 @@ const Layout = () => {
                         </NavLink>
                     ))}
 
-                    {/* V2 Beta Section */}
+                    {/* Advanced Section */}
                     {!isCollapsed && (
                         <div className="pt-4 mt-4 border-t border-[var(--border)]">
                             <div className="flex items-center gap-2 px-3 py-2">
-                                <Sparkles size={14} className="text-[var(--warning)]" />
-                                <span className="text-xs font-medium text-[var(--text-tertiary)] uppercase">V2 Beta</span>
+                                <MoreHorizontal size={14} className="text-[var(--text-tertiary)]" />
+                                <span className="text-xs font-medium text-[var(--text-tertiary)] uppercase">Advanced</span>
                             </div>
                         </div>
                     )}
                     {isCollapsed && (
                         <div className="pt-4 mt-4 border-t border-[var(--border)]" />
                     )}
-                    {v2NavItems.map((item) => (
+                    {advancedNavItems.map((item) => (
                         <NavLink
                             key={item.path}
                             to={item.path}
@@ -172,7 +171,7 @@ const Layout = () => {
                             className={({ isActive }) => `
                 relative z-10 flex w-full items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 whitespace-nowrap
                 ${isActive
-                                    ? 'bg-[var(--warning)]/10 text-[var(--warning)] font-medium'
+                                    ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] font-medium'
                                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
                                 }
                 ${isCollapsed ? 'justify-center' : ''}

@@ -115,7 +115,7 @@ export const useWeeklyData = (trades: Trade[], year: number, month: number): Wee
 
         // Convert to array and calculate trading days
         return Object.entries(weekMap)
-            .map(([_weekNum, data], index) => {
+            .map(([, data], index) => {
                 const tradingDays = data.days.filter(d => tradesByDay[d]?.length > 0).length;
                 const sortedDays = data.days.sort();
 

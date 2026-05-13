@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useTrades } from '../context/TradeContext';
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { format, parseISO, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
+import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import ExchangeFilter from '../components/ExchangeFilter';
-import TimeRangeFilter, { getDateRangeForFilter } from '../components/TimeRangeFilter';
-import type { TimeRange } from '../components/TimeRangeFilter';
+import TimeRangeFilter from '../components/TimeRangeFilter';
+import { getDateRangeForFilter, type TimeRange } from '../utils/timeRanges';
 
 const OverviewPage = () => {
     const { trades, isLoading } = useTrades();
@@ -38,7 +38,7 @@ const OverviewPage = () => {
 
             closedTrades = closedTrades.filter(t => {
                 const tradeDate = parseISO(t.exitDate);
-                return isAfter(tradeDate, dateRange.start) && isBefore(tradeDate, dateRange.end);
+                return isWithinInterval(tradeDate, dateRange);
             });
         }
 
@@ -256,7 +256,7 @@ const OverviewPage = () => {
 
             closedTrades = closedTrades.filter(t => {
                 const tradeDate = parseISO(t.exitDate);
-                return isAfter(tradeDate, dateRange.start) && isBefore(tradeDate, dateRange.end);
+                return isWithinInterval(tradeDate, dateRange);
             });
         }
 

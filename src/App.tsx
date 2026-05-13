@@ -22,6 +22,7 @@ import BotDashboard from './pages/BotDashboard';
 import DashboardV2 from './pages/v2/DashboardV2';
 import ReportsV2 from './pages/v2/ReportsV2';
 import TradeViewV2 from './pages/v2/TradeViewV2';
+import AccountsPage from './pages/AccountsPage';
 
 function App() {
   return (
@@ -49,19 +50,21 @@ function App() {
           >
             <Route index element={<Navigate to="/overview" replace />} />
             <Route path="overview" element={<OverviewPage />} />
-            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="dashboard" element={<DashboardV2 />} />
             <Route path="journal" element={<Journal />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="calendar" element={<Calendar />} />
             <Route path="playbook" element={<PlaybookPage />} />
             <Route path="ai-insights" element={<AIInsights />} />
             <Route path="import" element={<ImportPage />} />
-            <Route path="reports" element={<ReportsPage />} />
+            <Route path="reports" element={<ReportsV2 />} />
             <Route path="bots" element={<BotDashboard />} />
+            <Route path="legacy/dashboard" element={<Dashboard />} />
+            <Route path="legacy/reports" element={<ReportsPage />} />
             <Route path="dashboard-v2" element={<DashboardV2 />} />
             <Route path="reports-v2" element={<ReportsV2 />} />
             <Route path="trade-v2/:id" element={<TradeViewV2 />} />
-            <Route path="accounts" element={<div className="p-10 text-center text-[var(--text-tertiary)]">Accounts Placeholder</div>} />
+            <Route path="accounts" element={<AccountsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

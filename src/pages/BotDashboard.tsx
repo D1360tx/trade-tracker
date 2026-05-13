@@ -4,9 +4,11 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { Bot, TrendingUp, Activity, DollarSign, RefreshCw } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
+type BotTimeRange = 'TODAY' | 'YESTERDAY' | '7D' | '30D' | 'ALL';
+
 const BotDashboard = () => {
     const { trades, lastDebugData, fetchTradesFromAPI, isLoading, clearTrades } = useTrades();
-    const [timeRange, setTimeRange] = useState<'TODAY' | 'YESTERDAY' | '7D' | '30D' | 'ALL'>('TODAY');
+    const [timeRange, setTimeRange] = useState<BotTimeRange>('TODAY');
 
     const botTrades = useMemo(() => {
         const now = new Date();
@@ -48,15 +50,15 @@ const BotDashboard = () => {
     }, [botTrades]);
 
     const cumulativePnLData = useMemo(() => {
-        let runningTotal = 0;
-        return botTrades.map(t => {
-            runningTotal += t.pnl;
-            return {
+        return botTrades.reduce<Array<{ date: string; pnl: number; rawDate: string }>>((points, t) => {
+            const runningTotal = (points.at(-1)?.pnl || 0) + t.pnl;
+            points.push({
                 date: format(parseISO(t.exitDate), 'MMM dd HH:mm'),
                 pnl: runningTotal,
                 rawDate: t.exitDate
-            };
-        }); // Downsample if needed?
+            });
+            return points;
+        }, []);
     }, [botTrades]);
 
     return (
@@ -77,7 +79,7 @@ const BotDashboard = () => {
                 <div className="flex items-center gap-2">
                     <select
                         value={timeRange}
-                        onChange={(e) => setTimeRange(e.target.value as any)}
+                        onChange={(e) => setTimeRange(e.target.value as BotTimeRange)}
                         className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
                     >
                         <option value="TODAY">Today</option>
@@ -187,7 +189,7 @@ const BotDashboard = () => {
                             <Tooltip
                                 contentStyle={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                                 itemStyle={{ color: 'var(--text-primary)' }}
-                                formatter={(value: any) => [`$${parseFloat(value).toFixed(2)}`, 'Calculated Equity']}
+                                formatter={(value?: number | string) => [`$${parseFloat(String(value ?? 0)).toFixed(2)}`, 'Calculated Equity']}
                             />
                             <Line
                                 type="monotone"

@@ -4,12 +4,12 @@ import { useTrades } from '../context/TradeContext';
 import { useStrategies } from '../context/StrategyContext';
 import { useMistakes } from '../context/MistakeContext';
 import { Link } from 'react-router-dom';
-import { isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
+import { isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Search, Filter, RotateCcw, GripVertical, Grid, List } from 'lucide-react';
 import TradeDetailsModal from '../components/TradeDetailsModal';
 import ExchangeFilter from '../components/ExchangeFilter';
-import TimeRangeFilter, { getDateRangeForFilter } from '../components/TimeRangeFilter';
-import type { TimeRange } from '../components/TimeRangeFilter';
+import TimeRangeFilter from '../components/TimeRangeFilter';
+import { getDateRangeForFilter, type TimeRange } from '../utils/timeRanges';
 import type { Trade } from '../types';
 import { useColumnOrder } from '../hooks/useColumnOrder';
 import { TableHeader, TableCell } from '../components/TableRenderers';
@@ -82,9 +82,7 @@ const Journal = () => {
                 dateRange = getDateRangeForFilter(timeRange);
             }
 
-            const { start, end } = dateRange;
-            if (start) result = result.filter(t => isAfter(new Date(t.exitDate), start));
-            if (end) result = result.filter(t => isBefore(new Date(t.exitDate), end));
+            result = result.filter(t => isWithinInterval(new Date(t.exitDate), dateRange));
         }
 
         // Filter by Strategy

@@ -142,7 +142,7 @@ const AIChat = () => {
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={`
-          fixed bottom-6 right-6 z-50 p-4 rounded-full shadow-2xl transition-all duration-300 hover:scale-110
+          fixed bottom-4 right-4 z-30 p-3 rounded-full shadow-2xl transition-all duration-300 hover:scale-105
           ${isOpen ? 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] rotate-90' : 'bg-gradient-to-r from-[var(--accent-primary)] to-purple-600 text-white'}
         `}
             >
@@ -151,7 +151,7 @@ const AIChat = () => {
 
             {/* Chat Window */}
             <div className={`
-        fixed bottom-24 right-6 w-96 max-w-[calc(100vw-3rem)] h-[500px] z-50 glass-panel rounded-2xl flex flex-col shadow-2xl border-[var(--border)]
+        fixed bottom-20 right-4 w-96 max-w-[calc(100vw-2rem)] h-[460px] z-30 glass-panel rounded-xl flex flex-col shadow-2xl border-[var(--border)]
         transition-all duration-300 origin-bottom-right
         ${isOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-75 opacity-0 translate-y-10 pointer-events-none'}
       `}>

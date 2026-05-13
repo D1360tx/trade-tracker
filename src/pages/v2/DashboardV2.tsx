@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { parseISO, startOfDay, endOfDay } from 'date-fns';
 import { useTrades } from '../../context/TradeContext';
 import { useV2Stats } from '../../hooks/v2/useV2Stats';
-import TimeRangeFilter, { getDateRangeForFilter } from '../../components/TimeRangeFilter';
-import type { TimeRange } from '../../components/TimeRangeFilter';
+import TimeRangeFilter from '../../components/TimeRangeFilter';
+import { getDateRangeForFilter, type TimeRange } from '../../utils/timeRanges';
+import { filterTradesForAnalysis } from '../../utils/tradeAnalytics';
 import ExchangeFilter from '../../components/ExchangeFilter';
 import TopStatsBar from '../../components/v2/dashboard/TopStatsBar';
 import MonthlyCalendarV2 from '../../components/v2/dashboard/MonthlyCalendarV2';
@@ -31,75 +32,13 @@ const DashboardV2 = () => {
     // Filter trades
     const filteredTrades = useMemo(() => {
         const now = new Date();
-        let filtered = trades.filter(t => t.status === 'CLOSED' || t.pnl !== 0);
+        const dateRange = timeRange === 'all'
+            ? undefined
+            : timeRange === 'custom' && customStart
+                ? { start: startOfDay(parseISO(customStart)), end: customEnd ? endOfDay(parseISO(customEnd)) : now }
+                : getDateRangeForFilter(timeRange);
 
-        // Filter by exchange
-        if (selectedExchanges.length > 0) {
-            filtered = filtered.filter(t => selectedExchanges.includes(t.exchange));
-        }
-
-        // Filter by date
-        if (timeRange === 'all') return filtered;
-
-        let dateRange: { start: Date; end: Date };
-        if (timeRange === 'custom' && customStart) {
-            dateRange = {
-                start: startOfDay(parseISO(customStart)),
-                end: customEnd ? endOfDay(parseISO(customEnd)) : now,
-            };
-        } else {
-            dateRange = getDateRangeForFilter(timeRange);
-        }
-
-        filtered = filtered.filter(t => {
-            const tradeDate = parseISO(t.exitDate);
-            return isWithinInterval(tradeDate, dateRange);
-        });
-
-        // Aggregate Schwab options (same logic as V1)
-        const groupedByPosition = new Map<string, typeof filtered>();
-        const nonAggregatable: typeof filtered = [];
-
-        filtered.forEach(trade => {
-            if (trade.exchange === 'Schwab' && trade.type === 'OPTION') {
-                const entryMinute = trade.entryDate?.substring(0, 16) || '';
-                const exitMinute = trade.exitDate?.substring(0, 16) || '';
-                const key = `${trade.ticker}|${entryMinute}|${exitMinute}`;
-
-                if (!groupedByPosition.has(key)) {
-                    groupedByPosition.set(key, []);
-                }
-                groupedByPosition.get(key)!.push(trade);
-            } else {
-                nonAggregatable.push(trade);
-            }
-        });
-
-        const aggregated: typeof filtered = [];
-        groupedByPosition.forEach(group => {
-            if (group.length === 1) {
-                aggregated.push(group[0]);
-            } else {
-                const first = group[0];
-                const totalQuantity = group.reduce((sum, t) => sum + t.quantity, 0);
-                const totalPnl = group.reduce((sum, t) => sum + t.pnl, 0);
-                const totalFees = group.reduce((sum, t) => sum + (t.fees || 0), 0);
-                const avgEntryPrice = group.reduce((sum, t) => sum + (t.entryPrice * t.quantity), 0) / totalQuantity;
-                const avgExitPrice = group.reduce((sum, t) => sum + (t.exitPrice * t.quantity), 0) / totalQuantity;
-
-                aggregated.push({
-                    ...first,
-                    quantity: totalQuantity,
-                    pnl: totalPnl,
-                    fees: totalFees,
-                    entryPrice: avgEntryPrice,
-                    exitPrice: avgExitPrice,
-                    pnlPercentage: first.margin ? (totalPnl / (first.margin * group.length)) * 100 : 0,
-                });
-            }
-        });
-
-        return [...aggregated, ...nonAggregatable];
+        return filterTradesForAnalysis(trades, { selectedExchanges, dateRange });
     }, [trades, timeRange, customStart, customEnd, selectedExchanges]);
 
     const stats = useV2Stats(filteredTrades, trades);
@@ -131,7 +70,7 @@ const DashboardV2 = () => {
         <div className="space-y-4 max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <h2 className="text-3xl font-bold">Dashboard V2</h2>
+                <h2 className="text-3xl font-bold">Dashboard</h2>
                 <div className="flex flex-wrap items-center gap-2">
                     {timeRange === 'custom' && (
                         <div className="flex items-center gap-2 bg-[var(--bg-secondary)] px-2 py-1 rounded-lg border border-[var(--border)]">
