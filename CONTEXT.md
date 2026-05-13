@@ -12,8 +12,8 @@
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | React 18 + TypeScript |
-| Build Tool | Vite 6 |
+| Frontend | React 19 + TypeScript |
+| Build Tool | Vite 7 |
 | Styling | Tailwind CSS |
 | Charts | Recharts |
 | Backend | Vercel Serverless Functions (`/api`) |
@@ -55,7 +55,7 @@ trade_tracker/
 // Main Trade interface (src/types.ts)
 interface Trade {
     id: string;
-    exchange: ExchangeName;  // 'MEXC' | 'ByBit' | 'Schwab' | 'HeroFX' | etc.
+    exchange: ExchangeName;  // 'MEXC' | 'ByBit' | 'Schwab' | 'Webull' | 'HeroFX' | etc.
     ticker: string;
     type: 'STOCK' | 'OPTION' | 'CRYPTO' | 'FOREX' | 'FUTURES' | 'SPOT';
     direction: 'LONG' | 'SHORT';
@@ -82,6 +82,7 @@ interface Trade {
 | Exchange | Import Method | Parser Location |
 |----------|--------------|-----------------|
 | **Schwab** | OAuth API or CSV | `schwabAuth.ts`, `csvParsers.ts` |
+| **Webull** | CSV | `csvParsers.ts` |
 | **HeroFX/TradeLocker** | Quick Paste (tab-separated) | `tradeLockerParser.ts` |
 | **MEXC** | API (via proxy) | `api/mexc-*.ts`, `csvParsers.ts` |
 | **Interactive Brokers** | CSV | `csvParsers.ts` |
@@ -95,10 +96,10 @@ interface Trade {
 |------|------|-------------|
 | **Dashboard** | `Dashboard.tsx` | KPIs, equity curve, win/loss charts |
 | **Journal** | `Journal.tsx` | Trade log with inline editing, images |
-| **Analytics** | `Analytics.tsx` | Advanced charts, performance metrics |
+| **Analytics** | `Analytics.tsx` | Decision Hub for options, patterns, and risk |
 | **Calendar** | `Calendar.tsx` | Daily P&L heatmap with drill-down modal |
 | **Import** | `ImportPage.tsx` | Multi-source trade import |
-| **Reports** | `ReportsPage.tsx` | Detailed reporting |
+| **Reports** | `ReportsPage.tsx` | Performance Report with exports and advanced filters |
 | **AI Insights** | `AIInsights.tsx` | GPT-4 powered analysis |
 | **Playbook** | `PlaybookPage.tsx` | Strategy documentation |
 | **Bot Dashboard** | `BotDashboard.tsx` | Automated trade tracking |
@@ -140,7 +141,7 @@ VITE_OPENAI_API_KEY=sk-...
 # Required for Schwab integration
 SCHWAB_CLIENT_ID=...
 SCHWAB_CLIENT_SECRET=...
-SCHWAB_CALLBACK_URL=http://localhost:5173/schwab/callback
+SCHWAB_CALLBACK_URL=http://localhost:3000/api/schwab/callback
 
 # Optional for MEXC
 MEXC_API_KEY=...
@@ -150,7 +151,7 @@ MEXC_SECRET_KEY=...
 ## Development Commands
 
 ```bash
-# Development server (Vite)
+# Development server (Vite only; API routes are not available)
 npm run dev
 
 # Development with Vercel APIs (required for Schwab OAuth)

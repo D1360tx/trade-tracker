@@ -1,9 +1,9 @@
 # Trade Tracker Pro
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![React](https://img.shields.io/badge/React-18.3-blue.svg)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-6.0-purple.svg)](https://vitejs.dev/)
+[![React](https://img.shields.io/badge/React-19.2-blue.svg)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-7.2-purple.svg)](https://vitejs.dev/)
 [![Version](https://img.shields.io/badge/Version-1.5.0--stable-green.svg)](CHANGELOG.md)
 
 ## 🌐 Live Demo
@@ -12,21 +12,23 @@
 
 ## 📰 Latest Release - v1.5.0-stable (2026-01-16)
 
-### Critical Fixes
+### Critical Fixes & Product Cleanup
 ✅ **Schwab P&L Precision Fixed** - Now matches official Schwab reports exactly (resolved $42.71 discrepancy)
 ✅ **Orphaned Trades Fixed** - Extended sync window to 180 days, no more missing closing transactions
 ✅ **Duplicate Prevention** - API and CSV imports now use matching symbol formats for proper deduplication
 ✅ **Calendar Navigation** - Added "Current Week/Month" buttons to quickly return to today
+✅ **Reports & Analytics Cleanup** - Reports is now the main Performance Report, Analytics is the Decision Hub
+✅ **Import Workflow Polish** - Schwab-first import command center with Webull CSV support
 
 See [CHANGELOG.md](CHANGELOG.md) for full details.
 
-A comprehensive trading journal and analytics platform with AI-powered insights, supporting multiple exchanges including Schwab, HeroFX/TradeLocker, and more.
+A comprehensive trading journal and analytics platform with AI-powered insights, supporting multiple exchanges including Schwab, Webull CSV, HeroFX/TradeLocker, MEXC, ByBit, and more.
 
 ## 🚀 Features
 
 ### Import & Data Management
 - **Quick Paste Import**: Direct paste support for TradeLocker/HeroFX multi-line format
-- **CSV Import**: Support for Schwab, MEXC, and other exchanges
+- **CSV Import**: Support for Schwab, Webull, MEXC, and other exchanges
 - **Schwab API Integration**: OAuth-based direct data import
 - **Trade Management**: Edit, delete, and manage trades with inline editing
 
@@ -61,7 +63,7 @@ A comprehensive trading journal and analytics platform with AI-powered insights,
 
 ## 🛠️ Technology Stack
 
-- **Frontend**: React 18 + TypeScript + Vite
+- **Frontend**: React 19 + TypeScript + Vite
 - **Styling**: Tailwind CSS
 - **Charts**: Recharts
 - **Backend**: Vercel Serverless Functions
@@ -72,7 +74,7 @@ A comprehensive trading journal and analytics platform with AI-powered insights,
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/trade-tracker.git
+git clone https://github.com/D1360tx/trade-tracker.git
 
 # Navigate to project directory
 cd trade-tracker
@@ -87,10 +89,10 @@ cp .env.example .env
 VITE_OPENAI_API_KEY=your_openai_key
 SCHWAB_CLIENT_ID=your_schwab_client_id
 SCHWAB_CLIENT_SECRET=your_schwab_client_secret
-SCHWAB_CALLBACK_URL=http://localhost:5173/schwab/callback
+SCHWAB_CALLBACK_URL=http://localhost:3000/api/schwab/callback
 
-# Start development server
-npm run dev
+# Start local app with API routes
+vercel dev
 ```
 
 ## 🔧 Configuration
@@ -98,7 +100,7 @@ npm run dev
 ### Schwab API Setup
 1. Register at [Schwab Developer Portal](https://developer.schwab.com)
 2. Create an app and get your Client ID and Secret
-3. Add callback URL: `http://localhost:5173/schwab/callback`
+3. Add callback URL: `http://localhost:3000/api/schwab/callback` for local `vercel dev`, and the production `/api/schwab/callback` URL for Vercel
 4. Update `.env` with your credentials
 
 ### OpenAI API

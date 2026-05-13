@@ -2,9 +2,9 @@
 
 All notable changes to Trade Tracker will be documented in this file.
 
-## [v1.5.1] - 2026-01-30
+## [Unreleased]
 
-### Fixed: Daily Auto-Sync Token Expiration
+### Maintenance: Daily Auto-Sync Token Expiration
 
 **Problem**: The daily cron job was failing silently because it used stored Schwab access tokens directly. Schwab access tokens expire after **30 minutes**, so by the time the daily sync runs, the token is always expired (401 errors).
 
@@ -32,6 +32,18 @@ All notable changes to Trade Tracker will be documented in this file.
 ---
 
 ## [v1.5.0-stable] - 2026-01-16
+
+### Current Stable Release
+
+This is the latest stable release shown in the app documentation and package metadata.
+
+#### Product Cleanup Added
+- Reports now opens the polished legacy-style **Performance Report** as the main reporting surface
+- Analytics is now a tabbed **Decision Hub** for Options, Patterns, and Risk
+- Legacy Reports navigation was hidden while compatibility routes remain available
+- Import Trades now uses a Schwab-first command center and supports Webull CSV imports
+- Schwab OAuth connection failures now show actionable API route/configuration errors instead of raw `Failed to fetch`
+- Added focused tests for shared analytics, options analysis, and Webull CSV parsing
 
 ### 🎯 Critical Schwab API Fixes
 

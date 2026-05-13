@@ -1,27 +1,28 @@
-# 🎉 Trade Tracker Pro - v1.4.0 Production Ready!
+# Trade Tracker Pro - v1.5.0-stable Production Status
 
-**Date**: January 15, 2026  
-**Version**: 1.4.0  
+**Date**: January 16, 2026
+**Version**: v1.5.0-stable
 **Status**: ✅ **ALL SYSTEMS OPERATIONAL**
 
 ---
 
-## 🏆 Latest Updates (v1.4.0)
+## Latest Stable Release (v1.5.0-stable)
 
-### ✅ Scheduled Auto-Sync - NEW!
-- **Daily Cron Job**: Syncs all users at 3:30 PM EST (market close)
-- **Server-Side Execution**: Runs automatically via Vercel cron
-- **Protected Endpoint**: Secured with CRON_SECRET
-- **All Exchanges**: Schwab + MEXC synced together
+### ✅ Schwab/options command center
+- **Schwab-first import workflow**: Direct OAuth sync plus realized gains CSV import
+- **180-day sync window**: Reduces orphaned closing trades
+- **Precise P&L mapping**: Uses Schwab source values when available
+- **Actionable OAuth errors**: Missing API routes or env setup now show useful messages
 
-### ✅ Global Sync Button - NEW!
-- **Header Location**: Always visible from any page
-- **One-Click Sync**: Simultaneous Schwab + MEXC + ByBit
-- **Loading State**: Spinner animation during sync
+### ✅ Reporting and analytics polish
+- **Reports**: Main Performance Report with KPIs, filters, heatmap, export, drawdown, monthly performance, and risk metrics
+- **Analytics**: Decision Hub with Options, Patterns, and Risk tabs
+- **Shared calculations**: Inclusive date filtering and Schwab option aggregation are covered by focused tests
 
-### ✅ Schwab Deduplication - FIXED!
-- **No More Duplicates**: Enhanced matching on closing transaction ID
-- **Accurate P&L**: Calendar and reports now show correct totals
+### ✅ Import coverage
+- **Webull CSV**: Added as a first-class CSV source
+- **Schwab CSV/API**: Primary workflow for options-first reporting
+- **TradeLocker/HeroFX Paste**: Still available as a secondary workflow
 
 ---
 
@@ -32,10 +33,11 @@
 | **Schwab OAuth API** | ✅ Working | 180-day history, daily auto-sync, OAuth refresh |
 | **MEXC Futures API** | ✅ Working | Real-time trade import with P&L |
 | **MEXC Spot API** | ✅ Working | Real-time trade import |
-| **CSV Imports** | ✅ Working | All exchanges (IB, Binance, ByBit, BloFin, Schwab, etc.) |
+| **CSV Imports** | ✅ Working | Schwab, Webull, IB, Binance, ByBit, BloFin, MEXC, etc. |
 | **HeroFX Quick Paste** | ✅ Working | Tab-separated multi-line format |
 | **AI Insights** | ✅ Working | GPT-4 powered analysis |
-| **Analytics** | ✅ Working | Full charts, metrics, calendar |
+| **Reports** | ✅ Working | Performance Report, export, risk metrics |
+| **Analytics** | ✅ Working | Decision Hub: options, patterns, risk |
 
 ---
 
@@ -56,12 +58,9 @@ For more frequent syncs, upgrade to Pro or use external cron service.
 ## 🔧 Recent Fixes
 
 ### Schwab P&L Accuracy ✅
-**Issue**: Trades showing $940 instead of $937.35  
-**Root Cause**: Fees not being subtracted from gross P&L  
-**Fix**: 
-- CSV: Fees set to $0 (already in Schwab's P&L)
-- API: Net P&L = Gross P&L - Total Fees  
-**Result**: Perfect accuracy matching Schwab reports
+**Issue**: Dashboard and reports could drift from official Schwab realized P&L
+**Fix**: Use Schwab realized/source P&L where available, preserve option aggregation, and apply inclusive date filtering
+**Result**: Calendar, Dashboard, Reports, and Analytics now share the same calculation model for closed trades
 
 ### Schwab CSV Import ✅  
 **Feature**: Now reads "Opened Date" + "Closed Date"  
@@ -97,7 +96,8 @@ For more frequent syncs, upgrade to Pro or use external cron service.
 2. Import trades via:
    - **CSV upload** (any exchange)
    - **HeroFX quick paste** (tab-separated)
-   - **Schwab OAuth** (auto-sync every hour during market hours)
+   - **Schwab OAuth** (direct sync)
+   - **Webull CSV** (secondary import)
    - **MEXC API** (auto-sync)
 
 ### For Developers
@@ -114,7 +114,7 @@ git push origin main  # Auto-deploys to Vercel
 
 ## 🎯 What's Next
 
-**Upcoming Features** (Post v1.2.0):
+**Upcoming Features** (Post v1.5.0):
 - [ ] Quantity column in trade journal
 - [ ] Additional exchange integrations
 - [ ] PDF report exports
@@ -133,6 +133,6 @@ git push origin main  # Auto-deploys to Vercel
 
 ---
 
-**🏁 Trade Tracker Pro v1.2.0 is production-ready with accurate data, real-time syncing, and polished UX!**
+**Trade Tracker Pro v1.5.0-stable is production-ready with Schwab-first imports, Webull CSV support, polished reporting, and decision-focused analytics.**
 
-*Last Updated: January 9, 2026*
+*Last Updated: January 16, 2026*
