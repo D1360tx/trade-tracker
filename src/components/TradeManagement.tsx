@@ -1,8 +1,18 @@
 import { useState, useMemo } from 'react';
 import { useTrades } from '../context/TradeContext';
-import { Trash2, Edit2, Check, X, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { Trash2, Edit2, Check, X, ChevronDown, ChevronUp, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { Trade } from '../types';
+
+type PendingAction =
+    | { type: 'cleanup-duplicates'; title: string; description: string }
+    | { type: 'delete-selected'; ids: string[]; title: string; description: string }
+    | { type: 'delete-one'; id: string; title: string; description: string };
+
+type ManagementStatus = {
+    type: 'success' | 'error';
+    message: string;
+};
 
 const TradeManagement = () => {
     const { trades, updateTrade, deleteTrades } = useTrades();
@@ -12,24 +22,52 @@ const TradeManagement = () => {
     const [filterExchange, setFilterExchange] = useState<string>('ALL');
     const [showManagement, setShowManagement] = useState(false);
     const [isCleaningDuplicates, setIsCleaningDuplicates] = useState(false);
+    const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+    const [status, setStatus] = useState<ManagementStatus | null>(null);
 
-    // ⚠️ TEMPORARY DEV TOOL - Remove before production!
-    const handleCleanupDuplicates = async () => {
-        if (!confirm('Clean up duplicate trades in database? This will permanently delete duplicates.')) return;
+    const requestCleanupDuplicates = () => {
+        setStatus(null);
+        setPendingAction({
+            type: 'cleanup-duplicates',
+            title: 'Clean duplicate trades',
+            description: 'This permanently removes duplicate trades from the database while keeping one unique copy.',
+        });
+    };
 
-        setIsCleaningDuplicates(true);
-        try {
-            const { cleanupDuplicateTrades } = await import('../lib/supabase/cleanupDuplicates');
-            const result = await cleanupDuplicateTrades();
-            alert(`✅ Cleanup complete!\n\nRemoved: ${result.removed} duplicates\nKept: ${result.kept} unique trades`);
-            // Reload page to refresh data
-            window.location.reload();
-        } catch (error: unknown) {
-            alert(`❌ Cleanup failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            console.error(error);
-        } finally {
-            setIsCleaningDuplicates(false);
+    const handleConfirmAction = async () => {
+        if (!pendingAction) return;
+
+        if (pendingAction.type === 'cleanup-duplicates') {
+            setIsCleaningDuplicates(true);
+            setStatus(null);
+            try {
+                const { cleanupDuplicateTrades } = await import('../lib/supabase/cleanupDuplicates');
+                const result = await cleanupDuplicateTrades();
+                setStatus({
+                    type: 'success',
+                    message: `Cleanup complete. Removed ${result.removed} duplicate${result.removed === 1 ? '' : 's'} and kept ${result.kept} unique trade${result.kept === 1 ? '' : 's'}.`,
+                });
+            } catch (error: unknown) {
+                setStatus({
+                    type: 'error',
+                    message: `Cleanup failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                });
+                console.error(error);
+            } finally {
+                setIsCleaningDuplicates(false);
+                setPendingAction(null);
+            }
+            return;
         }
+
+        const idsToDelete = pendingAction.type === 'delete-selected' ? pendingAction.ids : [pendingAction.id];
+        deleteTrades(idsToDelete);
+        setSelectedIds(new Set());
+        setStatus({
+            type: 'success',
+            message: `Deleted ${idsToDelete.length} trade${idsToDelete.length === 1 ? '' : 's'}.`,
+        });
+        setPendingAction(null);
     };
 
 
@@ -70,10 +108,13 @@ const TradeManagement = () => {
 
     const handleDeleteSelected = () => {
         if (selectedIds.size === 0) return;
-        if (confirm(`Delete ${selectedIds.size} trade(s)? This cannot be undone.`)) {
-            deleteTrades(Array.from(selectedIds));
-            setSelectedIds(new Set());
-        }
+        setStatus(null);
+        setPendingAction({
+            type: 'delete-selected',
+            ids: Array.from(selectedIds),
+            title: `Delete ${selectedIds.size} selected trade${selectedIds.size === 1 ? '' : 's'}`,
+            description: 'This removes the selected trades from your tracker.',
+        });
     };
 
     const handleStartEdit = (trade: Trade) => {
@@ -164,9 +205,8 @@ const TradeManagement = () => {
                             </button>
                         )}
 
-                        {/* ⚠️ TEMPORARY DEV TOOL - Remove before production! */}
                         <button
-                            onClick={handleCleanupDuplicates}
+                            onClick={requestCleanupDuplicates}
                             disabled={isCleaningDuplicates}
                             className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors ml-auto"
                             title="Remove duplicate trades from database"
@@ -175,6 +215,39 @@ const TradeManagement = () => {
                             {isCleaningDuplicates ? 'Cleaning...' : 'Clean Duplicates'}
                         </button>
                     </div>
+
+                    {status && (
+                        <div className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${status.type === 'success'
+                            ? 'border-[var(--success)]/30 bg-[var(--success)]/10 text-[var(--success)]'
+                            : 'border-[var(--danger)]/30 bg-[var(--danger)]/10 text-[var(--danger)]'
+                        }`}>
+                            {status.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+                            <span>{status.message}</span>
+                        </div>
+                    )}
+
+                    {pendingAction && (
+                        <div className="rounded-lg border border-[var(--danger)]/40 bg-[var(--danger)]/5 p-4">
+                            <p className="font-semibold text-[var(--danger)]">{pendingAction.title}</p>
+                            <p className="mt-1 text-sm text-[var(--text-secondary)]">{pendingAction.description}</p>
+                            <div className="mt-4 flex flex-wrap gap-2">
+                                <button
+                                    onClick={handleConfirmAction}
+                                    disabled={isCleaningDuplicates}
+                                    className="rounded-lg bg-[var(--danger)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                                >
+                                    {isCleaningDuplicates ? 'Working...' : 'Confirm'}
+                                </button>
+                                <button
+                                    onClick={() => setPendingAction(null)}
+                                    disabled={isCleaningDuplicates}
+                                    className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Trade List */}
                     <div className="overflow-x-auto">
@@ -319,9 +392,13 @@ const TradeManagement = () => {
                                                         </button>
                                                         <button
                                                             onClick={() => {
-                                                                if (confirm(`Delete ${trade.ticker} trade?`)) {
-                                                                    deleteTrades([trade.id]);
-                                                                }
+                                                                setStatus(null);
+                                                                setPendingAction({
+                                                                    type: 'delete-one',
+                                                                    id: trade.id,
+                                                                    title: `Delete ${trade.ticker} trade`,
+                                                                    description: 'This removes the trade from your tracker.',
+                                                                });
                                                             }}
                                                             className="p-1 text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded"
                                                             title="Delete"
