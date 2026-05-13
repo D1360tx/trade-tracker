@@ -4,6 +4,32 @@ All notable changes to Trade Tracker will be documented in this file.
 
 ## [Unreleased]
 
+---
+
+## [v1.6.0-stable] - 2026-05-13
+
+### Product Cleanup & Import Expansion
+
+This is the latest stable release shown in the app documentation and package metadata.
+
+#### Added
+- Webull CSV import support as a first-class secondary import source
+- Focused tests for Webull CSV parsing
+- Focused tests for options analysis helpers
+- Focused tests for shared trade analytics, inclusive date filtering, and Schwab option aggregation
+
+#### Changed
+- Reports now opens the polished legacy-style **Performance Report** as the main reporting surface
+- Analytics is now a tabbed **Decision Hub** for Options, Patterns, and Risk
+- Import Trades now uses a Schwab-first command center with clearer secondary import and data management sections
+- Non-supported API sources are labeled as CSV-only instead of falling into simulation behavior
+
+#### Fixed
+- Schwab OAuth connection failures now show actionable API route/configuration errors instead of raw `Failed to fetch`
+- Schwab local development docs now point to `vercel dev` and `/api/schwab/callback`
+
+---
+
 ### Maintenance: Daily Auto-Sync Token Expiration
 
 **Problem**: The daily cron job was failing silently because it used stored Schwab access tokens directly. Schwab access tokens expire after **30 minutes**, so by the time the daily sync runs, the token is always expired (401 errors).
@@ -33,9 +59,9 @@ All notable changes to Trade Tracker will be documented in this file.
 
 ## [v1.5.0-stable] - 2026-01-16
 
-### Current Stable Release
+### Previous Stable Release
 
-This is the latest stable release shown in the app documentation and package metadata.
+This release focused on Schwab precision, sync reliability, deduplication, and calendar navigation.
 
 #### Product Cleanup Added
 - Reports now opens the polished legacy-style **Performance Report** as the main reporting surface

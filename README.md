@@ -4,21 +4,21 @@
 [![React](https://img.shields.io/badge/React-19.2-blue.svg)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-7.2-purple.svg)](https://vitejs.dev/)
-[![Version](https://img.shields.io/badge/Version-1.5.0--stable-green.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.6.0--stable-green.svg)](CHANGELOG.md)
 
 ## 🌐 Live Demo
 
 **Production**: [https://trade-tracker-eight.vercel.app](https://trade-tracker-eight.vercel.app)
 
-## 📰 Latest Release - v1.5.0-stable (2026-01-16)
+## 📰 Latest Release - v1.6.0-stable (2026-05-13)
 
-### Critical Fixes & Product Cleanup
-✅ **Schwab P&L Precision Fixed** - Now matches official Schwab reports exactly (resolved $42.71 discrepancy)
-✅ **Orphaned Trades Fixed** - Extended sync window to 180 days, no more missing closing transactions
-✅ **Duplicate Prevention** - API and CSV imports now use matching symbol formats for proper deduplication
-✅ **Calendar Navigation** - Added "Current Week/Month" buttons to quickly return to today
-✅ **Reports & Analytics Cleanup** - Reports is now the main Performance Report, Analytics is the Decision Hub
-✅ **Import Workflow Polish** - Schwab-first import command center with Webull CSV support
+### Product Cleanup & Import Expansion
+✅ **Webull CSV Import** - Webull is now available as a first-class CSV source
+✅ **Schwab Connect Diagnostics** - OAuth/API route failures now show actionable setup messages instead of raw `Failed to fetch`
+✅ **Import Workflow Polish** - Schwab-first import command center with clearer CSV, paste, API, and data management sections
+✅ **Reports Cleanup** - Reports now opens the polished Performance Report as the main reporting surface
+✅ **Analytics Decision Hub** - Analytics is organized into Options, Patterns, and Risk tabs
+✅ **Shared Calculation Tests** - Added focused coverage for analytics helpers, options analysis, and Webull CSV parsing
 
 See [CHANGELOG.md](CHANGELOG.md) for full details.
 

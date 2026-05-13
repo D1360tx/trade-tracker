@@ -1,12 +1,12 @@
-# Trade Tracker Pro - v1.5.0-stable Production Status
+# Trade Tracker Pro - v1.6.0-stable Production Status
 
-**Date**: January 16, 2026
-**Version**: v1.5.0-stable
+**Date**: May 13, 2026
+**Version**: v1.6.0-stable
 **Status**: ✅ **ALL SYSTEMS OPERATIONAL**
 
 ---
 
-## Latest Stable Release (v1.5.0-stable)
+## Latest Stable Release (v1.6.0-stable)
 
 ### ✅ Schwab/options command center
 - **Schwab-first import workflow**: Direct OAuth sync plus realized gains CSV import
@@ -133,6 +133,6 @@ git push origin main  # Auto-deploys to Vercel
 
 ---
 
-**Trade Tracker Pro v1.5.0-stable is production-ready with Schwab-first imports, Webull CSV support, polished reporting, and decision-focused analytics.**
+**Trade Tracker Pro v1.6.0-stable is production-ready with Schwab-first imports, Webull CSV support, polished reporting, and decision-focused analytics.**
 
-*Last Updated: January 16, 2026*
+*Last Updated: May 13, 2026*
