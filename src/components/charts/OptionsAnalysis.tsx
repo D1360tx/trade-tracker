@@ -14,13 +14,15 @@ import TimeRangeFilter from '../TimeRangeFilter';
 import { getDateRangeForFilter, type TimeRange } from '../../utils/timeRanges';
 import {
     groupOptionPositions,
-    calculateOptionsMetrics,
-    formatCurrency,
-    formatPercent,
-    getStatusBadgeClass,
-    type OptionPositionGroup
-} from '../../utils/optionsAnalysis';
-import { startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+	    calculateOptionsMetrics,
+	    formatCurrency,
+	    formatPercent,
+	    getOptionTypeFromTicker,
+	    getStatusBadgeClass,
+	    type OptionPositionGroup
+	} from '../../utils/optionsAnalysis';
+import { filterTradesForAnalysis } from '../../utils/tradeAnalytics';
+import { startOfDay, endOfDay } from 'date-fns';
 
 // Modal types
 type ModalType = 'options_trades' | 'free_trades' | 'free_profit' | 'total_pnl' | 'calls' | 'puts' | 'losers' | 'not_scaled' | null;
@@ -63,12 +65,11 @@ const OptionsAnalysis = ({ trades: tradesProp }: OptionsAnalysisProps) => {
             dateRange = getDateRangeForFilter(timeRange);
         }
 
-        return trades.filter(t => {
-            if (!t.exitDate) return false;
-            const tradeDate = parseISO(t.exitDate);
-            return isWithinInterval(tradeDate, dateRange);
-        });
-    }, [trades, timeRange, customStart, customEnd]);
+	    return filterTradesForAnalysis(trades, {
+	        dateRange,
+	        aggregateSchwabOptions: false,
+	    });
+	}, [trades, timeRange, customStart, customEnd]);
 
     // Calculate positions and metrics
     const positions = useMemo(() => groupOptionPositions(filteredTrades), [filteredTrades]);
@@ -85,14 +86,14 @@ const OptionsAnalysis = ({ trades: tradesProp }: OptionsAnalysisProps) => {
     const freePositions = useMemo(() => positions.filter(p => p.isFree), [positions]);
 
     // Get calls and puts trades separately (for modal)
-    const callsTrades = useMemo(() =>
-        optionsTrades.filter(t => t.ticker.includes(' C')),
-        [optionsTrades]
-    );
-    const putsTrades = useMemo(() =>
-        optionsTrades.filter(t => t.ticker.includes(' P')),
-        [optionsTrades]
-    );
+	    const callsTrades = useMemo(() =>
+	        optionsTrades.filter(t => getOptionTypeFromTicker(t.ticker) === 'CALL'),
+	        [optionsTrades]
+	    );
+	    const putsTrades = useMemo(() =>
+	        optionsTrades.filter(t => getOptionTypeFromTicker(t.ticker) === 'PUT'),
+	        [optionsTrades]
+	    );
 
     // Get losers (trades with negative P&L)
     const loserTrades = useMemo(() =>
@@ -184,10 +185,10 @@ const OptionsAnalysis = ({ trades: tradesProp }: OptionsAnalysisProps) => {
                 <div className="glass-panel p-12 rounded-xl flex flex-col items-center justify-center text-center">
                     <Target className="text-[var(--text-tertiary)] mb-4" size={48} />
                     <h4 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No Options Trades Found</h4>
-                    <p className="text-[var(--text-secondary)] max-w-md">
-                        Import options trades from Schwab or other brokers to see your free trades analysis,
-                        scale-out tracking, and options performance metrics.
-                    </p>
+	                    <p className="text-[var(--text-secondary)] max-w-md">
+	                        Connect Schwab, sync recent options trades, or import a Schwab realized gains CSV to see free-trade tracking,
+	                        scale-out progress, and options performance metrics.
+	                    </p>
                 </div>
             </div>
         );

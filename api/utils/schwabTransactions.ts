@@ -8,7 +8,7 @@
  */
 
 // Inline Trade type for serverless function bundling
-type ExchangeName = 'MEXC' | 'ByBit' | 'Binance' | 'Coinbase' | 'BloFin' | 'Schwab' | 'Interactive Brokers' | 'HeroFX';
+type ExchangeName = 'MEXC' | 'ByBit' | 'Binance' | 'Coinbase' | 'BloFin' | 'Schwab' | 'Webull' | 'Interactive Brokers' | 'HeroFX';
 
 interface Trade {
     id: string;

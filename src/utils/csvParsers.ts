@@ -42,7 +42,7 @@ const mapRowToGeneric = (row: Record<string, string>, exchange: ExchangeName): P
         id,
         exchange,
         ticker: safeGet(row, ['Symbol', 'Ticker', 'Pair', 'Futures Trading Pair', 'Contracts', 'Market']) || 'UNKNOWN',
-        type: exchange === 'Schwab' || exchange === 'Interactive Brokers' ? 'STOCK' : 'CRYPTO',
+        type: exchange === 'Schwab' || exchange === 'Webull' || exchange === 'Interactive Brokers' ? 'STOCK' : 'CRYPTO',
         direction: isLong ? 'LONG' : 'SHORT',
         entryPrice: price,
         exitPrice: price,
@@ -53,6 +53,113 @@ const mapRowToGeneric = (row: Record<string, string>, exchange: ExchangeName): P
         pnl: profit,
         pnlPercentage: 0,
         status: 'CLOSED'
+    };
+};
+
+const parseWebullMoney = (value: string): number => {
+    if (!value) return 0;
+    const trimmed = value.trim();
+    const isParenthesesNegative = trimmed.startsWith('(') && trimmed.endsWith(')');
+    const clean = trimmed.replace(/[()$,+]/g, '').trim();
+    const parsed = parseFloat(clean);
+    if (Number.isNaN(parsed)) return 0;
+    return isParenthesesNegative ? -Math.abs(parsed) : parsed;
+};
+
+const detectWebullInstrumentType = (symbol: string, description: string, assetType: string): Trade['type'] => {
+    const text = `${symbol} ${description} ${assetType}`.toLowerCase();
+    if (text.includes('option') || /\b\d{6}[cp]\d{8}\b/i.test(symbol) || /\b(call|put)\b/i.test(description)) {
+        return 'OPTION';
+    }
+    if (text.includes('crypto')) return 'CRYPTO';
+    return 'STOCK';
+};
+
+export const mapWebullRowToTrade = (row: Record<string, string>): Trade | null => {
+    const status = safeGet(row, ['Status', 'Order Status', 'State']).toLowerCase();
+    if (status && ['cancel', 'reject', 'expire', 'fail'].some(term => status.includes(term))) {
+        return null;
+    }
+
+    const symbol = safeGet(row, [
+        'Symbol',
+        'Ticker',
+        'Underlying Symbol',
+        'Instrument',
+        'Security',
+    ]).trim();
+
+    if (!symbol) return null;
+
+    const description = safeGet(row, ['Description', 'Name', 'Instrument Name', 'Security Description']);
+    const assetType = safeGet(row, ['Asset Type', 'Type', 'Security Type', 'Instrument Type']);
+    const tradeType = detectWebullInstrumentType(symbol, description, assetType);
+    const multiplier = tradeType === 'OPTION' ? 100 : 1;
+
+    const action = safeGet(row, ['Side', 'Action', 'Buy/Sell', 'Transaction Type', 'Order Action']).toLowerCase();
+    const direction: Trade['direction'] = action.includes('sell') || action.includes('short') ? 'SHORT' : 'LONG';
+
+    const quantity = Math.abs(parseWebullMoney(safeGet(row, [
+        'Quantity',
+        'Qty',
+        'Filled',
+        'Filled Qty',
+        'Filled Quantity',
+        'Executed Quantity',
+    ])));
+    const price = parseWebullMoney(safeGet(row, [
+        'Avg Price',
+        'Average Price',
+        'Filled Price',
+        'Execution Price',
+        'Price',
+    ]));
+    const proceeds = parseWebullMoney(safeGet(row, ['Proceeds', 'Sell Amount', 'Amount']));
+    const costBasis = parseWebullMoney(safeGet(row, ['Cost Basis', 'Cost', 'Buy Amount']));
+    const pnlRaw = safeGet(row, [
+        'Realized P&L',
+        'Realized P/L',
+        'P&L',
+        'P/L',
+        'Profit/Loss',
+        'Gain/Loss',
+        'Net P&L',
+    ]);
+    const pnl = parseWebullMoney(pnlRaw);
+
+    const entryPrice = costBasis && quantity ? Math.abs(costBasis) / quantity / multiplier : price;
+    const exitPrice = proceeds && quantity ? Math.abs(proceeds) / quantity / multiplier : price;
+    const dateRaw = safeGet(row, [
+        'Filled Time',
+        'Executed Time',
+        'Execution Time',
+        'Trade Time',
+        'Trade Date',
+        'Transaction Date',
+        'Date',
+        'Time',
+    ]);
+    const exitDate = safeParseDateString(dateRaw);
+    const basis = Math.abs(costBasis) || Math.abs(entryPrice * quantity * multiplier);
+
+    return {
+        id: Math.random().toString(36).substr(2, 9),
+        exchange: 'Webull',
+        ticker: symbol,
+        type: tradeType,
+        direction,
+        entryPrice,
+        exitPrice,
+        quantity,
+        entryDate: exitDate,
+        exitDate,
+        fees: Math.abs(parseWebullMoney(safeGet(row, ['Fees', 'Fee', 'Commission', 'Regulatory Fees']))),
+        pnl,
+        pnlPercentage: basis > 0 ? (pnl / basis) * 100 : 0,
+        status: 'CLOSED',
+        notes: pnlRaw
+            ? `Imported from Webull CSV${description ? ` - ${description}` : ''}`
+            : `Imported from Webull CSV without realized P&L column${description ? ` - ${description}` : ''}`,
     };
 };
 
@@ -629,6 +736,41 @@ const processHeroFXTransactions = (rows: Record<string, string>[], logs: string[
     return { trades, logs };
 };
 
+const processWebullRows = (rows: Record<string, string>[]): ParseResult => {
+    const logs: string[] = [];
+    const trades: Trade[] = [];
+    let skipped = 0;
+    const hasRealizedPnlColumn = rows.some(row => Boolean(safeGet(row, [
+        'Realized P&L',
+        'Realized P/L',
+        'P&L',
+        'P/L',
+        'Profit/Loss',
+        'Gain/Loss',
+        'Net P&L',
+    ])));
+
+    logs.push(`Starting Webull CSV processing with ${rows.length} rows`);
+    if (!hasRealizedPnlColumn) {
+        logs.push('No realized P&L column detected. Imported rows will use $0 P&L unless the CSV includes realized profit/loss data.');
+    }
+
+    rows.forEach((row, index) => {
+        const trade = mapWebullRowToTrade(row);
+        if (trade) {
+            trades.push(trade);
+        } else {
+            skipped++;
+            if (skipped <= 3) {
+                logs.push(`Row ${index + 1}: skipped because it was missing a symbol or was not a completed order.`);
+            }
+        }
+    });
+
+    logs.push(`Generated ${trades.length} Webull trades. Skipped ${skipped}.`);
+    return { trades, logs };
+};
+
 // Parse HeroFX date format: "YYYY/MM/DD HH:mm:ss" (EET timezone)
 // Uses Europe/Helsinki timezone which observes EET/EEST with proper DST handling
 const parseHeroFXDate = (dateStr: string): Date => {
@@ -963,6 +1105,13 @@ export const parseCSV = (file: File, exchange: ExchangeName): Promise<ParseResul
                     } else if (exchange === 'HeroFX') {
                         debugLogs.push('Processing HeroFX Forex trades');
                         const result = processHeroFXRows(normalizedData);
+                        resolve({
+                            trades: result.trades,
+                            logs: [...debugLogs, ...result.logs]
+                        });
+                    } else if (exchange === 'Webull') {
+                        debugLogs.push('Processing Webull CSV trades');
+                        const result = processWebullRows(normalizedData);
                         resolve({
                             trades: result.trades,
                             logs: [...debugLogs, ...result.logs]

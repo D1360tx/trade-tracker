@@ -17,6 +17,26 @@ export interface SchwabTokens {
 
 const STORAGE_KEY = 'schwab_tokens';
 
+const SCHWAB_AUTH_ENDPOINT = '/api/schwab/auth-url';
+
+const getSchwabApiUnavailableMessage = () => {
+    const isLocalVite = ['localhost', '127.0.0.1'].includes(window.location.hostname) && window.location.port === '5173';
+    if (isLocalVite) {
+        return 'Could not reach the Schwab OAuth API route. Local Vite dev servers do not run the /api serverless functions; run the app with `vercel dev` or use the deployed Vercel URL to connect Schwab.';
+    }
+    return 'Could not reach the Schwab OAuth API route. Check that the Vercel deployment is healthy and Schwab environment variables are configured.';
+};
+
+const parseApiError = async (response: Response) => {
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+        const body = await response.json().catch(() => null) as { error?: string; message?: string; details?: string } | null;
+        return body?.message || body?.error || body?.details;
+    }
+    const text = await response.text().catch(() => '');
+    return text ? text.slice(0, 300) : undefined;
+};
+
 /**
  * Check if user is connected to Schwab
  */
@@ -156,11 +176,33 @@ export const isTokenExpired = (): boolean => {
  */
 export const connectSchwab = async (): Promise<SchwabTokens> => {
     // Get authorization URL from backend
-    const response = await fetch('/api/schwab/auth-url');
-    const { authUrl, error } = await response.json();
+    let response: Response;
+    try {
+        response = await fetch(SCHWAB_AUTH_ENDPOINT, {
+            headers: { Accept: 'application/json' },
+        });
+    } catch {
+        throw new Error(getSchwabApiUnavailableMessage());
+    }
+
+    if (!response.ok) {
+        const apiMessage = await parseApiError(response);
+        throw new Error(apiMessage || `Schwab auth URL request failed with HTTP ${response.status}`);
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+        throw new Error(getSchwabApiUnavailableMessage());
+    }
+
+    const { authUrl, error, message } = await response.json();
 
     if (error) {
-        throw new Error(error);
+        throw new Error(message || error);
+    }
+
+    if (!authUrl) {
+        throw new Error('Schwab auth URL response was missing authUrl.');
     }
 
     // Open popup for OAuth

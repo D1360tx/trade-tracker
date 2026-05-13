@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Wallet, Settings, Menu, X, Bell, Calendar, Upload, FileText, ChevronLeft, ChevronRight, TrendingUp, LogOut, RefreshCw, MoreHorizontal } from 'lucide-react';
+import { LayoutDashboard, Wallet, Settings, Menu, X, Bell, Calendar, Upload, FileText, ChevronLeft, ChevronRight, TrendingUp, LogOut, RefreshCw, MoreHorizontal, BarChart2 } from 'lucide-react';
 import AIChat from './AIChat';
 import { useTrades } from '../context/TradeContext';
 import { useAuth } from '../context/AuthContext';
@@ -78,6 +78,7 @@ const Layout = () => {
         { icon: FileText, label: 'Journal', path: '/journal' },
         { icon: Calendar, label: 'Calendar', path: '/calendar' },
         { icon: FileText, label: 'Reports', path: '/reports' },
+        { icon: BarChart2, label: 'Analytics', path: '/analytics' },
         { icon: Upload, label: 'Import Data', path: '/import' },
         { icon: Wallet, label: 'Accounts', path: '/accounts' },
         { icon: Settings, label: 'Settings', path: '/settings' },
@@ -85,9 +86,8 @@ const Layout = () => {
 
     const advancedNavItems = [
         { icon: MoreHorizontal, label: 'Legacy Dashboard', path: '/legacy/dashboard' },
-        { icon: MoreHorizontal, label: 'Legacy Reports', path: '/legacy/reports' },
         { icon: MoreHorizontal, label: 'Playbook', path: '/playbook' },
-        { icon: MoreHorizontal, label: 'Analytics', path: '/analytics' },
+        { icon: MoreHorizontal, label: 'Stats Table', path: '/reports-v2' },
         { icon: MoreHorizontal, label: 'AI Coach', path: '/ai-insights' },
         { icon: MoreHorizontal, label: 'Bot Performance', path: '/bots' },
     ];

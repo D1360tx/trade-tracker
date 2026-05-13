@@ -88,8 +88,28 @@ export function parseOptionTicker(ticker: string): ParsedOptionTicker | null {
     // Handle different formats:
     // Format 1: "AMD 01/23/2026 265.00 C" (standard)
     // Format 2: "SPXW 01/22/2026 6950.00 C" (index options)
+    // Format 3: "ISRG 2025-10-31 600 CALL" (normalized labels)
+    // Format 4: "ISRG 251031C00600000" (OCC compact)
 
-    const parts = ticker.trim().split(' ');
+    const normalized = ticker.trim().replace(/\s+/g, ' ');
+    const compactMatch = normalized.match(/^([A-Z]+)\s+(\d{6})([CP])(\d{8})$/i);
+    if (compactMatch) {
+        const [, underlying, yymmdd, typeChar, strikeRaw] = compactMatch;
+        const year = Number(yymmdd.slice(0, 2));
+        const fullYear = year >= 70 ? 1900 + year : 2000 + year;
+        const expirationDate = `${fullYear}-${yymmdd.slice(2, 4)}-${yymmdd.slice(4, 6)}`;
+        const strikePrice = Number(strikeRaw) / 1000;
+
+        return {
+            underlying,
+            expirationDate,
+            strikePrice,
+            optionType: typeChar.toUpperCase() === 'C' ? 'CALL' : 'PUT',
+            raw: ticker
+        };
+    }
+
+    const parts = normalized.split(' ');
 
     if (parts.length < 4) return null;
 
@@ -98,19 +118,23 @@ export function parseOptionTicker(ticker: string): ParsedOptionTicker | null {
     const strikeStr = parts[2];
     const typeChar = parts[3];
 
-    // Parse date (MM/DD/YYYY format)
-    const dateParts = dateStr.split('/');
+    const dateParts = dateStr.includes('/') ? dateStr.split('/') : dateStr.split('-');
     if (dateParts.length !== 3) return null;
 
-    const [month, day, year] = dateParts;
-    const expirationDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    const [first, second, third] = dateParts;
+    const isIsoDate = dateStr.includes('-') && first.length === 4;
+    const expirationDate = isIsoDate
+        ? `${first}-${second.padStart(2, '0')}-${third.padStart(2, '0')}`
+        : `${third}-${first.padStart(2, '0')}-${second.padStart(2, '0')}`;
 
     // Parse strike price
     const strikePrice = parseFloat(strikeStr);
     if (isNaN(strikePrice)) return null;
 
     // Parse option type
-    const optionType: 'CALL' | 'PUT' = typeChar.toUpperCase() === 'C' ? 'CALL' : 'PUT';
+    const upperType = typeChar.toUpperCase();
+    if (!['C', 'CALL', 'P', 'PUT'].includes(upperType)) return null;
+    const optionType: 'CALL' | 'PUT' = upperType.startsWith('C') ? 'CALL' : 'PUT';
 
     return {
         underlying,
@@ -126,6 +150,10 @@ export function parseOptionTicker(ticker: string): ParsedOptionTicker | null {
  */
 export function isOptionTrade(trade: Trade): boolean {
     return trade.type === 'OPTION';
+}
+
+export function getOptionTypeFromTicker(ticker: string): 'CALL' | 'PUT' | null {
+    return parseOptionTicker(ticker)?.optionType ?? null;
 }
 
 // ============================================
@@ -161,6 +189,7 @@ export function groupOptionPositions(trades: Trade[]): OptionPositionGroup[] {
 
     groups.forEach((groupTrades) => {
         const parsed = parseOptionTicker(groupTrades[0].ticker);
+        const fallbackOptionType: 'CALL' | 'PUT' = /\bP(?:UT)?$/i.test(groupTrades[0].ticker.trim()) ? 'PUT' : 'CALL';
 
         // Sort trades by exit date for scale-out tracking
         const sortedTrades = [...groupTrades].sort((a, b) =>
@@ -223,7 +252,7 @@ export function groupOptionPositions(trades: Trade[]): OptionPositionGroup[] {
         positions.push({
             ticker: groupTrades[0].ticker,
             underlying: parsed?.underlying || groupTrades[0].ticker.split(' ')[0],
-            optionType: parsed?.optionType || (groupTrades[0].ticker.endsWith(' C') ? 'CALL' : 'PUT'),
+            optionType: parsed?.optionType || fallbackOptionType,
             strikePrice: parsed?.strikePrice || 0,
             expirationDate: parsed?.expirationDate || '',
             entryDate: groupTrades[0].entryDate,
@@ -333,8 +362,8 @@ export function calculateOptionsMetrics(trades: Trade[]): OptionsMetricsSummary 
     const callPositions = positions.filter(p => p.optionType === 'CALL');
     const putPositions = positions.filter(p => p.optionType === 'PUT');
 
-    const callTrades = optionTrades.filter(t => t.ticker.endsWith(' C'));
-    const putTrades = optionTrades.filter(t => t.ticker.endsWith(' P'));
+    const callTrades = optionTrades.filter(t => getOptionTypeFromTicker(t.ticker) === 'CALL');
+    const putTrades = optionTrades.filter(t => getOptionTypeFromTicker(t.ticker) === 'PUT');
 
     const callWins = callTrades.filter(t => t.pnl > 0).length;
     const putWins = putTrades.filter(t => t.pnl > 0).length;

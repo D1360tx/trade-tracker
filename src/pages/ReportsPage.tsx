@@ -14,7 +14,8 @@ import RiskMetricsDashboard from '../components/RiskMetricsDashboard';
 import TimeRangeFilter from '../components/TimeRangeFilter';
 import { getDateRangeForFilter, type TimeRange } from '../utils/timeRanges';
 import DayDetailModal from '../components/DayDetailModal';
-import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { filterTradesForAnalysis } from '../utils/tradeAnalytics';
 
 const ReportsPage = () => {
     const { trades } = useTrades();
@@ -32,49 +33,26 @@ const ReportsPage = () => {
 
     // Filtered trades
     const filteredTrades = useMemo(() => {
-        return trades.filter(t => {
-            // Only closed trades
-            const isClosed = t.status === 'CLOSED' || t.pnl !== 0;
-            if (!isClosed) return false;
+        const now = new Date();
+        const dateRange = timeRange === 'custom' && filterStartDate
+            ? { start: startOfDay(parseISO(filterStartDate)), end: filterEndDate ? endOfDay(parseISO(filterEndDate)) : now }
+            : timeRange !== 'all'
+                ? getDateRangeForFilter(timeRange)
+                : filterStartDate || filterEndDate
+                    ? {
+                        start: filterStartDate ? startOfDay(parseISO(filterStartDate)) : new Date(0),
+                        end: filterEndDate ? endOfDay(parseISO(filterEndDate)) : now,
+                    }
+                    : undefined;
 
-            // Time range filter
-            let matchesDate = true;
-            if (timeRange !== 'all') {
-                const now = new Date();
-                let dateRange: { start: Date; end: Date };
-
-                if (timeRange === 'custom' && filterStartDate) {
-                    dateRange = {
-                        start: startOfDay(parseISO(filterStartDate)),
-                        end: filterEndDate ? endOfDay(parseISO(filterEndDate)) : now
-                    };
-                } else {
-                    dateRange = getDateRangeForFilter(timeRange);
-                }
-
-                const tradeDate = parseISO(t.exitDate);
-                matchesDate = isWithinInterval(tradeDate, dateRange);
-            } else {
-                // Legacy date filter support
-                if (filterStartDate) {
-                    const startDate = new Date(filterStartDate);
-                    startDate.setHours(0, 0, 0, 0);
-                    matchesDate = matchesDate && new Date(t.exitDate) >= startDate;
-                }
-                if (filterEndDate) {
-                    const endDate = new Date(filterEndDate);
-                    endDate.setHours(23, 59, 59, 999);
-                    matchesDate = matchesDate && new Date(t.exitDate) <= endDate;
-                }
-            }
-
+        return filterTradesForAnalysis(trades, { dateRange }).filter(t => {
             // Strategy filter
             const matchesStrategy = !filterStrategy || t.strategyId === filterStrategy;
 
             // Mistake filter
             const matchesMistake = !filterMistake || (t.mistakes && t.mistakes.includes(filterMistake));
 
-            return matchesDate && matchesStrategy && matchesMistake;
+            return matchesStrategy && matchesMistake;
         });
     }, [trades, timeRange, filterStartDate, filterEndDate, filterStrategy, filterMistake]);
 
@@ -153,16 +131,17 @@ const ReportsPage = () => {
     };
 
     const hasActiveFilters = filterStartDate || filterEndDate || filterStrategy || filterMistake;
+    const totalClosedTrades = useMemo(() => filterTradesForAnalysis(trades).length, [trades]);
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto">
             {/* Header with Time Range */}
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-[var(--accent-primary)] to-cyan-400 bg-clip-text text-transparent">
-                        Advanced Reporting
-                    </h1>
-                    <p className="text-[var(--text-secondary)]">Deep dive analytics and performance visualization.</p>
+	                    <h1 className="text-3xl font-bold bg-gradient-to-r from-[var(--accent-primary)] to-cyan-400 bg-clip-text text-transparent">
+	                        Performance Report
+	                    </h1>
+	                    <p className="text-[var(--text-secondary)]">Polished performance reporting, filters, export, and risk review.</p>
                 </div>
                 <div className="flex-shrink-0">
                     <TimeRangeFilter
@@ -295,11 +274,11 @@ const ReportsPage = () => {
                                 </button>
                             </div>
                         </div>
-                        {hasActiveFilters && (
-                            <div className="mt-3 text-xs text-[var(--text-secondary)]">
-                                Showing {filteredTrades.length} of {trades.filter(t => t.status === 'CLOSED' || t.pnl !== 0).length} trades
-                            </div>
-                        )}
+	                        {hasActiveFilters && (
+	                            <div className="mt-3 text-xs text-[var(--text-secondary)]">
+	                                Showing {filteredTrades.length} of {totalClosedTrades} trades
+	                            </div>
+	                        )}
                     </div>
                 )}
             </div>

@@ -2,7 +2,7 @@ import type { Trade, ExchangeName } from '../types';
 import { subDays } from 'date-fns';
 
 const TICKERS = ['AAPL', 'TSLA', 'NVDA', 'BTC', 'ETH', 'SOL', 'AMD', 'MSFT', 'META', 'GOOGL'];
-const EXCHANGES: ExchangeName[] = ['Schwab', 'Interactive Brokers', 'Coinbase', 'Binance', 'ByBit', 'MEXC', 'BloFin'];
+const EXCHANGES: ExchangeName[] = ['Schwab', 'Webull', 'Interactive Brokers', 'Coinbase', 'Binance', 'ByBit', 'MEXC', 'BloFin'];
 
 function randomDate(start: Date, end: Date) {
     return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));

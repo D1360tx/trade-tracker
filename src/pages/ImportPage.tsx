@@ -23,8 +23,9 @@ import { mapSchwabTransactionsToTrades } from '../utils/schwabTransactions';
 import TradeManagement from '../components/TradeManagement';
 import DemoAccountSeeder from '../components/DemoAccountSeeder';
 
-const EXCHANGES: ExchangeName[] = ['MEXC', 'ByBit', 'Binance', 'Coinbase', 'BloFin', 'Schwab', 'Interactive Brokers', 'HeroFX'];
+const EXCHANGES: ExchangeName[] = ['MEXC', 'ByBit', 'Binance', 'Coinbase', 'BloFin', 'Schwab', 'Webull', 'Interactive Brokers', 'HeroFX'];
 const ADVANCED_EXCHANGES = EXCHANGES.filter(exchange => exchange !== 'Schwab');
+const API_IMPORT_EXCHANGES = new Set<ExchangeName>(['MEXC', 'ByBit']);
 
 type ImportStatus = {
     type: 'success' | 'error' | 'info';
@@ -375,60 +376,69 @@ const AdvancedImportPanel = ({
     onFileChange: (file: File | null) => void;
     onImportCsv: () => void;
     onApiImport: () => void;
-}) => (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)]/40 p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-            <div>
-                <h4 className="font-semibold">Other CSV and exchange API imports</h4>
-                <p className="text-sm text-[var(--text-secondary)]">
-                    Use this for MEXC, ByBit, HeroFX, and other secondary sources.
-                </p>
-            </div>
-            <select
-                value={selectedExchange}
-                onChange={(event) => onExchangeChange(event.target.value as ExchangeName)}
-                className="rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] px-3 py-2 text-sm outline-none focus:border-[var(--accent-primary)]"
-            >
-                {ADVANCED_EXCHANGES.map(exchange => (
-                    <option key={exchange} value={exchange}>{exchange}</option>
-                ))}
-            </select>
-        </div>
+}) => {
+    const supportsApiImport = API_IMPORT_EXCHANGES.has(selectedExchange);
 
-        <CsvImportPanel
-            id="advanced-csv-upload"
-            title={`${selectedExchange} CSV`}
-            description="Upload a CSV from the selected source. Schwab files belong in the primary panel above."
-            helperText={`Use a ${selectedExchange} CSV export`}
-            exchange={selectedExchange}
-            file={file}
-            isParsing={isParsing}
-            onFileChange={onFileChange}
-            onImport={onImportCsv}
-        />
-
-        <div className="rounded-lg border border-[var(--border)] p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    return (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)]/40 p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div>
-                    <p className="font-medium">API import</p>
-                    <p className="text-xs text-[var(--text-tertiary)]">
-                        Requires API keys in <RouterLink to="/settings" className="underline hover:text-[var(--text-primary)]">Settings</RouterLink>.
-                        {selectedExchange !== 'MEXC' && ' This source may use simulation mode.'}
+                    <h4 className="font-semibold">Other CSV and exchange API imports</h4>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                        Use this for MEXC, ByBit, Webull, HeroFX, and other secondary sources.
                     </p>
                 </div>
-                <button
-                    onClick={onApiImport}
-                    disabled={isApiLoading}
-                    className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                <select
+                    value={selectedExchange}
+                    onChange={(event) => onExchangeChange(event.target.value as ExchangeName)}
+                    className="rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] px-3 py-2 text-sm outline-none focus:border-[var(--accent-primary)]"
                 >
-                    {isApiLoading ? `Fetching ${selectedExchange}...` : `Import ${selectedExchange} API`}
-                </button>
+                    {ADVANCED_EXCHANGES.map(exchange => (
+                        <option key={exchange} value={exchange}>{exchange}</option>
+                    ))}
+                </select>
             </div>
-        </div>
 
-        <ImportStatusMessage status={status} />
-    </div>
-);
+            <CsvImportPanel
+                id="advanced-csv-upload"
+                title={`${selectedExchange} CSV`}
+                description="Upload a CSV from the selected source. Schwab files belong in the primary panel above."
+                helperText={`Use a ${selectedExchange} CSV export`}
+                exchange={selectedExchange}
+                file={file}
+                isParsing={isParsing}
+                onFileChange={onFileChange}
+                onImport={onImportCsv}
+            />
+
+            <div className="rounded-lg border border-[var(--border)] p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <p className="font-medium">API import</p>
+                        <p className="text-xs text-[var(--text-tertiary)]">
+                            {supportsApiImport ? (
+                                <>
+                                    Requires API keys in <RouterLink to="/settings" className="underline hover:text-[var(--text-primary)]">Settings</RouterLink>.
+                                </>
+                            ) : (
+                                `${selectedExchange} is CSV-only right now. Upload a CSV above instead of using API sync.`
+                            )}
+                        </p>
+                    </div>
+                    <button
+                        onClick={onApiImport}
+                        disabled={isApiLoading || !supportsApiImport}
+                        className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                    >
+                        {isApiLoading ? `Fetching ${selectedExchange}...` : `Import ${selectedExchange} API`}
+                    </button>
+                </div>
+            </div>
+
+            <ImportStatusMessage status={status} />
+        </div>
+    );
+};
 
 const DangerZone = ({
     selectedExchange,
@@ -686,6 +696,14 @@ const ImportPage = () => {
 
     const handleApiImport = async () => {
         setAdvancedStatus(null);
+        if (!API_IMPORT_EXCHANGES.has(advancedExchange)) {
+            setAdvancedStatus({
+                type: 'info',
+                title: `${advancedExchange} is CSV-only`,
+                message: `Upload a ${advancedExchange} CSV above. Direct API sync is currently only available for MEXC and ByBit in this panel.`,
+            });
+            return;
+        }
         try {
             const count = await fetchTradesFromAPI(advancedExchange);
             setAdvancedStatus(count > 0
@@ -765,7 +783,7 @@ const ImportPage = () => {
                 <SectionHeader
                     eyebrow="Other imports"
                     title="Secondary sources"
-                    description="Use these when you need TradeLocker/HeroFX paste, non-Schwab CSVs, or exchange API imports."
+                    description="Use these when you need TradeLocker/HeroFX paste, Webull CSVs, non-Schwab CSVs, or supported exchange API imports."
                 />
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     <PasteImportPanel

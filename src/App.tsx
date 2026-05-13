@@ -57,10 +57,10 @@ function App() {
             <Route path="playbook" element={<PlaybookPage />} />
             <Route path="ai-insights" element={<AIInsights />} />
             <Route path="import" element={<ImportPage />} />
-            <Route path="reports" element={<ReportsV2 />} />
+            <Route path="reports" element={<ReportsPage />} />
             <Route path="bots" element={<BotDashboard />} />
             <Route path="legacy/dashboard" element={<Dashboard />} />
-            <Route path="legacy/reports" element={<ReportsPage />} />
+            <Route path="legacy/reports" element={<Navigate to="/reports" replace />} />
             <Route path="dashboard-v2" element={<DashboardV2 />} />
             <Route path="reports-v2" element={<ReportsV2 />} />
             <Route path="trade-v2/:id" element={<TradeViewV2 />} />

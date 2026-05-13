@@ -9,14 +9,16 @@ import {
 import { format, parseISO } from 'date-fns';
 import { TrendingUp, Activity, BarChart2, PieChart as PieIcon, AlertTriangle, Target } from 'lucide-react';
 import OptionsAnalysis from '../components/charts/OptionsAnalysis';
+import RiskMetricsDashboard from '../components/RiskMetricsDashboard';
+import { filterTradesForAnalysis } from '../utils/tradeAnalytics';
 
-type AnalyticsTab = 'general' | 'options';
+type AnalyticsTab = 'options' | 'patterns' | 'risk';
 
 const Analytics = () => {
-    const [activeTab, setActiveTab] = useState<AnalyticsTab>('general');
+    const [activeTab, setActiveTab] = useState<AnalyticsTab>('options');
     const { trades } = useTrades();
 
-    const closedTrades = useMemo(() => trades.filter(t => t.status === 'CLOSED' || t.pnl !== 0), [trades]);
+    const closedTrades = useMemo(() => filterTradesForAnalysis(trades, { aggregateSchwabOptions: false }), [trades]);
 
     // 1. Cumulative P&L Over Time
     const cumulativeData = useMemo(() => {
@@ -383,42 +385,124 @@ const Analytics = () => {
         return dataPoints;
     }, [closedTrades, strategies]);
 
-    return (
-        <div className="space-y-6 max-w-7xl mx-auto">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-                <h2 className="text-3xl font-bold">Analytics</h2>
+	    return (
+	        <div className="space-y-6 max-w-7xl mx-auto">
+	            <div className="flex items-center justify-between flex-wrap gap-4">
+	                <div>
+	                    <h2 className="text-3xl font-bold">Analytics</h2>
+	                    <p className="mt-1 text-sm text-[var(--text-secondary)]">Decision hub for options, patterns, and risk diagnostics.</p>
+	                </div>
 
-                {/* Tab Navigation */}
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => setActiveTab('general')}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                            activeTab === 'general'
-                                ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30'
-                                : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--text-secondary)]'
-                        }`}
-                    >
-                        <BarChart2 size={16} />
-                        General
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('options')}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                            activeTab === 'options'
-                                ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30'
-                                : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--text-secondary)]'
-                        }`}
-                    >
-                        <Target size={16} />
-                        Options Analysis
-                    </button>
-                </div>
-            </div>
+	                {/* Tab Navigation */}
+	                <div className="flex flex-wrap gap-2">
+	                    <button
+	                        onClick={() => setActiveTab('options')}
+	                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+	                            activeTab === 'options'
+	                                ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30'
+	                                : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--text-secondary)]'
+	                        }`}
+	                    >
+	                        <Target size={16} />
+	                        Options
+	                    </button>
+	                    <button
+	                        onClick={() => setActiveTab('patterns')}
+	                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+	                            activeTab === 'patterns'
+	                                ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30'
+	                                : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--text-secondary)]'
+	                        }`}
+	                    >
+	                        <BarChart2 size={16} />
+	                        Patterns
+	                    </button>
+	                    <button
+	                        onClick={() => setActiveTab('risk')}
+	                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+	                            activeTab === 'risk'
+	                                ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30'
+	                                : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--text-secondary)]'
+	                        }`}
+	                    >
+	                        <AlertTriangle size={16} />
+	                        Risk
+	                    </button>
+	                </div>
+	            </div>
 
-            {activeTab === 'options' ? (
-                <OptionsAnalysis />
-            ) : (
-            <>
+	            {activeTab === 'options' ? (
+	                <OptionsAnalysis />
+	            ) : activeTab === 'risk' ? (
+	                <div className="space-y-6">
+	                    <RiskMetricsDashboard trades={closedTrades} />
+	                    <div className="glass-panel p-6 rounded-xl">
+	                        <div className="flex items-center gap-2 mb-6">
+	                            <AlertTriangle className="text-[var(--accent-primary)]" size={20} />
+	                            <h3 className="text-lg font-semibold">R-Multiple Diagnostics</h3>
+	                        </div>
+	                        {rStats ? (
+	                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+	                                <div className="grid grid-cols-2 gap-4">
+	                                    <div className="p-4 bg-[var(--bg-tertiary)]/50 rounded-lg">
+	                                        <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider">Total R</p>
+	                                        <p className={`text-2xl font-bold ${rStats.totalR >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+	                                            {rStats.totalR.toFixed(2)}R
+	                                        </p>
+	                                    </div>
+	                                    <div className="p-4 bg-[var(--bg-tertiary)]/50 rounded-lg">
+	                                        <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider">Expectancy</p>
+	                                        <p className={`text-2xl font-bold ${rStats.expectancy >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+	                                            {rStats.expectancy.toFixed(2)}R
+	                                        </p>
+	                                    </div>
+	                                    <div className="p-4 bg-[var(--bg-tertiary)]/50 rounded-lg">
+	                                        <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider">Avg Win</p>
+	                                        <p className="text-2xl font-bold text-[var(--success)]">{rStats.avgWinR.toFixed(2)}R</p>
+	                                    </div>
+	                                    <div className="p-4 bg-[var(--bg-tertiary)]/50 rounded-lg">
+	                                        <p className="text-xs text-[var(--text-secondary)] uppercase tracking-wider">Avg Loss</p>
+	                                        <p className="text-2xl font-bold text-[var(--danger)]">{rStats.avgLossR.toFixed(2)}R</p>
+	                                    </div>
+	                                </div>
+	                                <div className="h-[280px]">
+	                                    <ResponsiveContainer width="100%" height="100%">
+	                                        <BarChart data={rStats.distributionData}>
+	                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+	                                            <XAxis dataKey="range" stroke="var(--text-tertiary)" fontSize={12} tickLine={false} axisLine={false} />
+	                                            <YAxis stroke="var(--text-tertiary)" fontSize={12} tickLine={false} axisLine={false} />
+	                                            <Tooltip
+	                                                contentStyle={{
+	                                                    backgroundColor: 'var(--bg-secondary)',
+	                                                    border: '1px solid var(--border)',
+	                                                    borderRadius: '8px'
+	                                                }}
+	                                            />
+	                                            <Bar dataKey="count" fill="var(--accent-primary)" radius={[4, 4, 0, 0]} />
+	                                        </BarChart>
+	                                    </ResponsiveContainer>
+	                                </div>
+	                            </div>
+	                        ) : (
+	                            <div className="h-40 flex flex-col items-center justify-center text-[var(--text-tertiary)] border-2 border-dashed border-[var(--border)] rounded-xl">
+	                                <p>No trades with Risk defined.</p>
+	                                <p className="text-sm mt-1">Set Risk ($) in your Journal to see R-Multiple diagnostics.</p>
+	                            </div>
+	                        )}
+	                    </div>
+	                    <div className="glass-panel p-6 rounded-xl">
+	                        <div className="flex items-center gap-2 mb-4">
+	                            <AlertTriangle className="text-[var(--danger)]" size={20} />
+	                            <h3 className="text-lg font-semibold">Mistake Drag</h3>
+	                        </div>
+	                        <p className={`text-3xl font-bold ${totalMistakeCost >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+	                            {totalMistakeCost >= 0 ? '+' : ''}${totalMistakeCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+	                        </p>
+	                        <p className="mt-1 text-sm text-[var(--text-secondary)]">Difference between actual P&L and a shadow curve excluding trades tagged with mistakes.</p>
+	                    </div>
+	                </div>
+	            ) : (
+	            <>
             {/* KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {/* Top Strategy */}

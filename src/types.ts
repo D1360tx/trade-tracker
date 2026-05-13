@@ -1,4 +1,4 @@
-export type ExchangeName = 'MEXC' | 'ByBit' | 'Binance' | 'Coinbase' | 'BloFin' | 'Schwab' | 'Interactive Brokers' | 'HeroFX';
+export type ExchangeName = 'MEXC' | 'ByBit' | 'Binance' | 'Coinbase' | 'BloFin' | 'Schwab' | 'Webull' | 'Interactive Brokers' | 'HeroFX';
 
 export interface Strategy {
     id: string;

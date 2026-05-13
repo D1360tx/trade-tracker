@@ -20,9 +20,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const clientId = process.env.SCHWAB_CLIENT_ID;
     const clientSecret = process.env.SCHWAB_CLIENT_SECRET;
-    const callbackUrl = process.env.SCHWAB_CALLBACK_URL || 'https://127.0.0.1';
+    const callbackUrl = process.env.SCHWAB_CALLBACK_URL;
 
-    if (!clientId || !clientSecret) {
+    if (!clientId || !clientSecret || !callbackUrl) {
         return res.status(500).json({ error: 'Schwab API not configured' });
     }
 

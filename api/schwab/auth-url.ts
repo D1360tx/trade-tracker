@@ -13,12 +13,12 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const clientId = process.env.SCHWAB_CLIENT_ID;
-    const callbackUrl = process.env.SCHWAB_CALLBACK_URL || 'https://127.0.0.1';
+    const callbackUrl = process.env.SCHWAB_CALLBACK_URL;
 
-    if (!clientId) {
+    if (!clientId || !callbackUrl) {
         return res.status(500).json({
             error: 'Schwab API not configured',
-            message: 'Please set SCHWAB_CLIENT_ID and SCHWAB_CLIENT_SECRET environment variables'
+            message: 'Please set SCHWAB_CLIENT_ID and SCHWAB_CALLBACK_URL environment variables'
         });
     }
 
