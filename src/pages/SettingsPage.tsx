@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Save, CheckCircle, Eye, EyeOff, ChevronRight, Bot, Sparkles, AlertCircle, Database, Upload } from 'lucide-react';
 import { migrateFromLocalStorage, clearLocalStorageData } from '../lib/migrations/localStorage-to-supabase';
 import { fetchAPICredentials, saveAPICredentials } from '../lib/supabase/apiCredentials';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
 const EXCHANGES = [
     { id: 'MEXC', name: 'MEXC Global', color: 'bg-blue-500' },
@@ -20,7 +20,7 @@ const SettingsPage = () => {
     const { user } = useAuth();
     const [selectedExchange, setSelectedExchange] = useState('MEXC');
     const [keys, setKeys] = useState<Record<string, { key: string, secret: string }>>({});
-    const [aiKey, setAiKey] = useState('');
+    const [aiKey, setAiKey] = useState(() => localStorage.getItem('ai_api_key') || '');
     const [showSecret, setShowSecret] = useState(false);
     const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'testing' | 'success' | 'error'>('idle');
     const [testMessage, setTestMessage] = useState('');
@@ -50,7 +50,6 @@ const SettingsPage = () => {
         };
 
         loadCredentials();
-        setAiKey(localStorage.getItem('ai_api_key') || '');
     }, [user]);
 
     const handleChange = (field: 'key' | 'secret', value: string) => {
@@ -130,8 +129,9 @@ const SettingsPage = () => {
             setTimeout(() => {
                 window.location.reload();
             }, 2000);
-        } catch (error: any) {
-            setMigrationMessage(`Migration failed: ${error.message}`);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Unknown migration error';
+            setMigrationMessage(`Migration failed: ${message}`);
             setMigrationStatus('error');
         }
     };

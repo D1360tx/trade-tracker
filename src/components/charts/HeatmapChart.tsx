@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useTrades } from '../../context/TradeContext';
+import { useTrades } from '../../context/useTrades';
 import type { Trade } from '../../types';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { useTrades } from '../context/TradeContext';
-import { useStrategies } from '../context/StrategyContext';
-import { useMistakes } from '../context/MistakeContext';
+import { useTrades } from '../context/useTrades';
+import { useStrategies } from '../context/useStrategies';
+import { useMistakes } from '../context/useMistakes';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Cell, PieChart, Pie, Legend
@@ -359,7 +359,13 @@ const Analytics = () => {
         strategies.forEach(s => cumulatives.set(s.id, 0));
         cumulatives.set('none', 0); // For untagged trades
 
-        const dataPoints: any[] = [];
+        type StrategyPnLPoint = {
+            date: string;
+            dateTime: number;
+            [strategyName: string]: string | number;
+        };
+
+        const dataPoints: StrategyPnLPoint[] = [];
 
         sorted.forEach(t => {
             const sid = t.strategyId || 'none';
@@ -368,7 +374,7 @@ const Analytics = () => {
             }
 
             // Create a data point with all strategy values
-            const point: any = {
+            const point: StrategyPnLPoint = {
                 date: format(parseISO(t.exitDate), 'MMM dd'),
                 dateTime: new Date(t.exitDate).getTime()
             };

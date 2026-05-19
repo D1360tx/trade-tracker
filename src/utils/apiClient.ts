@@ -3,17 +3,74 @@ import type { Trade } from '../types';
 
 const MEXC_FUTURES_PROXY = '/api/mexc-futures';
 
+type ApiRaw = unknown;
+
+interface MEXCFuturesOrder {
+    orderId: string;
+    symbol: string;
+    side: number;
+    createTime: number | string;
+    updateTime?: number | string;
+    dealAvgPrice?: string | number;
+    avgPrice?: string | number;
+    price?: string | number;
+    vol?: string | number;
+    profit?: string | number;
+    totalFee?: string | number;
+    takerFee?: string | number;
+    makerFee?: string | number;
+    fee?: string | number;
+    leverage?: string | number;
+    orderMargin?: string | number;
+    usedMargin?: string | number;
+    amount?: string | number;
+    externalOid?: string;
+    external_oid?: string;
+}
+
+interface MEXCFuturesResponse {
+    success?: boolean;
+    code?: number;
+    data?: MEXCFuturesOrder[];
+}
+
+interface MEXCServerTimeResponse {
+    success?: boolean;
+    data?: number;
+}
+
+interface MEXCAccountBalance {
+    asset: string;
+    free: string;
+    locked: string;
+}
+
+interface MEXCAccountResponse {
+    balances?: MEXCAccountBalance[];
+}
+
+const getErrorMessage = (error: unknown): string => error instanceof Error ? error.message : String(error);
+const toNumber = (value: unknown, fallback = 0): number => {
+    const parsed = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
+    return Number.isFinite(parsed) ? parsed : fallback;
+};
+const debugLog = (...args: unknown[]) => {
+    if (import.meta.env.DEV) {
+        console.log(...args);
+    }
+};
+
 // Helper to check MEXC server time and get time drift
 const getMEXCServerTime = async (): Promise<{ serverTime: number, drift: number }> => {
     try {
         const localTime = Date.now();
         const response = await fetch(`${MEXC_FUTURES_PROXY}/api/v1/contract/ping`);
-        const data = await response.json();
+        const data = await response.json() as MEXCServerTimeResponse;
 
         if (data.success && data.data) {
             const serverTime = data.data;
             const drift = localTime - serverTime;
-            console.log('[MEXC Time Check]', {
+            debugLog('[MEXC Time Check]', {
                 localTime,
                 serverTime,
                 drift: `${drift}ms`,
@@ -29,8 +86,8 @@ const getMEXCServerTime = async (): Promise<{ serverTime: number, drift: number 
 };
 
 // MEXC Futures: Standard User History Endpoint (Enhanced)
-export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): Promise<{ trades: Trade[], raw: any }> => {
-    let allTrades: any[] = [];
+export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): Promise<{ trades: Trade[], raw: ApiRaw }> => {
+    let allTrades: MEXCFuturesOrder[] = [];
     const MAX_TOTAL_PAGES = 50;
     let totalPagesFetched = 0;
 
@@ -57,7 +114,7 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
             let currentWindowStart = currentWindowEnd - WINDOW_MS;
             if (currentWindowStart < START_TIME_MS) currentWindowStart = START_TIME_MS;
 
-            console.log(`[MEXC Futures] Fetching Window: ${new Date(currentWindowStart).toISOString()} to ${new Date(currentWindowEnd).toISOString()}`);
+            debugLog(`[MEXC Futures] Fetching Window: ${new Date(currentWindowStart).toISOString()} to ${new Date(currentWindowEnd).toISOString()}`);
 
             let page = 1;
             let hasMoreInWindow = true;
@@ -111,7 +168,7 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
                     continue;
                 }
 
-                const data = await response.json();
+                const data = await response.json() as MEXCFuturesResponse;
                 if (data.success === false || data.code !== 0) {
                     console.error('[MEXC API Error]', data);
                     hasMoreInWindow = false;
@@ -137,14 +194,14 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
             currentWindowEnd = currentWindowStart;
         }
 
-        console.log('[MEXC Futures] Total raw trades fetched:', allTrades.length);
+        debugLog('[MEXC Futures] Total raw trades fetched:', allTrades.length);
         if (allTrades.length > 0) {
-            console.log('[MEXC Futures] First raw trade:', allTrades[0]);
-            console.log('[MEXC Futures] Sample trade keys:', Object.keys(allTrades[0]));
+            debugLog('[MEXC Futures] First raw trade:', allTrades[0]);
+            debugLog('[MEXC Futures] Sample trade keys:', Object.keys(allTrades[0]));
         }
 
         // Map standard Orders to Trade interface
-        const trades: Trade[] = allTrades.map((t: any) => {
+        const trades: Trade[] = allTrades.map((t) => {
             let direction: 'LONG' | 'SHORT' = 'LONG';
             // MEXC V1 Futures Side: 1=Open Long, 2=Close Short, 3=Open Short, 4=Close Long
             if (t.side === 1 || t.side === 2) direction = 'LONG';
@@ -152,7 +209,7 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
 
             const isClose = (t.side === 2 || t.side === 4);
             // Use dealAvgPrice if available (actual execution price), fallback to order price
-            const tradePrice = parseFloat(t.dealAvgPrice || t.avgPrice || t.price || 0);
+            const tradePrice = toNumber(t.dealAvgPrice || t.avgPrice || t.price);
 
             return {
                 id: t.orderId,
@@ -163,14 +220,14 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
                 exitDate: new Date(t.updateTime || t.createTime).toISOString(),
                 entryPrice: tradePrice,
                 exitPrice: tradePrice,
-                quantity: parseFloat(t.vol),
+                quantity: toNumber(t.vol),
                 status: isClose ? 'CLOSED' : 'OPEN',
                 // Only CLOSE orders should have PnL, OPEN orders get 0 for proper FIFO matching
-                pnl: isClose ? parseFloat(t.profit || 0) : 0,
-                fees: parseFloat(t.totalFee || t.takerFee || t.makerFee || t.fee || 0),
-                leverage: t.leverage ? parseFloat(t.leverage) : 1,
-                notional: parseFloat(t.orderMargin || t.usedMargin || t.amount || 0) * (t.leverage ? parseFloat(t.leverage) : 1),
-                margin: parseFloat(t.orderMargin || t.usedMargin || t.amount || 0),
+                pnl: isClose ? toNumber(t.profit) : 0,
+                fees: toNumber(t.totalFee || t.takerFee || t.makerFee || t.fee),
+                leverage: t.leverage ? toNumber(t.leverage, 1) : 1,
+                notional: toNumber(t.orderMargin || t.usedMargin || t.amount) * (t.leverage ? toNumber(t.leverage, 1) : 1),
+                margin: toNumber(t.orderMargin || t.usedMargin || t.amount),
                 type: 'FUTURES',
                 notes: `Imported via MEXC API`,
                 isBot: false, // Handled by Context heuristics
@@ -181,12 +238,12 @@ export const fetchMEXCTradeHistory = async (apiKey: string, apiSecret: string): 
 
         return { trades, raw: allTrades.slice(0, 5) };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('[MEXC Futures] Fatal Error:', {
-            error: error.message,
-            stack: error.stack
+            error: getErrorMessage(error),
+            stack: error instanceof Error ? error.stack : undefined
         });
-        return { trades: [], raw: { error: error.message } };
+        return { trades: [], raw: { error: getErrorMessage(error) } };
     }
 };
 
@@ -209,7 +266,7 @@ export interface MEXCSpotTrade {
     isBestMatch: boolean;
 }
 
-export const fetchMEXCSpotHistory = async (apiKey: string, apiSecret: string, knownSymbols: string[] = []): Promise<{ trades: MEXCSpotTrade[], raw: any }> => {
+export const fetchMEXCSpotHistory = async (apiKey: string, apiSecret: string, knownSymbols: string[] = []): Promise<{ trades: MEXCSpotTrade[], raw: ApiRaw }> => {
     const timestamp = Date.now().toString();
     // V3 uses query string signing. 
     // Format: HmacSHA256(queryString, secret)
@@ -237,7 +294,7 @@ export const fetchMEXCSpotHistory = async (apiKey: string, apiSecret: string, kn
             return { trades: [], raw: null };
         }
 
-        const accData = await accRes.json();
+        const accData = await accRes.json() as MEXCAccountResponse;
 
         // Find symbols with non-zero balance
         // accData.balances = [{asset: "USDT", free: "100", locked: "0"}, ...]
@@ -245,8 +302,8 @@ export const fetchMEXCSpotHistory = async (apiKey: string, apiSecret: string, kn
         // OR we just take ALL assets with balance > 0 and assume they are paired with USDT?
         // This is a heuristic.
         const activeAssets = (accData.balances || [])
-            .filter((b: any) => parseFloat(b.free) > 0 || parseFloat(b.locked) > 0)
-            .map((b: any) => b.asset);
+            .filter((b) => parseFloat(b.free) > 0 || parseFloat(b.locked) > 0)
+            .map((b) => b.asset);
 
         // Construct likely pairs. Scan USDT and USDC.
         const pairsToScan = new Set<string>();
@@ -295,12 +352,12 @@ export const fetchMEXCSpotHistory = async (apiKey: string, apiSecret: string, kn
             trades: allSpotTrades,
             raw: {
                 balances: accData,
-                scanned: pairsToScan,
+                scanned: [...pairsToScan],
                 found: foundSymbols
             }
         };
 
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("MEXC Spot Fetch Failed", e);
         return { trades: [], raw: null };
     }
@@ -326,9 +383,18 @@ interface ByBitTrade {
     closedPnl?: string;
 }
 
+interface ByBitApiResponse {
+    retCode: number;
+    retMsg?: string;
+    result?: {
+        list?: ByBitTrade[];
+        nextPageCursor?: string;
+    };
+}
+
 const BYBIT_PROXY = '/api/bybit';
 
-export const fetchByBitTradeHistory = async (apiKey: string, apiSecret: string): Promise<{ trades: ByBitTrade[], raw: any }> => {
+export const fetchByBitTradeHistory = async (apiKey: string, apiSecret: string): Promise<{ trades: ByBitTrade[], raw: ApiRaw }> => {
     // Uses ByBit V5 API
     const timestamp = Date.now().toString();
     const recvWindow = '5000';
@@ -370,7 +436,7 @@ export const fetchByBitTradeHistory = async (apiKey: string, apiSecret: string):
             throw new Error(`ByBit API Error: ${response.status} - ${err}`);
         }
 
-        const data = await response.json();
+        const data = await response.json() as ByBitApiResponse;
 
         if (data.retCode !== 0) {
             throw new Error(`ByBit API Error: ${data.retMsg} (Code: ${data.retCode})`);
@@ -387,7 +453,7 @@ export const fetchByBitTradeHistory = async (apiKey: string, apiSecret: string):
 
         return { trades, raw: data };
 
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("ByBit Fetch Failed", e);
         throw e;
     }

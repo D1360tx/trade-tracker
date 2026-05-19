@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
-import { useTrades } from '../../context/TradeContext';
+import { useTrades } from '../../context/useTrades';
 import { format, parseISO } from 'date-fns';
 import type { Trade } from '../../types';
 

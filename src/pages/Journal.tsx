@@ -1,8 +1,8 @@
 
 import { useMemo, useState } from 'react';
-import { useTrades } from '../context/TradeContext';
-import { useStrategies } from '../context/StrategyContext';
-import { useMistakes } from '../context/MistakeContext';
+import { useTrades } from '../context/useTrades';
+import { useStrategies } from '../context/useStrategies';
+import { useMistakes } from '../context/useMistakes';
 import { Link } from 'react-router-dom';
 import { isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Search, Filter, RotateCcw, GripVertical, Grid, List } from 'lucide-react';

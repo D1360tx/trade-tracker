@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { MessageSquare, X, Send, Bot } from 'lucide-react';
-import { useTrades } from '../context/TradeContext';
+import { useTrades } from '../context/useTrades';
 import { generateInsights } from '../utils/insightGenerator';
 
 interface Message {

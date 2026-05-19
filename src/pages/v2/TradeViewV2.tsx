@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useTrades } from '../../context/TradeContext';
-import { useStrategies } from '../../context/StrategyContext';
-import { useMistakes } from '../../context/MistakeContext';
+import { useTrades } from '../../context/useTrades';
+import { useStrategies } from '../../context/useStrategies';
+import { useMistakes } from '../../context/useMistakes';
 import TradeHeader from '../../components/v2/trade/TradeHeader';
 import StatsPanel from '../../components/v2/trade/StatsPanel';
 import PriceChart from '../../components/v2/trade/PriceChart';

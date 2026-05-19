@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useTrades } from '../../context/TradeContext';
+import { useTrades } from '../../context/useTrades';
 import {
     PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar,
     XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ScatterChart, Scatter } from 'recharts';
-import { useTrades } from '../../context/TradeContext';
+import { useTrades } from '../../context/useTrades';
 import type { Trade } from '../../types';
 
 interface TradeDistributionProps {

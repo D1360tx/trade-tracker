@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { useTrades } from '../context/TradeContext';
-import { useStrategies } from '../context/StrategyContext';
-import { useMistakes } from '../context/MistakeContext';
+import { useTrades } from '../context/useTrades';
+import { useStrategies } from '../context/useStrategies';
+import { useMistakes } from '../context/useMistakes';
 import { Download, X, TrendingUp, TrendingDown, Calendar, ChevronDown } from 'lucide-react';
 import HeatmapChart from '../components/charts/HeatmapChart';
 import TradeDistribution from '../components/charts/TradeDistribution';

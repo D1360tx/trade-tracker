@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useTrades } from '../context/TradeContext';
+import { useTrades } from '../context/useTrades';
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import ExchangeFilter from '../components/ExchangeFilter';

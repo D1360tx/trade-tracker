@@ -5,6 +5,8 @@ import type { V2Stats } from '../../../hooks/v2/useV2Stats';
 
 interface TopStatsBarProps {
     stats: V2Stats;
+    accountBalance?: number | null;
+    balanceUpdatedAt?: number | null;
 }
 
 const formatCurrency = (value: number): string => {
@@ -18,7 +20,19 @@ const formatCurrency = (value: number): string => {
     return `$${value.toFixed(0)}`;
 };
 
-const TopStatsBar = ({ stats }: TopStatsBarProps) => {
+const formatBalanceTime = (timestamp?: number | null) => {
+    if (!timestamp) return 'Not synced';
+    return new Date(timestamp).toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+};
+
+const TopStatsBar = ({ stats, accountBalance, balanceUpdatedAt }: TopStatsBarProps) => {
+    const hasAccountBalance = typeof accountBalance === 'number';
+
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Avg Win/Loss Trade Card */}
@@ -107,14 +121,17 @@ const TopStatsBar = ({ stats }: TopStatsBarProps) => {
                     </span>
                 </div>
                 <div className="space-y-1">
-                    <div className="text-2xl font-semibold text-[var(--success)]">
-                        {formatCurrency(stats.totalPnL)}
+                    <div className={`text-2xl font-semibold ${hasAccountBalance ? 'text-[var(--text-primary)]' : stats.totalPnL >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                        {formatCurrency(hasAccountBalance ? accountBalance : stats.totalPnL)}
                     </div>
                     <div className="text-xs text-[var(--text-secondary)]">
                         P&L:{' '}
                         <span className={stats.totalPnL >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}>
                             {formatCurrency(stats.totalPnL)}
                         </span>
+                    </div>
+                    <div className="text-[10px] text-[var(--text-tertiary)]">
+                        Balance synced: {formatBalanceTime(balanceUpdatedAt)}
                     </div>
                 </div>
             </div>

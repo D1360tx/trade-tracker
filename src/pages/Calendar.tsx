@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, getDay, addMonths, parseISO, startOfWeek, endOfWeek, addWeeks } from 'date-fns';
 import { ChevronLeft, ChevronRight, X, TrendingUp, TrendingDown, Target, DollarSign, BarChart3, Calendar as CalendarIcon } from 'lucide-react';
-import { useTrades } from '../context/TradeContext';
+import { useTrades } from '../context/useTrades';
 import ExchangeFilter from '../components/ExchangeFilter';
 import type { Trade } from '../types';
 
@@ -54,22 +54,25 @@ const Calendar = () => {
     const handlePrevWeek = () => setCurrentDate(prev => addWeeks(prev, -1));
     const handleNextWeek = () => setCurrentDate(prev => addWeeks(prev, 1));
 
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(currentDate);
-    const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    const monthStart = useMemo(() => startOfMonth(currentDate), [currentDate]);
+    const monthEnd = useMemo(() => endOfMonth(currentDate), [currentDate]);
+    const daysInMonth = useMemo(() => eachDayOfInterval({ start: monthStart, end: monthEnd }), [monthStart, monthEnd]);
     const startDay = getDay(monthStart);
     const blanks = Array(startDay).fill(null);
 
     // Weekly view data
-    const weekStart = startOfWeek(currentDate);
-    const weekEnd = endOfWeek(currentDate);
-    const daysInWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
+    const weekStart = useMemo(() => startOfWeek(currentDate), [currentDate]);
+    const weekEnd = useMemo(() => endOfWeek(currentDate), [currentDate]);
+    const daysInWeek = useMemo(() => eachDayOfInterval({ start: weekStart, end: weekEnd }), [weekStart, weekEnd]);
 
-    const getPnLForDate = (date: Date) => {
+    const dailyPnlByDate = useMemo(() => {
+        return new Map(dailyData.map(day => [day.date, day.pnl]));
+    }, [dailyData]);
+
+    const getPnLForDate = useCallback((date: Date) => {
         const dateStr = format(date, 'yyyy-MM-dd');
-        const dayData = dailyData.find(d => d.date === dateStr);
-        return dayData ? dayData.pnl : 0;
-    };
+        return dailyPnlByDate.get(dateStr) ?? 0;
+    }, [dailyPnlByDate]);
 
     // Get trades for a specific date
     const getTradesForDate = (date: Date): Trade[] => {
@@ -118,7 +121,7 @@ const Calendar = () => {
 
     const monthlyTotalPnL = useMemo(() => {
         return daysInMonth.reduce((acc, date) => acc + getPnLForDate(date), 0);
-    }, [dailyData, currentDate]);
+    }, [daysInMonth, getPnLForDate]);
 
     const { greenDays, redDays } = useMemo(() => {
         let green = 0, red = 0;
@@ -128,12 +131,12 @@ const Calendar = () => {
             else if (pnl < 0) red++;
         });
         return { greenDays: green, redDays: red };
-    }, [dailyData, currentDate]);
+    }, [daysInMonth, getPnLForDate]);
 
     // Weekly stats
     const weeklyTotalPnL = useMemo(() => {
         return daysInWeek.reduce((acc, date) => acc + getPnLForDate(date), 0);
-    }, [dailyData, currentDate]);
+    }, [daysInWeek, getPnLForDate]);
 
     const { weeklyGreenDays, weeklyRedDays } = useMemo(() => {
         let green = 0, red = 0;
@@ -143,7 +146,7 @@ const Calendar = () => {
             else if (pnl < 0) red++;
         });
         return { weeklyGreenDays: green, weeklyRedDays: red };
-    }, [dailyData, currentDate]);
+    }, [daysInWeek, getPnLForDate]);
 
     const getDayClass = (pnl: number) => {
         if (pnl > 0) return 'bg-[var(--success)]/20 text-[var(--success)] border-[var(--success)]/30';

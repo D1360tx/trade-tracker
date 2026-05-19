@@ -1,17 +1,8 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import type { Strategy } from '../types';
 import { fetchStrategies, insertStrategy as dbInsertStrategy, updateStrategy as dbUpdateStrategy, deleteStrategy as dbDeleteStrategy } from '../lib/supabase/strategies';
-import { useAuth } from './AuthContext';
-
-interface StrategyContextType {
-    strategies: Strategy[];
-    addStrategy: (strategy: Omit<Strategy, 'id'>) => void;
-    updateStrategy: (id: string, updates: Partial<Strategy>) => void;
-    deleteStrategy: (id: string) => void;
-    getStrategy: (id: string) => Strategy | undefined;
-}
-
-const StrategyContext = createContext<StrategyContextType | undefined>(undefined);
+import { useAuth } from './useAuth';
+import { StrategyContext } from './strategy-context';
 
 export const StrategyProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuth();
@@ -19,12 +10,13 @@ export const StrategyProvider = ({ children }: { children: ReactNode }) => {
 
     // Load strategies from Supabase
     useEffect(() => {
-        if (!user) {
-            setStrategies([]);
-            return;
-        }
+        let cancelled = false;
 
-        const loadStrategies = async () => {
+        const loadStrategies = async (): Promise<Strategy[] | null> => {
+            if (!user) {
+                return [];
+            }
+
             try {
                 const cloudStrategies = await fetchStrategies();
 
@@ -42,17 +34,25 @@ export const StrategyProvider = ({ children }: { children: ReactNode }) => {
                     }
 
                     // Reload after adding defaults
-                    const updatedStrategies = await fetchStrategies();
-                    setStrategies(updatedStrategies);
-                } else {
-                    setStrategies(cloudStrategies);
+                    return await fetchStrategies();
                 }
+
+                return cloudStrategies;
             } catch (error) {
                 console.error('Error loading strategies:', error);
+                return null;
             }
         };
 
-        loadStrategies();
+        void loadStrategies().then(nextStrategies => {
+            if (!cancelled && nextStrategies) {
+                setStrategies(nextStrategies);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
     }, [user]);
 
     const addStrategy = (strategy: Omit<Strategy, 'id'>) => {
@@ -97,12 +97,4 @@ export const StrategyProvider = ({ children }: { children: ReactNode }) => {
             {children}
         </StrategyContext.Provider>
     );
-};
-
-export const useStrategies = () => {
-    const context = useContext(StrategyContext);
-    if (context === undefined) {
-        throw new Error('useStrategies must be used within a StrategyProvider');
-    }
-    return context;
 };

@@ -2,8 +2,8 @@ import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { LayoutDashboard, Wallet, Settings, Menu, X, Bell, Calendar, Upload, FileText, ChevronLeft, ChevronRight, TrendingUp, LogOut, RefreshCw, MoreHorizontal, BarChart2 } from 'lucide-react';
 import AIChat from './AIChat';
-import { useTrades } from '../context/TradeContext';
-import { useAuth } from '../context/AuthContext';
+import { useTrades } from '../context/useTrades';
+import { useAuth } from '../context/useAuth';
 
 const Layout = () => {
     const { lastUpdated, fetchTradesFromAPI, isLoading } = useTrades();
@@ -13,6 +13,7 @@ const Layout = () => {
         const saved = localStorage.getItem('sidebar_collapsed');
         return saved === 'true';
     });
+    const [syncMessage, setSyncMessage] = React.useState<string | null>(null);
     const sidebarRef = React.useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
@@ -38,6 +39,7 @@ const Layout = () => {
 
     // Handle sync button click
     const handleSyncExchanges = async () => {
+        setSyncMessage(null);
         const exchanges: Array<'MEXC' | 'ByBit' | 'Schwab'> = ['MEXC', 'ByBit', 'Schwab'];
         const toSync: string[] = [];
 
@@ -65,11 +67,15 @@ const Layout = () => {
         }
 
         if (toSync.length === 0) {
-            alert('No exchange API keys configured. Please add API keys in Settings or connect via OAuth.');
+            setSyncMessage('No exchange API keys configured. Please add API keys in Settings or connect via OAuth.');
             return;
         }
 
-        await Promise.all(toSync.map(ex => fetchTradesFromAPI(ex as 'MEXC' | 'ByBit' | 'Schwab')));
+        try {
+            await Promise.all(toSync.map(ex => fetchTradesFromAPI(ex as 'MEXC' | 'ByBit' | 'Schwab')));
+        } catch (error: unknown) {
+            setSyncMessage(error instanceof Error ? error.message : 'Sync failed. Please try again.');
+        }
     };
 
     const navItems = [
@@ -249,6 +255,11 @@ const Layout = () => {
 
                 {/* Page Content */}
                 <main className="flex-1 overflow-auto p-6 scroll-smooth">
+                    {syncMessage && (
+                        <div className="mb-4 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/10 px-4 py-3 text-sm text-[var(--danger)]">
+                            {syncMessage}
+                        </div>
+                    )}
                     <Outlet />
                 </main>
             </div>

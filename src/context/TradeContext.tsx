@@ -1,28 +1,95 @@
-import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
-import type { Trade } from '../types';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
+import type { ExchangeName, Trade } from '../types';
 import { fetchMEXCTradeHistory, fetchMEXCSpotHistory, fetchByBitTradeHistory } from '../utils/apiClient';
 import { fetchTrades, insertTrades as dbInsertTrades, updateTrade as dbUpdateTrade, deleteTrade as dbDeleteTrade, subscribeTrades } from '../lib/supabase/trades';
 import { getExchangeCredentials } from '../lib/supabase/apiCredentials';
-import { useAuth } from './AuthContext';
+import { useAuth } from './useAuth';
+import { TradeContext, type ApiSyncExchange, type SyncDebugData } from './trade-context';
+import type { SchwabAccountSnapshot } from '../utils/schwabAuth';
 
-interface TradeContextType {
-    trades: Trade[];
-    addTrades: (newTrades: Trade[]) => void;
-    updateTrade: (id: string, updates: Partial<Trade>) => void;
-    deleteTrades: (ids: string[]) => void;
-    clearTrades: () => void;
-    clearTradesByExchange: (exchange: string) => void;
-    fetchTradesFromAPI: (exchange: any, silent?: boolean) => Promise<number>;
-    hasTrades: boolean;
-    isLoading: boolean;
-    lastUpdated: number | null;
-    lastDebugData?: any;
+type ApiFill = Partial<Trade> & {
+    orderId?: string;
+    execId?: string;
+    symbol?: string;
+    createTime?: string | number;
+    time?: string | number;
+    updateTime?: string | number;
+    price?: string | number;
+    dealAvgPrice?: string | number;
+    avgPrice?: string | number;
+    execPrice?: string | number;
+    dealVol?: string | number;
+    execQty?: string | number;
+    executedQty?: string | number;
+    qty?: string | number;
+    vol?: string | number;
+    pnl?: string | number;
+    profit?: string | number;
+    closedPnl?: string | number;
+    realised_pnl?: string | number;
+    realisedPnl?: string | number;
+    fee?: string | number;
+    commission?: string | number;
+    execFee?: string | number;
+    totalFee?: string | number;
+    leverage?: string | number;
+    notional?: string | number;
+    externalOid?: string;
+    side?: string | number;
+    isBuyer?: boolean;
+};
+
+interface OpenPosition {
+    id: string;
+    time: number;
+    price: number;
+    qty: number;
+    direction: Trade['direction'];
+    fees: number;
+    leverage: number;
+    notionalPerUnit: number;
+    type: Trade['type'];
+    isBot: boolean;
+    notes?: string;
 }
 
-const TradeContext = createContext<TradeContextType | undefined>(undefined);
+const toNumber = (value: unknown, fallback = 0): number => {
+    const parsed = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
+    return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const toTradeType = (value: unknown): Trade['type'] => {
+    const candidate = String(value || 'CRYPTO');
+    return ['STOCK', 'OPTION', 'CRYPTO', 'FOREX', 'FUTURES', 'SPOT'].includes(candidate)
+        ? candidate as Trade['type']
+        : 'CRYPTO';
+};
+
+const getErrorMessage = (error: unknown): string => error instanceof Error ? error.message : String(error);
+const debugLog = (...args: unknown[]) => {
+    if (import.meta.env.DEV) {
+        console.log(...args);
+    }
+};
+const SCHWAB_BALANCE_STORAGE_KEY = 'schwab_account_snapshot';
+
+const loadStoredSchwabSnapshot = (): SchwabAccountSnapshot | null => {
+    try {
+        const stored = localStorage.getItem(SCHWAB_BALANCE_STORAGE_KEY);
+        return stored ? JSON.parse(stored) as SchwabAccountSnapshot : null;
+    } catch {
+        return null;
+    }
+};
+
+const getSnapshotTimestamp = (snapshot: SchwabAccountSnapshot | null): number | null => {
+    if (!snapshot?.fetchedAt) return null;
+    const timestamp = new Date(snapshot.fetchedAt).getTime();
+    return Number.isFinite(timestamp) ? timestamp : null;
+};
 
 // Helper to generate deterministic ID if missing
-const generateStableId = (t: any): string => {
+const generateStableId = (t: ApiFill): string => {
     if (t.orderId) return t.orderId;
     if (t.id) return t.id;
     if (t.execId) return t.execId;
@@ -38,33 +105,33 @@ const generateStableId = (t: any): string => {
 };
 
 // Helper for FIFO Aggregation (Shared between API integrations)
-const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
+const aggregateTrades = (fills: ApiFill[], exchangeName: ExchangeName): Trade[] => {
     // 1. Sort by Time Ascending (Oldest First)
     // Support both raw API fields (createTime, time) and pre-mapped Trade objects (entryDate)
-    const sortedFills = [...fills].sort((a: any, b: any) => {
+    const sortedFills = [...fills].sort((a, b) => {
         const timeA = new Date(a.createTime || a.time || a.entryDate || 0).getTime();
         const timeB = new Date(b.createTime || b.time || b.entryDate || 0).getTime();
         return timeA - timeB;
     });
 
     const mappedTrades: Trade[] = [];
-    const openPositions: Record<string, any[]> = {};
+    const openPositions: Record<string, OpenPosition[]> = {};
 
-    sortedFills.forEach((t: any) => {
+    sortedFills.forEach(t => {
         // Support both raw API fields and pre-mapped Trade objects
-        const price = parseFloat(t.price || t.dealAvgPrice || t.avgPrice || t.entryPrice || t.exitPrice || t.execPrice || '0');
+        const price = toNumber(t.price || t.dealAvgPrice || t.avgPrice || t.entryPrice || t.exitPrice || t.execPrice);
         // Prioritize actual filled quantity fields over 'vol' (ordered qty)
         // Use checks against undefined to ensure we capture 0 if explicitly returned as 0 (e.g. canceled order)
         const rawQty = t.dealVol ?? t.execQty ?? t.executedQty ?? t.quantity ?? t.qty ?? t.vol ?? 0;
-        const qty = parseFloat(rawQty);
+        const qty = toNumber(rawQty);
 
         // Skip un-filled orders (Canceled, etc)
         if (qty <= 0) return;
 
-        const pnl = parseFloat(t.pnl || t.profit || t.closedPnl || t.realised_pnl || t.realisedPnl || '0');
-        const fees = parseFloat(t.fee || t.commission || t.execFee || '0');
-        const leverage = parseFloat(t.leverage || '1');
-        const incomingNotional = parseFloat(t.notional || '0');
+        const pnl = toNumber(t.pnl || t.profit || t.closedPnl || t.realised_pnl || t.realisedPnl);
+        const fees = toNumber(t.fee || t.commission || t.execFee);
+        const leverage = toNumber(t.leverage, 1);
+        const incomingNotional = toNumber(t.notional);
         // If notional is provided (Futures), calc per-unit. Else default to price (Spot).
         const notionalPerUnit = incomingNotional > 0 ? incomingNotional / qty : price;
 
@@ -106,9 +173,9 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     notional: tradeNotional,
                     margin: tradeMargin,
                     id: openRow.id, // KEEP STABLE ID FROM OPENING ORDER
-                    exchange: exchangeName as any,
+                    exchange: exchangeName,
                     ticker: symbol,
-                    type: (openRow.type || 'CRYPTO') as any,
+                    type: openRow.type || 'CRYPTO',
                     direction: openRow.direction,
                     entryPrice: openRow.price,
                     exitPrice: price,
@@ -127,9 +194,9 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                 // Orphan Close
                 mappedTrades.push({
                     id: currentId,
-                    exchange: exchangeName as any,
+                    exchange: exchangeName,
                     ticker: symbol,
-                    type: (t.type || 'CRYPTO') as any,
+                    type: toTradeType(t.type),
                     direction: direction,
                     entryPrice: price,
                     exitPrice: price,
@@ -176,9 +243,9 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
 
                 mappedTrades.push({
                     id: openRow.id, // KEEP STABLE ID
-                    exchange: exchangeName as any,
+                    exchange: exchangeName,
                     ticker: symbol,
-                    type: (openRow.type || 'CRYPTO') as any,
+                    type: openRow.type || 'CRYPTO',
                     direction: openRow.direction,
                     entryPrice: openRow.price,
                     exitPrice: price,
@@ -211,9 +278,9 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
                     fees,
                     leverage,
                     notionalPerUnit,
-                    type: t.type || 'CRYPTO',
+                    type: toTradeType(t.type),
                     isBot,
-                    notes: t.notes // Capture notes for Open Positions too
+                    notes: t.notes // Capture notes for open positions too.
                 });
             }
         }
@@ -224,9 +291,9 @@ const aggregateTrades = (fills: any[], exchangeName: string): Trade[] => {
         openPositions[symbol].forEach(pos => {
             mappedTrades.push({
                 id: pos.id,
-                exchange: exchangeName as any,
+                exchange: exchangeName,
                 ticker: symbol,
-                type: (pos.type || 'CRYPTO') as any,
+                type: pos.type || 'CRYPTO',
                 direction: pos.direction,
                 entryPrice: pos.price,
                 exitPrice: pos.price, // Current price not known, use entry
@@ -252,7 +319,8 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuth();
     const [trades, setTrades] = useState<Trade[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [lastDebugData, setLastDebugData] = useState<any>(null);
+    const [lastDebugData, setLastDebugData] = useState<SyncDebugData>(null);
+    const [schwabAccountSnapshot, setSchwabAccountSnapshot] = useState<SchwabAccountSnapshot | null>(() => loadStoredSchwabSnapshot());
     const [lastUpdated, setLastUpdated] = useState<number | null>(() => {
         // Load last sync timestamp from localStorage on mount
         const stored = localStorage.getItem('lastSyncTimestamp');
@@ -285,7 +353,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                     if (!getSchwabTokens()) {
                         const cloudTokens = await loadSchwabTokensFromCloud();
                         if (cloudTokens) {
-                            console.log('[TradeContext] Loaded Schwab tokens from cloud');
+                            debugLog('[TradeContext] Loaded Schwab tokens from cloud');
                         }
                     }
                 } catch (e) {
@@ -302,7 +370,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                     const fingerprint = `${trade.exchange}|${trade.ticker}|${exitDateStr}|${pnlRounded}|${trade.quantity}`;
 
                     if (seen.has(fingerprint)) {
-                        console.log('[TradeContext] Filtered duplicate trade:', trade.ticker, exitDateStr, trade.pnl);
+                        debugLog('[TradeContext] Filtered duplicate trade:', trade.ticker, exitDateStr, trade.pnl);
                         return false;
                     }
                     seen.add(fingerprint);
@@ -310,7 +378,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 });
 
                 if (cloudTrades.length !== uniqueTrades.length) {
-                    console.log(`[TradeContext] Filtered ${cloudTrades.length - uniqueTrades.length} duplicates from Supabase`);
+                    debugLog(`[TradeContext] Filtered ${cloudTrades.length - uniqueTrades.length} duplicates from Supabase`);
                 }
 
                 setTrades(uniqueTrades);
@@ -369,7 +437,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
     // Generate a fingerprint for duplicate detection based on trade content
     const getTradeFingerprint = (trade: Trade): string => {
         // Use key trade characteristics to identify duplicates
-        // Round P&L to 2 decimals    const getTradeFingerprint = (trade: Trade): string => {
+        // Round P&L to 2 decimals.
         const pnlRounded = Math.round((trade.pnl || 0) * 100) / 100;
         const exitDateStr = trade.exitDate ? trade.exitDate.split('T')[0] : '';
         return `${trade.exchange}|${trade.ticker}|${exitDateStr}|${pnlRounded}|${trade.quantity}`;
@@ -487,17 +555,17 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 if (!next[existingIndex].externalOid) next[existingIndex].externalOid = incoming.externalOid;
                 // Fix $0 P&L if incoming has better data
                 if (next[existingIndex].pnl === 0 && incoming.pnl !== 0) {
-                    console.log(`[Dedup OID] Updating ${incoming.ticker} P&L from $0 to $${incoming.pnl.toFixed(2)}`);
+                    debugLog(`[Dedup OID] Updating ${incoming.ticker} P&L from $0 to $${incoming.pnl.toFixed(2)}`);
                     next[existingIndex] = { ...next[existingIndex], pnl: incoming.pnl, pnlPercentage: incoming.pnlPercentage || next[existingIndex].pnlPercentage };
                     updatedForDb.push(next[existingIndex]);
                     updatedCount++;
                 } else {
-                    console.log(`[Dedup OID] Skipped ${incoming.ticker}: existing P&L=${next[existingIndex].pnl}, incoming=${incoming.pnl}`);
+                    debugLog(`[Dedup OID] Skipped ${incoming.ticker}: existing P&L=${next[existingIndex].pnl}, incoming=${incoming.pnl}`);
                     duplicateCount++;
                 }
             } else if (fingerprintMatchIndex !== undefined) {
                 // Exact fingerprint match - unlikely to need P&L fix (fingerprint includes P&L)
-                console.log(`[Dedup ExactFp] Duplicate: ${incoming.ticker}`);
+                debugLog(`[Dedup ExactFp] Duplicate: ${incoming.ticker}`);
                 duplicateCount++;
             } else if (normalizedFpMatchIndex !== undefined) {
                 // Normalized ticker match - check if we can update P&L
@@ -505,12 +573,12 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 // Handle null, undefined, or 0 as "missing" P&L
                 const existingPnlMissing = existingTrade.pnl === null || existingTrade.pnl === undefined || existingTrade.pnl === 0;
                 if (existingPnlMissing && incoming.pnl && incoming.pnl !== 0) {
-                    console.log(`[Dedup Norm] Updating ${incoming.ticker} P&L from ${existingTrade.pnl} to $${incoming.pnl.toFixed(2)}`);
+                    debugLog(`[Dedup Norm] Updating ${incoming.ticker} P&L from ${existingTrade.pnl} to $${incoming.pnl.toFixed(2)}`);
                     next[normalizedFpMatchIndex] = { ...existingTrade, pnl: incoming.pnl, pnlPercentage: incoming.pnlPercentage || existingTrade.pnlPercentage };
                     updatedForDb.push(next[normalizedFpMatchIndex]);
                     updatedCount++;
                 } else {
-                    console.log(`[Dedup Norm] Skipped ${incoming.ticker}: existing P&L=${existingTrade.pnl}, incoming=${incoming.pnl}`);
+                    debugLog(`[Dedup Norm] Skipped ${incoming.ticker}: existing P&L=${existingTrade.pnl}, incoming=${incoming.pnl}`);
                     duplicateCount++;
                 }
             } else if (fuzzyFpMatchIndex !== undefined) {
@@ -521,7 +589,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 const existingPnlMissing = existingTrade.pnl === null || existingTrade.pnl === undefined || existingTrade.pnl === 0;
                 if (existingPnlMissing && incoming.pnl && incoming.pnl !== 0) {
                     // Incoming has better data - update existing trade
-                    console.log(`[Dedup Fuzzy] ✅ Updating ${incoming.ticker} P&L from ${existingTrade.pnl} to $${incoming.pnl.toFixed(2)}`);
+                    debugLog(`[Dedup Fuzzy] Updating ${incoming.ticker} P&L from ${existingTrade.pnl} to $${incoming.pnl.toFixed(2)}`);
                     next[fuzzyFpMatchIndex] = {
                         ...existingTrade,
                         pnl: incoming.pnl,
@@ -534,7 +602,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                     updatedForDb.push(next[fuzzyFpMatchIndex]);
                     updatedCount++;
                 } else {
-                    console.log(`[Dedup Fuzzy] Skipped ${incoming.ticker}: existing P&L=${existingTrade.pnl}, incoming=${incoming.pnl}`);
+                    debugLog(`[Dedup Fuzzy] Skipped ${incoming.ticker}: existing P&L=${existingTrade.pnl}, incoming=${incoming.pnl}`);
                     duplicateCount++;
                 }
             } else {
@@ -550,9 +618,9 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
         });
 
         if (addedCount > 0 || updatedCount > 0 || duplicateCount > 0) {
-            console.log(`[TradeContext] Merged ${incomingTrades.length} trades: ${addedCount} added, ${updatedCount} updated, ${duplicateCount} duplicates`);
+            debugLog(`[TradeContext] Merged ${incomingTrades.length} trades: ${addedCount} added, ${updatedCount} updated, ${duplicateCount} duplicates`);
         } else {
-            console.log(`[TradeContext] No new trades or updates found (${duplicateCount} duplicates)`);
+            debugLog(`[TradeContext] No new trades or updates found (${duplicateCount} duplicates)`);
         }
 
         return [next, addedForDb, updatedForDb];
@@ -573,7 +641,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             }
             // Also update trades that had their P&L fixed
             if (updatedForDb.length > 0) {
-                console.log(`[TradeContext] Syncing ${updatedForDb.length} updated trades to Supabase`);
+                debugLog(`[TradeContext] Syncing ${updatedForDb.length} updated trades to Supabase`);
                 updatedForDb.forEach(trade => {
                     dbUpdateTrade(trade.id, { pnl: trade.pnl, pnlPercentage: trade.pnlPercentage, entryPrice: trade.entryPrice, exitPrice: trade.exitPrice }).catch(error => {
                         console.error('Error updating trade in Supabase:', error);
@@ -617,7 +685,20 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
         });
     };
 
-    const fetchTradesFromAPI = async (exchange: 'MEXC' | 'Binance' | 'ByBit' | 'Coinbase' | 'BloFin' | 'Schwab' | 'Interactive Brokers', silent = false): Promise<number> => {
+    const refreshSchwabAccountBalance = async (): Promise<SchwabAccountSnapshot | null> => {
+        try {
+            const { fetchSchwabAccountSnapshot } = await import('../utils/schwabAuth');
+            const snapshot = await fetchSchwabAccountSnapshot();
+            setSchwabAccountSnapshot(snapshot);
+            localStorage.setItem(SCHWAB_BALANCE_STORAGE_KEY, JSON.stringify(snapshot));
+            return snapshot;
+        } catch (error) {
+            console.warn('[Schwab] Failed to refresh account balance:', error);
+            return null;
+        }
+    };
+
+    const fetchTradesFromAPI = async (exchange: ApiSyncExchange, silent = false): Promise<number> => {
         // Try to fetch API credentials from Supabase first, then fall back to localStorage
         let apiKey: string | null = null;
         let apiSecret: string | null = null;
@@ -647,14 +728,16 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
         }
 
         if (!hasConnection) {
-            if (!silent) alert(`Please configure ${exchange} API keys in Settings first.`);
+            if (!silent) {
+                throw new Error(`Please configure ${exchange} API keys in Settings first.`);
+            }
             return 0;
         }
 
         if (!silent) setIsLoading(true);
         try {
-            let apiTrades: any[] = [];
-            let raw: any = null;
+            let apiTrades: ApiFill[] = [];
+            let raw: SyncDebugData = null;
 
             if (exchange === 'MEXC') {
                 // Fetch Orders/Deals (Reverting to History to be safe + Heuristic Bot Detection)
@@ -676,7 +759,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                 const botStartTimes = new Map<string, number>();
                 let sampleTradeKeys: string[] = [];
 
-                futuresResult.trades.forEach((t: any, index) => {
+                futuresResult.trades.forEach((t, index) => {
                     if (index === 0) sampleTradeKeys = Object.keys(t);
                     const oid = t.externalOid;
                     if (oid && (oid.includes('[BBOS1]') || oid.includes('stoporder_'))) {
@@ -688,7 +771,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                     }
                 });
 
-                const mappedFutures = futuresResult.trades.map(t => {
+                const mappedFutures: ApiFill[] = futuresResult.trades.map(t => {
                     const tTime = new Date(t.entryDate).getTime();
                     const startTime = botStartTimes.get(t.ticker);
                     const hasTag = (t.externalOid || '').match(/\[BBOS1\]|stoporder_/);
@@ -700,24 +783,24 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
                     };
                 });
 
-                const mappedSpot = spotResult.trades.map(t => ({
+                const mappedSpot: ApiFill[] = spotResult.trades.map(t => ({
                     ...t,
                     side: t.isBuyer ? 'BUY' : 'SELL',
-                    type: 'SPOT',
+                    type: 'SPOT' as const,
                     isBot: true // Assume all Spot trades via API are Bot for now (Grid)
                 }));
 
                 apiTrades = [...mappedFutures, ...mappedSpot];
                 raw = {
                     futures: futuresResult.raw,
-                    spot: spotResult.raw,
+                    spot: spotResult.raw as NonNullable<SyncDebugData>['spot'],
                     detectedBotPairs: Array.from(botStartTimes.keys()),
                     debugKeys: sampleTradeKeys
                 };
-            } else if (exchange === 'ByBit') {
-                const result = await fetchByBitTradeHistory(apiKey!, apiSecret!);
-                apiTrades = result.trades;
-                raw = result.raw;
+	            } else if (exchange === 'ByBit') {
+	                const result = await fetchByBitTradeHistory(apiKey!, apiSecret!);
+	                apiTrades = result.trades;
+	                raw = { futures: result.raw };
             } else if (exchange === 'Schwab') {
                 // Dynamically import Schwab utils
                 const { fetchSchwabTransactions } = await import('../utils/schwabAuth');
@@ -729,8 +812,9 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
 
                 const transactions = await fetchSchwabTransactions(startDate, endDate);
                 const mappedTrades = mapSchwabTransactionsToTrades(transactions);
+                await refreshSchwabAccountBalance();
 
-                // Add exchange field if missing (mapper should hande it but safety first)
+                // Add exchange field if missing (mapper should handle it but safety first)
                 const tradesWithExchange = mappedTrades.map(t => ({ ...t, exchange: 'Schwab' as const }));
 
                 // Directly add trades (bypassing generic aggregateTrades since mapper handles it)
@@ -743,31 +827,32 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             }
 
             setLastDebugData(raw);
-            console.log(`[${exchange}] Raw API response sample:`, raw);
-            console.log(`[${exchange}] API Trades before aggregation:`, apiTrades.length);
+            debugLog(`[${exchange}] Raw API response sample:`, raw);
+            debugLog(`[${exchange}] API Trades before aggregation:`, apiTrades.length);
 
             const newTrades = aggregateTrades(apiTrades, exchange);
-            console.log(`[${exchange}] Trades after aggregation:`, newTrades.length);
-            console.log(`[${exchange}] Sample aggregated trade:`, newTrades[0]);
+            debugLog(`[${exchange}] Trades after aggregation:`, newTrades.length);
+            debugLog(`[${exchange}] Sample aggregated trade:`, newTrades[0]);
 
             // deduplication logic is now inside mergeTrades (called by addTrades)
             addTrades(newTrades);
             setLastUpdated(Date.now());
 
-            console.log(`[${exchange}] Sync complete - added ${newTrades.length} trades`);
+            debugLog(`[${exchange}] Sync complete - added ${newTrades.length} trades`);
 
             if (!silent) {
                 // Return count instead of alerting
             }
             return newTrades.length;
 
-        } catch (error: any) {
-            if (error.message === 'Simulation_Mode') {
+        } catch (error: unknown) {
+            const message = getErrorMessage(error);
+            if (message === 'Simulation_Mode') {
                 await new Promise(resolve => setTimeout(resolve, 1500));
                 const { generateMockTrades } = await import('../utils/mockData');
                 const mockTrades = generateMockTrades(15).map(t => ({
                     ...t,
-                    exchange: exchange as any,
+	                    exchange,
                     ticker: t.ticker,
                     id: Math.random().toString(36).substr(2, 9), // Sim mode IDs are random, so they will dup. That's fine for sim.
                     notes: `Imported via ${exchange} API (Simulated)`
@@ -778,7 +863,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             } else {
                 console.error(error);
                 // Suppress ByBit 403 (CloudFront Block)
-                const isByBit403 = exchange === 'ByBit' && (error.message.includes('403') || error.message.includes('CloudFront') || error.message.includes('HTML'));
+                const isByBit403 = exchange === 'ByBit' && (message.includes('403') || message.includes('CloudFront') || message.includes('HTML'));
                 if (!silent && !isByBit403) {
                     throw error;
                 }
@@ -801,17 +886,12 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             hasTrades: trades.length > 0,
             isLoading,
             lastUpdated,
-            lastDebugData
+            lastDebugData,
+            schwabAccountSnapshot,
+            schwabBalanceUpdatedAt: getSnapshotTimestamp(schwabAccountSnapshot),
+            refreshSchwabAccountBalance
         }}>
             {children}
         </TradeContext.Provider>
     );
-};
-
-export const useTrades = () => {
-    const context = useContext(TradeContext);
-    if (context === undefined) {
-        throw new Error('useTrades must be used within a TradeProvider');
-    }
-    return context;
 };

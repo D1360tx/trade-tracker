@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { parseISO, startOfDay, endOfDay } from 'date-fns';
-import { useTrades } from '../../context/TradeContext';
+import { useTrades } from '../../context/useTrades';
 import { useV2Stats } from '../../hooks/v2/useV2Stats';
 import TimeRangeFilter from '../../components/TimeRangeFilter';
 import { getDateRangeForFilter, type TimeRange } from '../../utils/timeRanges';

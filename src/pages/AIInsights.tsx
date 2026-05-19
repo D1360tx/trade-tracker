@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useTrades } from '../context/TradeContext';
+import { useTrades } from '../context/useTrades';
 import { generateInsights } from '../utils/insightGenerator';
 import { Brain, Zap, AlertTriangle, TrendingUp, Target, Clock, Shield, Lightbulb } from 'lucide-react';
 

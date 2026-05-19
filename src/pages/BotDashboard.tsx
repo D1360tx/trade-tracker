@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useTrades } from '../context/TradeContext';
+import { useTrades } from '../context/useTrades';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Bot, TrendingUp, Activity, DollarSign, RefreshCw } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -216,7 +216,7 @@ const BotDashboard = () => {
                         {lastDebugData?.spot?.scanned ? (
                             <>
                                 <p><span className="text-[var(--text-tertiary)]">Pairs Scanned:</span> {lastDebugData.spot.scanned.join(', ') || 'None'}</p>
-                                <p><span className="text-[var(--text-tertiary)]">Trades Found:</span> {lastDebugData.spot.found.join(', ') || 'None'}</p>
+                                <p><span className="text-[var(--text-tertiary)]">Trades Found:</span> {lastDebugData.spot.found?.join(', ') || 'None'}</p>
                             </>
                         ) : (
                             <p className="text-[var(--text-tertiary)]">No Spot scan data. Click 'Sync'.</p>

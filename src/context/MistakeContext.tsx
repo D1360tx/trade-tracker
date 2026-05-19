@@ -1,17 +1,8 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import type { Mistake } from '../types';
 import { fetchMistakes, insertMistake as dbInsertMistake, updateMistake as dbUpdateMistake, deleteMistake as dbDeleteMistake } from '../lib/supabase/mistakes';
-import { useAuth } from './AuthContext';
-
-interface MistakeContextType {
-    mistakes: Mistake[];
-    addMistake: (mistake: Omit<Mistake, 'id'>) => void;
-    updateMistake: (id: string, updates: Partial<Mistake>) => void;
-    deleteMistake: (id: string) => void;
-    getMistake: (id: string) => Mistake | undefined;
-}
-
-const MistakeContext = createContext<MistakeContextType | undefined>(undefined);
+import { useAuth } from './useAuth';
+import { MistakeContext } from './mistake-context';
 
 export const MistakeProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuth();
@@ -19,12 +10,13 @@ export const MistakeProvider = ({ children }: { children: ReactNode }) => {
 
     // Load mistakes from Supabase
     useEffect(() => {
-        if (!user) {
-            setMistakes([]);
-            return;
-        }
+        let cancelled = false;
 
-        const loadMistakes = async () => {
+        const loadMistakes = async (): Promise<Mistake[] | null> => {
+            if (!user) {
+                return [];
+            }
+
             try {
                 const cloudMistakes = await fetchMistakes();
 
@@ -42,17 +34,25 @@ export const MistakeProvider = ({ children }: { children: ReactNode }) => {
                     }
 
                     // Reload after adding defaults
-                    const updatedMistakes = await fetchMistakes();
-                    setMistakes(updatedMistakes);
-                } else {
-                    setMistakes(cloudMistakes);
+                    return await fetchMistakes();
                 }
+
+                return cloudMistakes;
             } catch (error) {
                 console.error('Error loading mistakes:', error);
+                return null;
             }
         };
 
-        loadMistakes();
+        void loadMistakes().then(nextMistakes => {
+            if (!cancelled && nextMistakes) {
+                setMistakes(nextMistakes);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
     }, [user]);
 
     const addMistake = (mistake: Omit<Mistake, 'id'>) => {
@@ -97,12 +97,4 @@ export const MistakeProvider = ({ children }: { children: ReactNode }) => {
             {children}
         </MistakeContext.Provider>
     );
-};
-
-export const useMistakes = () => {
-    const context = useContext(MistakeContext);
-    if (context === undefined) {
-        throw new Error('useMistakes must be used within a MistakeProvider');
-    }
-    return context;
 };

@@ -15,6 +15,19 @@ export interface SchwabTokens {
     scope?: string;
 }
 
+export interface SchwabAccountSnapshot {
+    accounts: Array<{
+        accountHash: string;
+        accountNumber?: string;
+        type?: string;
+        currentBalances: Record<string, unknown>;
+        initialBalances: Record<string, unknown>;
+        positionsCount: number;
+        error?: string;
+    }>;
+    fetchedAt: string;
+}
+
 const STORAGE_KEY = 'schwab_tokens';
 
 const SCHWAB_AUTH_ENDPOINT = '/api/schwab/auth-url';
@@ -341,4 +354,31 @@ export const fetchSchwabTransactions = async (startDate?: string, endDate?: stri
     }
 
     return data.transactions || [];
+};
+
+/**
+ * Fetch current account balances from Schwab.
+ */
+export const fetchSchwabAccountSnapshot = async (): Promise<SchwabAccountSnapshot> => {
+    const accessToken = await getValidAccessToken();
+    const url = new URL('/api/schwab/accounts', window.location.origin);
+
+    const response = await fetch(url.toString(), {
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Accept: 'application/json',
+        },
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({})) as { message?: string; error?: string; requiresRefresh?: boolean };
+
+        if (error.requiresRefresh) {
+            return fetchSchwabAccountSnapshot();
+        }
+
+        throw new Error(error.message || error.error || 'Failed to fetch Schwab account balances');
+    }
+
+    return await response.json() as SchwabAccountSnapshot;
 };

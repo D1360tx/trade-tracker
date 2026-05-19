@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useTrades } from '../../context/TradeContext';
+import { useTrades } from '../../context/useTrades';
 import { format, parseISO } from 'date-fns';
 import type { Trade } from '../../types';
 import { TrendingUp, TrendingDown } from 'lucide-react';

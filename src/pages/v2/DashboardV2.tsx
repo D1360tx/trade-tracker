@@ -1,13 +1,14 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { parseISO, startOfDay, endOfDay } from 'date-fns';
-import { useTrades } from '../../context/TradeContext';
+import { useTrades } from '../../context/useTrades';
 import { useV2Stats } from '../../hooks/v2/useV2Stats';
 import TimeRangeFilter from '../../components/TimeRangeFilter';
 import { getDateRangeForFilter, type TimeRange } from '../../utils/timeRanges';
 import { filterTradesForAnalysis } from '../../utils/tradeAnalytics';
 import ExchangeFilter from '../../components/ExchangeFilter';
 import TopStatsBar from '../../components/v2/dashboard/TopStatsBar';
+import { getTotalSchwabAccountBalance } from '../../utils/schwabAccount';
 import MonthlyCalendarV2 from '../../components/v2/dashboard/MonthlyCalendarV2';
 import WeeklySidebar from '../../components/v2/dashboard/WeeklySidebar';
 import YearlyCalendarGrid from '../../components/v2/dashboard/YearlyCalendarGrid';
@@ -16,7 +17,7 @@ import DayDetailModalV2 from '../../components/v2/dashboard/DayDetailModalV2';
 import type { Trade } from '../../types';
 
 const DashboardV2 = () => {
-    const { trades, isLoading } = useTrades();
+    const { trades, isLoading, schwabAccountSnapshot, schwabBalanceUpdatedAt } = useTrades();
     const navigate = useNavigate();
 
     const [timeRange, setTimeRange] = useState<TimeRange>('this_month');
@@ -42,6 +43,10 @@ const DashboardV2 = () => {
     }, [trades, timeRange, customStart, customEnd, selectedExchanges]);
 
     const stats = useV2Stats(filteredTrades, trades);
+    const accountBalance = useMemo(
+        () => getTotalSchwabAccountBalance(schwabAccountSnapshot),
+        [schwabAccountSnapshot]
+    );
 
     const handleDayClick = (date: string, dayTrades: Trade[]) => {
         setSelectedDayDate(date);
@@ -99,7 +104,7 @@ const DashboardV2 = () => {
             </div>
 
             {/* Top Stats Bar */}
-            <TopStatsBar stats={stats} />
+            <TopStatsBar stats={stats} accountBalance={accountBalance} balanceUpdatedAt={schwabBalanceUpdatedAt} />
 
             {/* Main Content: Calendar + Sidebar - aligned heights */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-stretch">

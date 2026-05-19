@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { useTrades } from '../context/TradeContext';
+import { useTrades } from '../context/useTrades';
 import { parseCSV } from '../utils/csvParsers';
 import { parseTradeLockerPaste } from '../utils/tradeLockerParser';
 import type { ExchangeName, Trade } from '../types';
+import type { ApiSyncExchange } from '../context/trade-context';
 import {
     AlertCircle,
     CheckCircle,
@@ -25,7 +26,8 @@ import DemoAccountSeeder from '../components/DemoAccountSeeder';
 
 const EXCHANGES: ExchangeName[] = ['MEXC', 'ByBit', 'Binance', 'Coinbase', 'BloFin', 'Schwab', 'Webull', 'Interactive Brokers', 'HeroFX'];
 const ADVANCED_EXCHANGES = EXCHANGES.filter(exchange => exchange !== 'Schwab');
-const API_IMPORT_EXCHANGES = new Set<ExchangeName>(['MEXC', 'ByBit']);
+const API_IMPORT_EXCHANGES = new Set<ApiSyncExchange>(['MEXC', 'ByBit']);
+const isApiSyncExchange = (exchange: ExchangeName): exchange is ApiSyncExchange => API_IMPORT_EXCHANGES.has(exchange as ApiSyncExchange);
 
 type ImportStatus = {
     type: 'success' | 'error' | 'info';
@@ -377,7 +379,7 @@ const AdvancedImportPanel = ({
     onImportCsv: () => void;
     onApiImport: () => void;
 }) => {
-    const supportsApiImport = API_IMPORT_EXCHANGES.has(selectedExchange);
+    const supportsApiImport = isApiSyncExchange(selectedExchange);
 
     return (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)]/40 p-5 space-y-4">
@@ -696,7 +698,7 @@ const ImportPage = () => {
 
     const handleApiImport = async () => {
         setAdvancedStatus(null);
-        if (!API_IMPORT_EXCHANGES.has(advancedExchange)) {
+        if (!isApiSyncExchange(advancedExchange)) {
             setAdvancedStatus({
                 type: 'info',
                 title: `${advancedExchange} is CSV-only`,

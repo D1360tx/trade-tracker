@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
-import { useTrades } from '../../context/TradeContext';
+import { useTrades } from '../../context/useTrades';
 import type { Trade } from '../../types';
 
 interface HoldTimeScatterProps {

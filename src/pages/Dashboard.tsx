@@ -17,7 +17,8 @@ import KPIDetailModal from '../components/KPIDetailModal';
 import type { KPIModalType } from '../components/KPIDetailModal';
 
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay, differenceInMinutes } from 'date-fns';
-import { useTrades } from '../context/TradeContext';
+import { useTrades } from '../context/useTrades';
+import type { Trade } from '../types';
 
 const Dashboard = () => {
     const { trades, isLoading } = useTrades();
@@ -27,7 +28,18 @@ const Dashboard = () => {
     const [selectedExchanges, setSelectedExchanges] = useState<string[]>([]);
     const [showAdvancedStats, setShowAdvancedStats] = useState(false);
     const [selectedDayDate, setSelectedDayDate] = useState<string | null>(null);
-    const [kpiModal, setKpiModal] = useState<{ type: KPIModalType, trades: any[], metrics?: any } | null>(null);
+    const [kpiModal, setKpiModal] = useState<{
+        type: KPIModalType;
+        trades: Trade[];
+        metrics?: {
+            winRate?: number;
+            avgWin?: number;
+            lossRate?: number;
+            avgLoss?: number;
+            expectancy?: number;
+            maxDrawdown?: number;
+        };
+    } | null>(null);
 
     const filteredTrades = useMemo(() => {
         const now = new Date();

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { useStrategies } from '../context/StrategyContext';
-import { useMistakes } from '../context/MistakeContext';
-import { useTrades } from '../context/TradeContext';
+import { useStrategies } from '../context/useStrategies';
+import { useMistakes } from '../context/useMistakes';
+import { useTrades } from '../context/useTrades';
 import { Book, Plus, Trash2, Tag, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 
 

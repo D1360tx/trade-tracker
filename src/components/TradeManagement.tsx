@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useTrades } from '../context/TradeContext';
+import { useTrades } from '../context/useTrades';
 import { Trash2, Edit2, Check, X, ChevronDown, ChevronUp, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { Trade } from '../types';

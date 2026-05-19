@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useTrades } from '../context/TradeContext';
-import { useAuth } from '../context/AuthContext';
+import { useTrades } from '../context/useTrades';
+import { useAuth } from '../context/useAuth';
 import type { Trade } from '../types';
 import {
     generateCompleteDemoAccount,

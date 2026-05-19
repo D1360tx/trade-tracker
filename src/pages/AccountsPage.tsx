@@ -1,8 +1,9 @@
 import { AlertTriangle, CheckCircle, Clock, Database, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useTrades } from '../context/TradeContext';
+import { useTrades } from '../context/useTrades';
 import { isConnectedToSchwab } from '../utils/schwabAuth';
 import { getDataQualityIssues } from '../utils/tradeAnalytics';
+import { getTotalSchwabAccountBalance, getTotalSchwabCashBalance } from '../utils/schwabAccount';
 
 const formatLastSync = (timestamp: number | null) => {
     if (!timestamp) return 'Never synced';
@@ -15,13 +16,15 @@ const formatLastSync = (timestamp: number | null) => {
 };
 
 const AccountsPage = () => {
-    const { trades, lastUpdated, fetchTradesFromAPI, isLoading } = useTrades();
+    const { trades, lastUpdated, fetchTradesFromAPI, isLoading, schwabAccountSnapshot, schwabBalanceUpdatedAt } = useTrades();
     const [now] = useState(() => Date.now());
     const schwabConnected = isConnectedToSchwab();
     const schwabTrades = useMemo(() => trades.filter(trade => trade.exchange === 'Schwab'), [trades]);
     const issues = useMemo(() => getDataQualityIssues(trades, lastUpdated), [trades, lastUpdated]);
     const lastSyncAgeDays = lastUpdated ? Math.floor((now - lastUpdated) / (24 * 60 * 60 * 1000)) : null;
     const hasFreshData = lastUpdated !== null && (lastSyncAgeDays ?? 999) <= 2;
+    const totalAccountBalance = useMemo(() => getTotalSchwabAccountBalance(schwabAccountSnapshot), [schwabAccountSnapshot]);
+    const totalCashBalance = useMemo(() => getTotalSchwabCashBalance(schwabAccountSnapshot), [schwabAccountSnapshot]);
 
     const handleSyncSchwab = async () => {
         await fetchTradesFromAPI('Schwab');
@@ -89,6 +92,38 @@ const AccountsPage = () => {
                     </div>
                     <p className="text-xs text-[var(--text-tertiary)] mt-4">
                         These trades drive the options-first dashboard and reporting surfaces.
+                    </p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="glass-panel rounded-xl p-5">
+                    <p className="text-sm text-[var(--text-secondary)]">Current Schwab balance</p>
+                    <p className="mt-2 text-2xl font-semibold">
+                        {totalAccountBalance !== null ? `$${totalAccountBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Not synced'}
+                    </p>
+                    <p className="text-xs text-[var(--text-tertiary)] mt-2">
+                        Last balance sync: {formatLastSync(schwabBalanceUpdatedAt)}
+                    </p>
+                </div>
+
+                <div className="glass-panel rounded-xl p-5">
+                    <p className="text-sm text-[var(--text-secondary)]">Cash balance</p>
+                    <p className="mt-2 text-2xl font-semibold">
+                        {totalCashBalance !== null ? `$${totalCashBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Not synced'}
+                    </p>
+                    <p className="text-xs text-[var(--text-tertiary)] mt-2">
+                        Uses Schwab current balances when available.
+                    </p>
+                </div>
+
+                <div className="glass-panel rounded-xl p-5">
+                    <p className="text-sm text-[var(--text-secondary)]">Schwab accounts</p>
+                    <p className="mt-2 text-2xl font-semibold">
+                        {schwabAccountSnapshot?.accounts.length ?? 0}
+                    </p>
+                    <p className="text-xs text-[var(--text-tertiary)] mt-2">
+                        Account numbers are masked before reaching the browser.
                     </p>
                 </div>
             </div>
