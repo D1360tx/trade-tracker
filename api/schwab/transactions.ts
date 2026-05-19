@@ -1,5 +1,172 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+type SchwabApiAccount = Record<string, unknown> & {
+    hashValue?: string;
+    encryptedAccountId?: string;
+    accountNumber?: string;
+    accountId?: string;
+    securitiesAccount?: {
+        hashValue?: string;
+        accountNumber?: string;
+        accountId?: string;
+    };
+};
+
+interface SchwabOrderLeg {
+    legId?: number;
+    instruction?: string;
+    positionEffect?: 'OPENING' | 'CLOSING';
+    quantity?: number;
+    instrument?: {
+        assetType?: string;
+        symbol?: string;
+        description?: string;
+        putCall?: 'PUT' | 'CALL';
+        strikePrice?: number;
+        underlyingSymbol?: string;
+    };
+}
+
+interface SchwabExecutionLeg {
+    legId?: number;
+    quantity?: number;
+    price?: number;
+    time?: string;
+}
+
+interface SchwabOrderActivity {
+    activityType?: string;
+    executionType?: string;
+    quantity?: number;
+    executionLegs?: SchwabExecutionLeg[];
+}
+
+interface SchwabOrder {
+    orderId?: number;
+    status?: string;
+    price?: number;
+    closeTime?: string;
+    enteredTime?: string;
+    orderLegCollection?: SchwabOrderLeg[];
+    orderActivityCollection?: SchwabOrderActivity[];
+}
+
+const toDateOnly = (date: Date) => date.toISOString().split('T')[0];
+
+const getAccountId = (account: SchwabApiAccount) => (
+    account.hashValue ||
+    account.encryptedAccountId ||
+    account.securitiesAccount?.hashValue ||
+    account.accountNumber ||
+    account.accountId ||
+    account.securitiesAccount?.accountNumber ||
+    account.securitiesAccount?.accountId
+);
+
+const getPositionEffect = (leg: SchwabOrderLeg): 'OPENING' | 'CLOSING' | undefined => {
+    if (leg.positionEffect) return leg.positionEffect;
+    if (leg.instruction?.includes('OPEN')) return 'OPENING';
+    if (leg.instruction?.includes('CLOSE')) return 'CLOSING';
+    return undefined;
+};
+
+const getSignedAmount = (instruction: string | undefined, quantity: number) => {
+    if (instruction?.startsWith('SELL')) return -Math.abs(quantity);
+    return Math.abs(quantity);
+};
+
+const getTransactionTradeItem = (transaction: Record<string, unknown>) => {
+    const transferItems = transaction.transferItems;
+    if (!Array.isArray(transferItems)) return null;
+
+    return transferItems.find(item => {
+        const transferItem = item as { instrument?: { symbol?: string }; feeType?: string; price?: number };
+        return transferItem.instrument?.symbol && !transferItem.feeType && transferItem.price !== undefined;
+    }) as { instrument?: { symbol?: string }; amount?: number; positionEffect?: string } | undefined || null;
+};
+
+const hasMatchingTransaction = (
+    existingTransactions: Array<Record<string, unknown>>,
+    orderTransaction: Record<string, unknown>
+) => {
+    const orderItem = getTransactionTradeItem(orderTransaction);
+    if (!orderItem?.instrument?.symbol) return false;
+
+    const orderDay = toDateOnly(new Date(orderTransaction.time as string));
+    const orderQuantity = Math.abs(Number(orderItem.amount || 0));
+
+    return existingTransactions.some(transaction => {
+        const transactionItem = getTransactionTradeItem(transaction);
+        if (!transactionItem?.instrument?.symbol) return false;
+
+        const transactionDay = toDateOnly(new Date(transaction.time as string));
+        const transactionQuantity = Math.abs(Number(transactionItem.amount || 0));
+
+        return transactionDay === orderDay
+            && transactionItem.instrument.symbol === orderItem.instrument?.symbol
+            && transactionItem.positionEffect === orderItem.positionEffect
+            && Math.abs(transactionQuantity - orderQuantity) < 0.0001;
+    });
+};
+
+const orderIdToActivityId = (orderId: number | undefined, legId: number | undefined, index: number) => {
+    const base = Number.isFinite(orderId) ? Number(orderId) : Date.now();
+    return (base * 100) + (legId ?? index);
+};
+
+const mapFilledOrdersToTransactions = (orders: SchwabOrder[], accountId: string): Array<Record<string, unknown>> => {
+    const transactions: Array<Record<string, unknown>> = [];
+
+    orders
+        .filter(order => order.status === 'FILLED')
+        .forEach(order => {
+            const executionLegs = order.orderActivityCollection
+                ?.filter(activity => activity.activityType === 'EXECUTION')
+                .flatMap(activity => activity.executionLegs || []) || [];
+
+            (order.orderLegCollection || []).forEach((leg, index) => {
+                const instrument = leg.instrument;
+                if (!instrument?.symbol || !instrument.assetType) return;
+
+                const executionLeg = executionLegs.find(exec => exec.legId === leg.legId) || executionLegs[index];
+                const quantity = Math.abs(executionLeg?.quantity || leg.quantity || 0);
+                const price = executionLeg?.price || order.price || 0;
+                if (quantity <= 0 || price <= 0) return;
+
+                const multiplier = instrument.assetType === 'OPTION' || instrument.assetType === 'INDEX' ? 100 : 1;
+                const amount = getSignedAmount(leg.instruction, quantity);
+                const netAmount = Math.abs(price * quantity * multiplier);
+
+                transactions.push({
+                    activityId: orderIdToActivityId(order.orderId, leg.legId, index),
+                    type: 'TRADE',
+                    status: 'VALID',
+                    time: executionLeg?.time || order.closeTime || order.enteredTime || new Date().toISOString(),
+                    tradeDate: toDateOnly(new Date(executionLeg?.time || order.closeTime || order.enteredTime || Date.now())),
+                    netAmount,
+                    _accountId: accountId,
+                    _source: 'same-day-order',
+                    transferItems: [{
+                        instrument: {
+                            assetType: instrument.assetType,
+                            symbol: instrument.symbol,
+                            description: instrument.description,
+                            putCall: instrument.putCall,
+                            strikePrice: instrument.strikePrice,
+                            underlyingSymbol: instrument.underlyingSymbol,
+                        },
+                        amount,
+                        price,
+                        cost: netAmount,
+                        positionEffect: getPositionEffect(leg),
+                    }],
+                });
+            });
+        });
+
+    return transactions;
+};
+
 /**
  * Fetch Transaction History from Schwab
  * 
@@ -62,15 +229,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const processedAccounts = new Set<string>(); // Dedupe accounts
 
             // Iterate through all accounts
-            for (const account of accountsList) {
-                const accId =
-                    account.hashValue ||
-                    account.encryptedAccountId ||
-                    (account.securitiesAccount && account.securitiesAccount.hashValue) ||
-                    account.accountNumber ||
-                    account.accountId ||
-                    (account.securitiesAccount && account.securitiesAccount.accountNumber) ||
-                    (account.securitiesAccount && account.securitiesAccount.accountId);
+            for (const account of accountsList as SchwabApiAccount[]) {
+                const accId = getAccountId(account);
 
                 if (!accId) {
                     debugInfo.push({ error: 'Could not extract ID', account });
@@ -140,6 +300,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                                 end: endISO.toISOString()
                             }
                         });
+                    }
+
+                    // Same-day fills may be available as orders before Schwab exposes them as transactions.
+                    const today = toDateOnly(new Date());
+                    const includesToday = toDateOnly(startDateObj) <= today && toDateOnly(endDateObj) >= today;
+                    if (includesToday) {
+                        const ordersUrl = new URL(`https://api.schwabapi.com/trader/v1/accounts/${accId}/orders`);
+                        const orderStart = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+                        orderStart.setUTCHours(0, 0, 0, 0);
+                        const orderEnd = new Date();
+                        orderEnd.setUTCHours(23, 59, 59, 999);
+
+                        ordersUrl.searchParams.set('fromEnteredTime', orderStart.toISOString());
+                        ordersUrl.searchParams.set('toEnteredTime', orderEnd.toISOString());
+                        ordersUrl.searchParams.set('status', 'FILLED');
+
+                        const ordersResponse = await fetch(ordersUrl.toString(), {
+                            headers: {
+                                'Authorization': `Bearer ${accessToken}`,
+                                'Accept': 'application/json'
+                            }
+                        });
+
+                        if (ordersResponse.ok) {
+                            const orders = await ordersResponse.json();
+                            const ordersList = Array.isArray(orders) ? orders as SchwabOrder[] : [];
+                            const orderTransactions = mapFilledOrdersToTransactions(ordersList, accId)
+                                .filter(orderTransaction => !hasMatchingTransaction(allTransactions, orderTransaction));
+                            allTransactions.push(...orderTransactions);
+                            debugInfo.push({
+                                accId,
+                                sameDayOrders: ordersList.length,
+                                sameDayOrderTransactions: orderTransactions.length,
+                                status: 'orders success'
+                            });
+                        } else {
+                            debugInfo.push({
+                                accId,
+                                status: `orders failed: ${ordersResponse.status}`,
+                                url: ordersUrl.toString()
+                            });
+                        }
                     }
                 } catch (err: unknown) {
                     debugInfo.push({ accId, error: err instanceof Error ? err.message : 'Unknown error' });
