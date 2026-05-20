@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, getDay, addMonths, parseISO, startOfWeek, endOfWeek, addWeeks } from 'date-fns';
+import { startOfMonth, endOfMonth, eachDayOfInterval, format, addMonths, parseISO, startOfWeek, endOfWeek, addWeeks, isSameMonth } from 'date-fns';
 import { ChevronLeft, ChevronRight, X, TrendingUp, TrendingDown, Target, DollarSign, BarChart3, Calendar as CalendarIcon } from 'lucide-react';
 import { useTrades } from '../context/useTrades';
 import ExchangeFilter from '../components/ExchangeFilter';
@@ -57,8 +57,17 @@ const Calendar = () => {
     const monthStart = useMemo(() => startOfMonth(currentDate), [currentDate]);
     const monthEnd = useMemo(() => endOfMonth(currentDate), [currentDate]);
     const daysInMonth = useMemo(() => eachDayOfInterval({ start: monthStart, end: monthEnd }), [monthStart, monthEnd]);
-    const startDay = getDay(monthStart);
-    const blanks = Array(startDay).fill(null);
+    const calendarMonthDays = useMemo(() => {
+        return eachDayOfInterval({
+            start: startOfWeek(monthStart),
+            end: endOfWeek(monthEnd)
+        });
+    }, [monthStart, monthEnd]);
+    const calendarWeeks = useMemo(() => {
+        return Array.from({ length: Math.ceil(calendarMonthDays.length / 7) }, (_, index) =>
+            calendarMonthDays.slice(index * 7, index * 7 + 7)
+        );
+    }, [calendarMonthDays]);
 
     // Weekly view data
     const weekStart = useMemo(() => startOfWeek(currentDate), [currentDate]);
@@ -75,10 +84,10 @@ const Calendar = () => {
     }, [dailyPnlByDate]);
 
     // Get trades for a specific date
-    const getTradesForDate = (date: Date): Trade[] => {
+    const getTradesForDate = useCallback((date: Date): Trade[] => {
         const dateStr = format(date, 'yyyy-MM-dd');
         return filteredTrades.filter(t => format(parseISO(t.exitDate), 'yyyy-MM-dd') === dateStr);
-    };
+    }, [filteredTrades]);
 
     // Calculate day stats
     const getDayStats = (date: Date) => {
@@ -153,6 +162,25 @@ const Calendar = () => {
         if (pnl < 0) return 'bg-[var(--danger)]/20 text-[var(--danger)] border-[var(--danger)]/30';
         return 'bg-[var(--bg-tertiary)]/30 text-[var(--text-tertiary)]';
     };
+
+    const weeklyPnlSummaries = useMemo(() => {
+        return calendarWeeks.map((weekDays, index) => {
+            const currentMonthDays = weekDays.filter(day => isSameMonth(day, currentDate));
+            const pnl = currentMonthDays.reduce((sum, day) => sum + getPnLForDate(day), 0);
+            const dayValues = currentMonthDays.map(day => getPnLForDate(day));
+            const winningDays = dayValues.filter(value => value > 0).length;
+            const losingDays = dayValues.filter(value => value < 0).length;
+            const tradeCount = currentMonthDays.reduce((sum, day) => sum + getTradesForDate(day).length, 0);
+
+            return {
+                label: `Week ${index + 1}`,
+                pnl,
+                winningDays,
+                losingDays,
+                tradeCount
+            };
+        });
+    }, [calendarWeeks, currentDate, getPnLForDate, getTradesForDate]);
 
     const selectedDayStats = selectedDate ? getDayStats(selectedDate) : null;
 
@@ -566,55 +594,94 @@ const Calendar = () => {
                             ))}
                         </div>
 
-                        <div className="grid grid-cols-7 gap-1 md:gap-2 lg:gap-4">
-                            {blanks.map((_, i) => (
-                                <div key={`blank-${i}`} className="aspect-square"></div>
-                            ))}
+                        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_9rem] xl:grid-cols-[minmax(0,1fr)_11rem]">
+                            <div className="grid grid-cols-7 gap-1 md:gap-2 lg:gap-4">
+                                {calendarMonthDays.map(date => {
+                                    const pnl = getPnLForDate(date);
+                                    const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+                                    const isCurrentMonth = isSameMonth(date, currentDate);
+                                    const hasTrades = isCurrentMonth && getTradesForDate(date).length > 0;
 
-                            {daysInMonth.map(date => {
-                                const pnl = getPnLForDate(date);
-                                const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-                                const hasTrades = getTradesForDate(date).length > 0;
+                                    return (
+                                        <div
+                                            key={date.toISOString()}
+                                            onClick={() => hasTrades && setSelectedDate(date)}
+                                            className={`
+                                        aspect-square rounded-lg md:rounded-xl p-1 md:p-2 flex flex-col items-center justify-center border transition-all relative overflow-hidden
+                                        ${isCurrentMonth ? '' : 'opacity-35'}
+                                        ${hasTrades ? 'cursor-pointer hover:scale-105' : 'cursor-default'}
+                                        ${isCurrentMonth ? getDayClass(pnl) : 'bg-[var(--bg-tertiary)]/10 text-[var(--text-tertiary)] border-[var(--border)]/40'}
+                                        ${isToday ? 'ring-1 md:ring-2 ring-[var(--accent-primary)] ring-offset-1 md:ring-offset-2 ring-offset-[var(--bg-secondary)]' : ''}
+                                    `}
+                                        >
+                                            <span className="absolute top-0.5 left-0.5 md:top-2 md:left-2 text-[10px] md:text-xs opacity-60 font-medium">
+                                                {format(date, 'd')}
+                                            </span>
 
-                                return (
+                                            {isCurrentMonth && pnl !== 0 && (
+                                                <div className="mt-2 md:mt-4 text-center">
+                                                    <span className="text-[10px] md:text-sm font-bold block leading-tight">
+                                                        {/* Mobile: no decimals, Desktop: 2 decimals */}
+                                                        <span className="md:hidden">
+                                                            {pnl > 0 ? '+' : ''}${Math.abs(pnl) >= 1000
+                                                                ? (Math.abs(pnl) / 1000).toFixed(1) + 'k'
+                                                                : Math.round(Math.abs(pnl)).toLocaleString()}
+                                                        </span>
+                                                        <span className="hidden md:inline">
+                                                            {pnl > 0 ? '+' : ''}${pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </span>
+                                                    </span>
+                                                    {pnl > 0 && <div className="absolute inset-0 bg-green-500/5 blur-xl"></div>}
+                                                    {pnl < 0 && <div className="absolute inset-0 bg-red-500/5 blur-xl"></div>}
+                                                </div>
+                                            )}
+
+                                            {isCurrentMonth && pnl === 0 && (
+                                                <span className="text-[var(--text-tertiary)] text-[10px] md:text-xs mt-2 md:mt-4">-</span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="hidden lg:grid gap-4" style={{ gridTemplateRows: `repeat(${weeklyPnlSummaries.length}, minmax(0, 1fr))` }}>
+                                {weeklyPnlSummaries.map(week => (
                                     <div
-                                        key={date.toISOString()}
-                                        onClick={() => hasTrades && setSelectedDate(date)}
-                                        className={`
-                                    aspect-square rounded-lg md:rounded-xl p-1 md:p-2 flex flex-col items-center justify-center border transition-all hover:scale-105 relative overflow-hidden
-                                    ${hasTrades ? 'cursor-pointer' : 'cursor-default'}
-                                    ${getDayClass(pnl)}
-                                    ${isToday ? 'ring-1 md:ring-2 ring-[var(--accent-primary)] ring-offset-1 md:ring-offset-2 ring-offset-[var(--bg-secondary)]' : ''}
-                                `}
+                                        key={week.label}
+                                        className="min-h-0 rounded-xl border border-[var(--border)] bg-[var(--bg-tertiary)]/20 p-3 flex flex-col justify-between"
                                     >
-                                        <span className="absolute top-0.5 left-0.5 md:top-2 md:left-2 text-[10px] md:text-xs opacity-60 font-medium">
-                                            {format(date, 'd')}
-                                        </span>
-
-                                        {pnl !== 0 && (
-                                            <div className="mt-2 md:mt-4 text-center">
-                                                <span className="text-[10px] md:text-sm font-bold block leading-tight">
-                                                    {/* Mobile: no decimals, Desktop: 2 decimals */}
-                                                    <span className="md:hidden">
-                                                        {pnl > 0 ? '+' : ''}${Math.abs(pnl) >= 1000
-                                                            ? (Math.abs(pnl) / 1000).toFixed(1) + 'k'
-                                                            : Math.round(Math.abs(pnl)).toLocaleString()}
-                                                    </span>
-                                                    <span className="hidden md:inline">
-                                                        {pnl > 0 ? '+' : ''}${pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                    </span>
-                                                </span>
-                                                {pnl > 0 && <div className="absolute inset-0 bg-green-500/5 blur-xl"></div>}
-                                                {pnl < 0 && <div className="absolute inset-0 bg-red-500/5 blur-xl"></div>}
-                                            </div>
-                                        )}
-
-                                        {pnl === 0 && (
-                                            <span className="text-[var(--text-tertiary)] text-[10px] md:text-xs mt-2 md:mt-4">-</span>
-                                        )}
+                                        <div>
+                                            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">Weekly P/L</div>
+                                            <div className="mt-1 text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">{week.label}</div>
+                                        </div>
+                                        <div className={`text-right text-lg font-bold ${week.pnl >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                                            {week.pnl >= 0 ? '+' : ''}${week.pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                        </div>
+                                        <div className="text-right text-[11px] text-[var(--text-tertiary)]">
+                                            <span className="text-[var(--success)]">{week.winningDays}W</span>
+                                            <span className="mx-1">/</span>
+                                            <span className="text-[var(--danger)]">{week.losingDays}L</span>
+                                            {week.tradeCount > 0 && <span className="ml-2">{week.tradeCount} trades</span>}
+                                        </div>
                                     </div>
-                                );
-                            })}
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:hidden">
+                            {weeklyPnlSummaries.map(week => (
+                                <div key={week.label} className="rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)]/20 p-3">
+                                    <div className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">{week.label}</div>
+                                    <div className={`mt-1 text-lg font-bold ${week.pnl >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+                                        {week.pnl >= 0 ? '+' : ''}${week.pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                    </div>
+                                    <div className="mt-1 text-[11px] text-[var(--text-tertiary)]">
+                                        <span className="text-[var(--success)]">{week.winningDays}W</span>
+                                        <span className="mx-1">/</span>
+                                        <span className="text-[var(--danger)]">{week.losingDays}L</span>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
