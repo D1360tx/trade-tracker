@@ -30,7 +30,8 @@ const DashboardV2 = () => {
     const [selectedDayDate, setSelectedDayDate] = useState<string | null>(null);
     const [selectedDayTrades, setSelectedDayTrades] = useState<Trade[]>([]);
 
-    // Filter trades
+    // Filter trades for KPI/stat panels. The calendar views get the same exchange filter
+    // without the date range so month/year navigation can show prior months.
     const filteredTrades = useMemo(() => {
         const now = new Date();
         const dateRange = timeRange === 'all'
@@ -41,6 +42,10 @@ const DashboardV2 = () => {
 
         return filterTradesForAnalysis(trades, { selectedExchanges, dateRange });
     }, [trades, timeRange, customStart, customEnd, selectedExchanges]);
+
+    const calendarTrades = useMemo(() => {
+        return filterTradesForAnalysis(trades, { selectedExchanges });
+    }, [trades, selectedExchanges]);
 
     const stats = useV2Stats(filteredTrades, trades);
     const accountBalance = useMemo(
@@ -111,7 +116,7 @@ const DashboardV2 = () => {
                 {/* Calendar (3/4 width on lg screens) */}
                 <div className="lg:col-span-3 flex">
                     <MonthlyCalendarV2
-                        trades={filteredTrades}
+                        trades={calendarTrades}
                         onDayClick={handleDayClick}
                         initialDate={currentCalendarDate}
                     />
@@ -129,7 +134,7 @@ const DashboardV2 = () => {
             </div>
 
             {/* Yearly Calendar Grid */}
-            <YearlyCalendarGrid trades={filteredTrades} />
+            <YearlyCalendarGrid trades={calendarTrades} />
 
             {/* Bottom Stats Cards */}
             <BottomStatsCards trades={filteredTrades} />
