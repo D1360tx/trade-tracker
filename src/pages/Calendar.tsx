@@ -577,21 +577,28 @@ const Calendar = () => {
                 {desktopView === 'monthly' && (
                     <div className={mobileView === 'weekly' ? 'hidden md:block' : ''}>
                         {/* Day Headers - Show single letter on mobile */}
-                        <div className="grid grid-cols-7 mb-2 md:mb-4">
-                            {[
-                                { full: 'Sunday', short: 'S' },
-                                { full: 'Monday', short: 'M' },
-                                { full: 'Tuesday', short: 'T' },
-                                { full: 'Wednesday', short: 'W' },
-                                { full: 'Thursday', short: 'T' },
-                                { full: 'Friday', short: 'F' },
-                                { full: 'Saturday', short: 'S' }
-                            ].map(day => (
-                                <div key={day.full} className="text-center text-[var(--text-secondary)] font-medium py-1 md:py-2">
-                                    <span className="hidden sm:inline text-sm">{day.full.substring(0, 3)}</span>
-                                    <span className="sm:hidden text-xs">{day.short}</span>
-                                </div>
-                            ))}
+                        <div className="mb-2 grid gap-3 md:mb-4 lg:grid-cols-[minmax(0,1fr)_9rem] xl:grid-cols-[minmax(0,1fr)_11rem]">
+                            <div className="grid grid-cols-7">
+                                {[
+                                    { full: 'Sunday', short: 'S' },
+                                    { full: 'Monday', short: 'M' },
+                                    { full: 'Tuesday', short: 'T' },
+                                    { full: 'Wednesday', short: 'W' },
+                                    { full: 'Thursday', short: 'T' },
+                                    { full: 'Friday', short: 'F' },
+                                    { full: 'Saturday', short: 'S' }
+                                ].map(day => (
+                                    <div key={day.full} className="text-center text-[var(--text-secondary)] font-medium py-1 md:py-2">
+                                        <span className="hidden sm:inline text-sm">{day.full.substring(0, 3)}</span>
+                                        <span className="sm:hidden text-xs">{day.short}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="hidden items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)]/20 px-3 lg:flex">
+                                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">
+                                    Weekly P/L
+                                </span>
+                            </div>
                         </div>
 
                         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_9rem] xl:grid-cols-[minmax(0,1fr)_11rem]">
@@ -650,10 +657,7 @@ const Calendar = () => {
                                         key={week.label}
                                         className="min-h-0 rounded-xl border border-[var(--border)] bg-[var(--bg-tertiary)]/20 p-3 flex flex-col justify-between"
                                     >
-                                        <div>
-                                            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">Weekly P/L</div>
-                                            <div className="mt-1 text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">{week.label}</div>
-                                        </div>
+                                        <div className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">{week.label}</div>
                                         <div className={`text-right text-lg font-bold ${week.pnl >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
                                             {week.pnl >= 0 ? '+' : ''}${week.pnl.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                         </div>
