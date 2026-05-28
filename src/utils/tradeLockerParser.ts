@@ -16,6 +16,8 @@ export const parseTradeLockerPaste = (text: string): ParseResult => {
 
     try {
         const rawLines = text.split('\n');
+        const rawHeader = rawLines.find(line => line.includes('Entry Time') && line.includes('Exit Time'));
+        const expectedColumnCount = rawHeader ? rawHeader.split('\t').length : 0;
 
         // Pre-process: identify and merge multi-line rows
         const mergedLines: string[] = [];
@@ -42,6 +44,10 @@ export const parseTradeLockerPaste = (text: string): ParseResult => {
                     logs.push(`Merged: ${nextLine}`);
                     i++; // Skip the merged line
                 } else if (nextLine && nextLine.includes('\t')) {
+                    const currentColumnCount = (line.match(/\t/g) || []).length + 1;
+                    if (expectedColumnCount > 0 && currentColumnCount >= expectedColumnCount) {
+                        break;
+                    }
                     // Next line has tabs - it's the continuation with rest of data
                     line += (line.endsWith('\t') ? '' : '\t') + nextLine;
                     logs.push(`Merged continuation`);
@@ -81,6 +87,7 @@ export const parseTradeLockerPaste = (text: string): ParseResult => {
 
         const headers = mergedLines[headerIdx].split('\t');
         logs.push(`Headers (${headers.length} cols)`);
+        const hasInstrumentColumn = /^(instrument|symbol)$/i.test(headers[0]?.trim() || '');
 
         // Parse helpers
         const parseNum = (str: string): number => {
@@ -140,7 +147,9 @@ export const parseTradeLockerPaste = (text: string): ParseResult => {
             try {
                 let colIdx = 0;
 
-                const instrument = currentInstrument;
+                const instrument = hasInstrumentColumn
+                    ? cols[colIdx++]?.trim() || currentInstrument
+                    : currentInstrument;
                 const entryTime = cols[colIdx++]?.trim() || '';
                 const type = cols[colIdx++]?.trim() || '';
                 const side = cols[colIdx++]?.trim() || '';
