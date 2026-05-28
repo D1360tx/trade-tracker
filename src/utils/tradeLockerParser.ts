@@ -111,6 +111,8 @@ export const parseTradeLockerPaste = (text: string): ParseResult => {
             }
         };
 
+        const isDateLike = (str: string): boolean => /^\d{4}[/-]\d{2}[/-]\d{2}\s+\d{2}:\d{2}:\d{2}/.test(str.trim());
+
         // Process data rows
         let currentInstrument = '';
         let rowIdx = headerIdx + 1;
@@ -147,7 +149,8 @@ export const parseTradeLockerPaste = (text: string): ParseResult => {
             try {
                 let colIdx = 0;
 
-                const instrument = hasInstrumentColumn
+                const firstColumn = cols[colIdx]?.trim() || '';
+                const instrument = hasInstrumentColumn && !isDateLike(firstColumn)
                     ? cols[colIdx++]?.trim() || currentInstrument
                     : currentInstrument;
                 const entryTime = cols[colIdx++]?.trim() || '';
