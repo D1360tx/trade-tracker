@@ -1,10 +1,14 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { parseISO, startOfDay, endOfDay } from 'date-fns';
 import { useTrades } from '../../context/useTrades';
 import { useV2Stats } from '../../hooks/v2/useV2Stats';
 import TimeRangeFilter from '../../components/TimeRangeFilter';
-import { getDateRangeForFilter, type TimeRange } from '../../utils/timeRanges';
+import {
+    getCalendarAnchorDateForRange,
+    getCustomDateRangeForFilter,
+    getDateRangeForFilter,
+    type TimeRange
+} from '../../utils/timeRanges';
 import { filterTradesForAnalysis } from '../../utils/tradeAnalytics';
 import ExchangeFilter from '../../components/ExchangeFilter';
 import TopStatsBar from '../../components/v2/dashboard/TopStatsBar';
@@ -24,28 +28,28 @@ const DashboardV2 = () => {
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
     const [selectedExchanges, setSelectedExchanges] = useState<string[]>([]);
-    const [currentCalendarDate] = useState(new Date());
+    const [currentCalendarDate, setCurrentCalendarDate] = useState(() =>
+        getCalendarAnchorDateForRange('this_month')
+    );
 
     // Day detail modal state
     const [selectedDayDate, setSelectedDayDate] = useState<string | null>(null);
     const [selectedDayTrades, setSelectedDayTrades] = useState<Trade[]>([]);
 
-    // Filter trades for KPI/stat panels. The calendar views get the same exchange filter
-    // without the date range so month/year navigation can show prior months.
+    const selectedDateRange = useMemo(() => {
+        if (timeRange === 'all') return undefined;
+        if (timeRange === 'custom') {
+            return getCustomDateRangeForFilter(customStart, customEnd);
+        }
+
+        return getDateRangeForFilter(timeRange);
+    }, [timeRange, customStart, customEnd]);
+
     const filteredTrades = useMemo(() => {
-        const now = new Date();
-        const dateRange = timeRange === 'all'
-            ? undefined
-            : timeRange === 'custom' && customStart
-                ? { start: startOfDay(parseISO(customStart)), end: customEnd ? endOfDay(parseISO(customEnd)) : now }
-                : getDateRangeForFilter(timeRange);
+        return filterTradesForAnalysis(trades, { selectedExchanges, dateRange: selectedDateRange });
+    }, [trades, selectedExchanges, selectedDateRange]);
 
-        return filterTradesForAnalysis(trades, { selectedExchanges, dateRange });
-    }, [trades, timeRange, customStart, customEnd, selectedExchanges]);
-
-    const calendarTrades = useMemo(() => {
-        return filterTradesForAnalysis(trades, { selectedExchanges });
-    }, [trades, selectedExchanges]);
+    const calendarTrades = filteredTrades;
 
     const stats = useV2Stats(filteredTrades, trades);
     const accountBalance = useMemo(
@@ -60,6 +64,25 @@ const DashboardV2 = () => {
 
     const handleTradeClick = (trade: Trade) => {
         navigate(`/trade-v2/${trade.id}`);
+    };
+
+    const handleTimeRangeChange = (range: TimeRange) => {
+        setTimeRange(range);
+        setCurrentCalendarDate(getCalendarAnchorDateForRange(range, { customStart, customEnd }));
+    };
+
+    const handleCustomStartChange = (value: string) => {
+        setCustomStart(value);
+        if (timeRange === 'custom') {
+            setCurrentCalendarDate(getCalendarAnchorDateForRange('custom', { customStart: value, customEnd }));
+        }
+    };
+
+    const handleCustomEndChange = (value: string) => {
+        setCustomEnd(value);
+        if (timeRange === 'custom') {
+            setCurrentCalendarDate(getCalendarAnchorDateForRange('custom', { customStart, customEnd: value }));
+        }
     };
 
     if (isLoading) {
@@ -87,14 +110,14 @@ const DashboardV2 = () => {
                             <input
                                 type="date"
                                 value={customStart}
-                                onChange={(e) => setCustomStart(e.target.value)}
+                                onChange={(e) => handleCustomStartChange(e.target.value)}
                                 className="bg-transparent text-sm outline-none text-[var(--text-secondary)] [color-scheme:dark]"
                             />
                             <span className="text-[var(--text-tertiary)]">-</span>
                             <input
                                 type="date"
                                 value={customEnd}
-                                onChange={(e) => setCustomEnd(e.target.value)}
+                                onChange={(e) => handleCustomEndChange(e.target.value)}
                                 className="bg-transparent text-sm outline-none text-[var(--text-secondary)] [color-scheme:dark]"
                             />
                         </div>
@@ -104,7 +127,7 @@ const DashboardV2 = () => {
                         selectedExchanges={selectedExchanges}
                         onSelectionChange={setSelectedExchanges}
                     />
-                    <TimeRangeFilter selectedRange={timeRange} onRangeChange={setTimeRange} />
+                    <TimeRangeFilter selectedRange={timeRange} onRangeChange={handleTimeRangeChange} />
                 </div>
             </div>
 
@@ -118,7 +141,8 @@ const DashboardV2 = () => {
                     <MonthlyCalendarV2
                         trades={calendarTrades}
                         onDayClick={handleDayClick}
-                        initialDate={currentCalendarDate}
+                        currentDate={currentCalendarDate}
+                        onCurrentDateChange={setCurrentCalendarDate}
                     />
                 </div>
 

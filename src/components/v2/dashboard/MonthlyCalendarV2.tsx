@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Settings, Camera, Info } from 'lucide-react';
 import { format, addMonths, subMonths } from 'date-fns';
 import { useCalendarDays, type CalendarDayData } from '../../../hooks/v2/useCalendarData';
@@ -7,7 +6,8 @@ import type { Trade } from '../../../types';
 interface MonthlyCalendarV2Props {
     trades: Trade[];
     onDayClick: (date: string, trades: Trade[]) => void;
-    initialDate?: Date;
+    currentDate: Date;
+    onCurrentDateChange: (date: Date) => void;
 }
 
 const formatCurrency = (value: number): string => {
@@ -37,8 +37,7 @@ const getDayBorderColor = (day: CalendarDayData): string => {
     return 'rgb(96, 165, 250)'; // blue for breakeven
 };
 
-const MonthlyCalendarV2 = ({ trades, onDayClick, initialDate = new Date() }: MonthlyCalendarV2Props) => {
-    const [currentDate, setCurrentDate] = useState(initialDate);
+const MonthlyCalendarV2 = ({ trades, onDayClick, currentDate, onCurrentDateChange }: MonthlyCalendarV2Props) => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
 
@@ -49,9 +48,9 @@ const MonthlyCalendarV2 = ({ trades, onDayClick, initialDate = new Date() }: Mon
     const monthlyPnL = monthDays.reduce((sum, d) => sum + d.pnl, 0);
     const tradingDays = monthDays.filter(d => d.tradeCount > 0).length;
 
-    const goToPrevMonth = () => setCurrentDate(subMonths(currentDate, 1));
-    const goToNextMonth = () => setCurrentDate(addMonths(currentDate, 1));
-    const goToThisMonth = () => setCurrentDate(new Date());
+    const goToPrevMonth = () => onCurrentDateChange(subMonths(currentDate, 1));
+    const goToNextMonth = () => onCurrentDateChange(addMonths(currentDate, 1));
+    const goToThisMonth = () => onCurrentDateChange(new Date());
 
     const today = format(new Date(), 'yyyy-MM-dd');
 

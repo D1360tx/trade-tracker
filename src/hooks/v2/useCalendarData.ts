@@ -51,39 +51,43 @@ const groupTradesByDay = (trades: Trade[]): Record<string, Trade[]> => {
     return grouped;
 };
 
+export const buildCalendarDays = (trades: Trade[], year: number, month: number): CalendarDayData[] => {
+    const targetDate = new Date(year, month, 1);
+    const monthStart = startOfMonth(targetDate);
+    const monthEnd = endOfMonth(targetDate);
+
+    // Get all days to display (including padding from adjacent months)
+    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 }); // Sunday
+    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+
+    const allDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+    const tradesByDay = groupTradesByDay(trades);
+
+    return allDays.map(day => {
+        const dateStr = format(day, 'yyyy-MM-dd');
+        const dayTrades = tradesByDay[dateStr] || [];
+        const pnl = dayTrades.reduce((sum, t) => sum + t.pnl, 0);
+        const winCount = dayTrades.filter(t => t.pnl > 0).length;
+        const lossCount = dayTrades.filter(t => t.pnl < 0).length;
+        const winRate = dayTrades.length > 0 ? (winCount / dayTrades.length) * 100 : 0;
+
+        return {
+            date: dateStr,
+            dayOfMonth: day.getDate(),
+            pnl,
+            winRate,
+            tradeCount: dayTrades.length,
+            winCount,
+            lossCount,
+            trades: dayTrades,
+            isCurrentMonth: getMonth(day) === month,
+        };
+    });
+};
+
 export const useCalendarDays = (trades: Trade[], year: number, month: number): CalendarDayData[] => {
     return useMemo(() => {
-        const targetDate = new Date(year, month, 1);
-        const monthStart = startOfMonth(targetDate);
-        const monthEnd = endOfMonth(targetDate);
-
-        // Get all days to display (including padding from adjacent months)
-        const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 }); // Sunday
-        const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
-
-        const allDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-        const tradesByDay = groupTradesByDay(trades);
-
-        return allDays.map(day => {
-            const dateStr = format(day, 'yyyy-MM-dd');
-            const dayTrades = tradesByDay[dateStr] || [];
-            const pnl = dayTrades.reduce((sum, t) => sum + t.pnl, 0);
-            const winCount = dayTrades.filter(t => t.pnl > 0).length;
-            const lossCount = dayTrades.filter(t => t.pnl < 0).length;
-            const winRate = dayTrades.length > 0 ? (winCount / dayTrades.length) * 100 : 0;
-
-            return {
-                date: dateStr,
-                dayOfMonth: day.getDate(),
-                pnl,
-                winRate,
-                tradeCount: dayTrades.length,
-                winCount,
-                lossCount,
-                trades: dayTrades,
-                isCurrentMonth: getMonth(day) === month,
-            };
-        });
+        return buildCalendarDays(trades, year, month);
     }, [trades, year, month]);
 };
 
