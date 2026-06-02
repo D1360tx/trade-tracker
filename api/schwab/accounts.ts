@@ -70,6 +70,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
 
             if (!accountResponse.ok) {
+                if (accountResponse.status === 401) {
+                    return res.status(401).json({
+                        error: 'Access token expired',
+                        requiresRefresh: true,
+                    });
+                }
                 accounts.push({
                     accountHash,
                     accountNumber: maskAccountNumber(account.accountNumber),

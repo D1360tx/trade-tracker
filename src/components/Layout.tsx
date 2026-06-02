@@ -59,7 +59,11 @@ const Layout = () => {
             // Fallback: check localStorage
             const apiKey = localStorage.getItem(ex.toLowerCase() + "_api_key");
             const apiSecret = localStorage.getItem(ex.toLowerCase() + "_api_secret");
-            const hasSchwabTokens = ex === 'Schwab' && !!localStorage.getItem('schwab_tokens');
+            let hasSchwabTokens = false;
+            if (ex === 'Schwab') {
+                const { getSchwabConnectionHealth } = await import('../utils/schwabAuth');
+                hasSchwabTokens = (await getSchwabConnectionHealth()).connected;
+            }
 
             if ((apiKey && apiSecret) || hasSchwabTokens) {
                 toSync.push(ex);

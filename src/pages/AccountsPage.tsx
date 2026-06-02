@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle, Clock, Database, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTrades } from '../context/useTrades';
-import { isConnectedToSchwab } from '../utils/schwabAuth';
+import { getSchwabConnectionHealth, type SchwabConnectionHealth } from '../utils/schwabAuth';
 import { getDataQualityIssues } from '../utils/tradeAnalytics';
 import { getTotalSchwabAccountBalance, getTotalSchwabCashBalance } from '../utils/schwabAccount';
 
@@ -15,10 +15,23 @@ const formatLastSync = (timestamp: number | null) => {
     });
 };
 
+const formatTimestamp = (timestamp?: number) => {
+    if (!timestamp) return 'Never';
+    return formatLastSync(timestamp);
+};
+
+const DEFAULT_SCHWAB_HEALTH: SchwabConnectionHealth = {
+    connected: false,
+    status: 'disconnected',
+    label: 'Not connected',
+    message: 'Connect Schwab to sync trades and balances.',
+    needsReconnectSoon: false,
+};
+
 const AccountsPage = () => {
     const { trades, lastUpdated, fetchTradesFromAPI, isLoading, schwabAccountSnapshot, schwabBalanceUpdatedAt } = useTrades();
     const [now] = useState(() => Date.now());
-    const schwabConnected = isConnectedToSchwab();
+    const [schwabHealth, setSchwabHealth] = useState<SchwabConnectionHealth>(DEFAULT_SCHWAB_HEALTH);
     const schwabTrades = useMemo(() => trades.filter(trade => trade.exchange === 'Schwab'), [trades]);
     const issues = useMemo(() => getDataQualityIssues(trades, lastUpdated), [trades, lastUpdated]);
     const lastSyncAgeDays = lastUpdated ? Math.floor((now - lastUpdated) / (24 * 60 * 60 * 1000)) : null;
@@ -26,8 +39,13 @@ const AccountsPage = () => {
     const totalAccountBalance = useMemo(() => getTotalSchwabAccountBalance(schwabAccountSnapshot), [schwabAccountSnapshot]);
     const totalCashBalance = useMemo(() => getTotalSchwabCashBalance(schwabAccountSnapshot), [schwabAccountSnapshot]);
 
+    useEffect(() => {
+        getSchwabConnectionHealth().then(setSchwabHealth);
+    }, []);
+
     const handleSyncSchwab = async () => {
         await fetchTradesFromAPI('Schwab');
+        setSchwabHealth(await getSchwabConnectionHealth());
     };
 
     return (
@@ -41,7 +59,7 @@ const AccountsPage = () => {
                 </div>
                 <button
                     onClick={handleSyncSchwab}
-                    disabled={isLoading || !schwabConnected}
+                    disabled={isLoading || !schwabHealth.connected}
                     className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                     <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
@@ -57,11 +75,11 @@ const AccountsPage = () => {
                         </div>
                         <div>
                             <p className="text-sm text-[var(--text-secondary)]">Schwab</p>
-                            <p className="font-semibold">{schwabConnected ? 'Connected' : 'Not connected'}</p>
+                            <p className="font-semibold">{schwabHealth.label}</p>
                         </div>
                     </div>
                     <p className="text-xs text-[var(--text-tertiary)] mt-4">
-                        OAuth tokens are checked locally and loaded from Supabase when available.
+                        {schwabHealth.message}
                     </p>
                 </div>
 
@@ -72,7 +90,7 @@ const AccountsPage = () => {
                         </div>
                         <div>
                             <p className="text-sm text-[var(--text-secondary)]">Last successful sync</p>
-                            <p className="font-semibold">{formatLastSync(lastUpdated)}</p>
+                            <p className="font-semibold">{formatTimestamp(schwabHealth.lastSuccessfulSyncAt || lastUpdated || undefined)}</p>
                         </div>
                     </div>
                     <p className="text-xs text-[var(--text-tertiary)] mt-4">
@@ -93,6 +111,24 @@ const AccountsPage = () => {
                     <p className="text-xs text-[var(--text-tertiary)] mt-4">
                         These trades drive the options-first dashboard and reporting surfaces.
                     </p>
+                </div>
+            </div>
+
+            <div className="glass-panel rounded-xl p-5">
+                <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${schwabHealth.status === 'connected' ? 'bg-green-500/15 text-[var(--success)]' : 'bg-yellow-500/15 text-[var(--warning)]'}`}>
+                        <ShieldCheck size={20} />
+                    </div>
+                    <div>
+                        <p className="font-semibold">Schwab token health</p>
+                        <p className="text-sm text-[var(--text-secondary)]">
+                            Last refresh: {formatTimestamp(schwabHealth.lastRefreshedAt)}
+                            {schwabHealth.refreshExpiresAt ? ` • Refresh access expires: ${formatTimestamp(schwabHealth.refreshExpiresAt)}` : ''}
+                        </p>
+                        {schwabHealth.lastError && (
+                            <p className="mt-1 text-sm text-[var(--warning)]">{schwabHealth.lastError}</p>
+                        )}
+                    </div>
                 </div>
             </div>
 

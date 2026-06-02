@@ -723,8 +723,8 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
         let hasConnection = !!(apiKey && apiSecret);
 
         if (!hasConnection && exchange === 'Schwab') {
-            const hasTokens = !!localStorage.getItem('schwab_tokens');
-            if (hasTokens) hasConnection = true;
+            const { getSchwabConnectionHealth } = await import('../utils/schwabAuth');
+            hasConnection = (await getSchwabConnectionHealth()).connected;
         }
 
         if (!hasConnection) {

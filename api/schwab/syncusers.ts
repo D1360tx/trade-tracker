@@ -75,7 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 .single();
 
             // Sync Schwab if tokens exist
-            if (schwabTokens?.refresh_token) {
+            if (schwabTokens?.refresh_token && schwabTokens.status !== 'reauth_required') {
                 try {
                     console.log(`[Cron] Syncing Schwab for ${email}`);
 
@@ -91,6 +91,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const refreshError = await refreshRes.text();
                         console.error(`[Cron] Token refresh failed for ${email}:`, refreshError);
                         userResult.errors.push(`Schwab token refresh failed: ${refreshRes.status}`);
+                        const requiresReauth = refreshError.includes('requiresReauth') || refreshRes.status === 401;
+                        await supabase
+                            .from('oauth_tokens')
+                            .update({
+                                status: requiresReauth ? 'reauth_required' : 'refresh_failed',
+                                last_error: refreshError.slice(0, 500),
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('user_id', userId)
+                            .eq('provider', 'schwab');
                         results.push(userResult);
                         continue;
                     }
@@ -105,7 +115,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         .update({
                             access_token: newAccessToken,
                             refresh_token: newRefreshToken,
-                            expires_at: new Date(refreshData.expiresAt).toISOString(),
+                            access_expires_at: new Date(refreshData.expiresAt).toISOString(),
+                            refresh_expires_at: refreshData.refreshExpiresAt
+                                ? new Date(refreshData.refreshExpiresAt).toISOString()
+                                : schwabTokens.refresh_expires_at,
+                            last_refreshed_at: new Date().toISOString(),
+                            last_error: null,
+                            status: 'connected',
                             updated_at: new Date().toISOString()
                         })
                         .eq('user_id', userId)
@@ -156,6 +172,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                                 } else {
                                     userResult.schwab = trades.length;
                                     totalTradesAdded += trades.length;
+                                    await supabase
+                                        .from('oauth_tokens')
+                                        .update({
+                                            last_successful_sync_at: new Date().toISOString(),
+                                            last_error: null,
+                                            status: 'connected',
+                                            updated_at: new Date().toISOString()
+                                        })
+                                        .eq('user_id', userId)
+                                        .eq('provider', 'schwab');
                                 }
                             }
                         }
@@ -163,11 +189,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const errorText = await schwabRes.text();
                         console.error(`[Cron] Schwab API error for ${email}:`, errorText);
                         userResult.errors.push(`Schwab API: ${schwabRes.status}`);
+                        await supabase
+                            .from('oauth_tokens')
+                            .update({
+                                last_error: errorText.slice(0, 500),
+                                status: schwabRes.status === 401 ? 'refresh_failed' : schwabTokens.status,
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('user_id', userId)
+                            .eq('provider', 'schwab');
                     }
                 } catch (err: unknown) {
                     const message = err instanceof Error ? err.message : 'Unknown error';
                     console.error(`[Cron] Schwab sync failed for ${email}:`, message);
                     userResult.errors.push(`Schwab: ${message}`);
+                    await supabase
+                        .from('oauth_tokens')
+                        .update({
+                            last_error: message.slice(0, 500),
+                            status: 'refresh_failed',
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('user_id', userId)
+                        .eq('provider', 'schwab');
                 }
             }
 

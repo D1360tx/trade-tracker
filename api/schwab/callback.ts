@@ -66,6 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             accessToken: tokens.access_token,
             refreshToken: tokens.refresh_token,
             expiresAt,
+            refreshExpiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000),
             tokenType: tokens.token_type,
             scope: tokens.scope
         };

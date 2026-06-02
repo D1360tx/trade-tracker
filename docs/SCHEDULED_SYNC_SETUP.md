@@ -55,9 +55,9 @@ After deployment, check:
 
 ### Sync Process
 For each user in the database:
-1. Check if they have Schwab OAuth tokens (specifically, a `refresh_token`)
+1. Check if they have Schwab OAuth tokens in `oauth_tokens` (specifically, a `refresh_token`)
 2. **Refresh the access token** - Schwab tokens expire after 30 minutes, so the cron job refreshes tokens before each API call
-3. **Update tokens in database** - New access/refresh tokens are saved for future syncs
+3. **Update tokens in database** - New access/refresh tokens plus health metadata are saved for future syncs
 4. Fetch last 180 days of trades from Schwab (includes expired options detection)
 5. Check if they have MEXC API credentials
 6. Fetch MEXC Futures and Spot trades
@@ -102,7 +102,7 @@ curl -X GET "https://your-app.vercel.app/api/schwab/syncusers?secret=YOUR_CRON_S
 ### Syncs failing?
 - Check `SUPABASE_SERVICE_ROLE_KEY` is set
 - Check `SCHWAB_CLIENT_ID` and `SCHWAB_CLIENT_SECRET` are set (required for token refresh)
-- If you see "Token refresh failed: 401" in logs, the user's refresh token has expired (7-day lifetime) - they need to re-authenticate via the Settings page
+- If you see "Token refresh failed: 401" in logs, the user's `oauth_tokens.status` should become `reauth_required`; they need to reconnect Schwab from the Import or Accounts page
 - Review error messages in logs for specific user failures
 
 ### Too many API calls?

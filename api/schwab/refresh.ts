@@ -46,17 +46,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const errorText = await response.text();
             console.error('Schwab token refresh failed:', errorText);
 
-            // If refresh token expired, user needs to re-authenticate
-            if (response.status === 401 || response.status === 400) {
+            const lowerError = errorText.toLowerCase();
+            const clearlyInvalidRefreshToken = response.status === 401
+                || lowerError.includes('invalid_grant')
+                || lowerError.includes('refresh token expired')
+                || lowerError.includes('invalid refresh');
+
+            if (clearlyInvalidRefreshToken) {
                 return res.status(401).json({
                     error: 'Refresh token expired',
+                    message: 'Schwab requires reconnect before syncing again.',
                     requiresReauth: true
                 });
             }
 
             return res.status(response.status).json({
                 error: 'Token refresh failed',
-                details: errorText
+                message: 'Schwab token refresh failed temporarily. Your connection was not cleared.',
+                details: errorText,
+                requiresReauth: false
             });
         }
 
@@ -67,6 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             accessToken: tokens.access_token,
             refreshToken: tokens.refresh_token || refreshToken, // Some APIs return new refresh token
             expiresAt,
+            refreshExpiresAt: tokens.refresh_token ? Date.now() + (7 * 24 * 60 * 60 * 1000) : undefined,
             tokenType: tokens.token_type
         });
 

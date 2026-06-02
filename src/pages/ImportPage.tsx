@@ -19,7 +19,13 @@ import {
     Unlink,
     Upload,
 } from 'lucide-react';
-import { isConnectedToSchwab, connectSchwab, disconnectSchwab, fetchSchwabTransactions } from '../utils/schwabAuth';
+import {
+    connectSchwab,
+    disconnectSchwab,
+    fetchSchwabTransactions,
+    getSchwabConnectionHealth,
+    type SchwabConnectionHealth
+} from '../utils/schwabAuth';
 import { mapSchwabTransactionsToTrades } from '../utils/schwabTransactions';
 import TradeManagement from '../components/TradeManagement';
 import DemoAccountSeeder from '../components/DemoAccountSeeder';
@@ -55,6 +61,24 @@ const formatLastSync = (timestamp: number | null) => {
         hour: 'numeric',
         minute: '2-digit',
     });
+};
+
+const formatTimestamp = (timestamp?: number) => {
+    if (!timestamp) return 'Never';
+    return new Date(timestamp).toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+};
+
+const DEFAULT_SCHWAB_HEALTH: SchwabConnectionHealth = {
+    connected: false,
+    status: 'disconnected',
+    label: 'Not connected',
+    message: 'Connect Schwab to sync trades and balances.',
+    needsReconnectSoon: false,
 };
 
 const parseDiagnosticCounts = (logs: string[] = []) => {
@@ -192,7 +216,7 @@ const CsvImportPanel = ({ id, title, description, helperText, exchange, file, is
 );
 
 const SchwabImportPanel = ({
-    connected,
+    health,
     isConnecting,
     isSyncing,
     lastUpdated,
@@ -206,7 +230,7 @@ const SchwabImportPanel = ({
     onFileChange,
     onImportCsv,
 }: {
-    connected: boolean;
+    health: SchwabConnectionHealth;
     isConnecting: boolean;
     isSyncing: boolean;
     lastUpdated: number | null;
@@ -227,8 +251,9 @@ const SchwabImportPanel = ({
                 title="Schwab import command center"
                 description="Connect Schwab for direct sync, or use Schwab realized gains CSVs when you need statement-level P&L."
             />
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:min-w-[440px]">
-                <StatusTile label="Connection" value={connected ? 'Connected' : 'Not connected'} tone={connected ? 'success' : 'warning'} />
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 lg:min-w-[560px]">
+                <StatusTile label="Connection" value={health.label} tone={health.status === 'connected' ? 'success' : 'warning'} />
+                <StatusTile label="Last refresh" value={formatTimestamp(health.lastRefreshedAt)} tone={health.lastRefreshedAt ? 'success' : 'warning'} />
                 <StatusTile label="Last sync" value={formatLastSync(lastUpdated)} tone={lastUpdated ? 'success' : 'warning'} />
                 <StatusTile label="Schwab trades" value={tradeCount.toLocaleString()} tone={tradeCount > 0 ? 'success' : 'neutral'} />
             </div>
@@ -248,11 +273,14 @@ const SchwabImportPanel = ({
                     </div>
                 </div>
 
-                {connected ? (
+                {health.connected ? (
                     <div className="space-y-3">
-                        <div className="flex items-center gap-2 rounded-lg border border-[var(--success)]/30 bg-[var(--success)]/10 p-3 text-[var(--success)]">
-                            <CheckCircle size={18} />
-                            <span className="text-sm font-medium">Schwab is connected</span>
+                        <div className={`flex items-center gap-2 rounded-lg border p-3 ${health.needsReconnectSoon || health.status === 'refresh_failed'
+                            ? 'border-[var(--warning)]/30 bg-[var(--warning)]/10 text-[var(--warning)]'
+                            : 'border-[var(--success)]/30 bg-[var(--success)]/10 text-[var(--success)]'
+                            }`}>
+                            {health.needsReconnectSoon || health.status === 'refresh_failed' ? <AlertCircle size={18} /> : <CheckCircle size={18} />}
+                            <span className="text-sm font-medium">{health.message}</span>
                             <button onClick={onDisconnect} className="ml-auto inline-flex items-center gap-1 text-xs text-[var(--text-tertiary)] hover:text-[var(--danger)]">
                                 <Unlink size={14} />
                                 Disconnect
@@ -274,7 +302,7 @@ const SchwabImportPanel = ({
                         className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
                     >
                         <Link size={18} />
-                        {isConnecting ? 'Connecting...' : 'Connect Schwab'}
+                        {isConnecting ? 'Connecting...' : health.status === 'reauth_required' ? 'Reconnect Schwab' : 'Connect Schwab'}
                     </button>
                 )}
             </div>
@@ -541,7 +569,7 @@ const ImportPage = () => {
     const [isAdvancedCsvParsing, setIsAdvancedCsvParsing] = useState(false);
     const [pasteText, setPasteText] = useState('');
     const [isPasteParsing, setIsPasteParsing] = useState(false);
-    const [schwabConnected, setSchwabConnected] = useState(false);
+    const [schwabHealth, setSchwabHealth] = useState<SchwabConnectionHealth>(DEFAULT_SCHWAB_HEALTH);
     const [isSyncingSchwab, setIsSyncingSchwab] = useState(false);
     const [isConnectingSchwab, setIsConnectingSchwab] = useState(false);
     const [schwabStatus, setSchwabStatus] = useState<ImportStatus | null>(null);
@@ -554,8 +582,12 @@ const ImportPage = () => {
         [trades]
     );
 
+    const refreshSchwabHealth = async () => {
+        setSchwabHealth(await getSchwabConnectionHealth());
+    };
+
     useEffect(() => {
-        setSchwabConnected(isConnectedToSchwab());
+        refreshSchwabHealth();
     }, []);
 
     const importCsvForExchange = async (
@@ -612,7 +644,7 @@ const ImportPage = () => {
         setSchwabStatus(null);
         try {
             await connectSchwab();
-            setSchwabConnected(true);
+            await refreshSchwabHealth();
             setSchwabStatus({ type: 'success', title: 'Schwab connected', message: 'You can now sync trades directly from Schwab.' });
         } catch (error: unknown) {
             setSchwabStatus({ type: 'error', title: 'Schwab connection failed', message: getErrorMessage(error) });
@@ -642,6 +674,7 @@ const ImportPage = () => {
             }
 
             addTrades(importedTrades);
+            await refreshSchwabHealth();
             setSchwabStatus({
                 type: 'success',
                 title: 'Schwab sync complete',
@@ -650,7 +683,7 @@ const ImportPage = () => {
             });
         } catch (error: unknown) {
             const message = getErrorMessage(error);
-            if (message.includes('reconnect')) setSchwabConnected(false);
+            await refreshSchwabHealth();
             setSchwabStatus({ type: 'error', title: 'Schwab sync failed', message });
         } finally {
             setIsSyncingSchwab(false);
@@ -717,12 +750,12 @@ const ImportPage = () => {
         }
     };
 
-    const handleConfirmDangerAction = () => {
+    const handleConfirmDangerAction = async () => {
         if (!pendingDangerAction) return;
 
         if (pendingDangerAction.type === 'disconnect-schwab') {
-            disconnectSchwab();
-            setSchwabConnected(false);
+            await disconnectSchwab();
+            setSchwabHealth(DEFAULT_SCHWAB_HEALTH);
             setSchwabStatus({ type: 'info', title: 'Schwab disconnected', message: 'Reconnect Schwab when you are ready to sync again.' });
         } else if (pendingDangerAction.type === 'clear-exchange') {
             clearTradesByExchange(pendingDangerAction.exchange);
@@ -761,7 +794,7 @@ const ImportPage = () => {
 
             <div id="schwab-import">
                 <SchwabImportPanel
-                    connected={schwabConnected}
+                    health={schwabHealth}
                     isConnecting={isConnectingSchwab}
                     isSyncing={isSyncingSchwab}
                     lastUpdated={lastUpdated}

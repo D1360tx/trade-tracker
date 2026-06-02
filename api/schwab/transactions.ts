@@ -283,6 +283,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             debugInfo.push({ accId, count: txData.length, status: 'success' });
                         }
                     } else {
+                        if (txResponse.status === 401) {
+                            return res.status(401).json({
+                                error: 'Access token expired',
+                                requiresRefresh: true
+                            });
+                        }
                         // Capture detailed error info
                         let errorDetail = `failed: ${txResponse.status}`;
                         try {
@@ -336,6 +342,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                                 status: 'orders success'
                             });
                         } else {
+                            if (ordersResponse.status === 401) {
+                                return res.status(401).json({
+                                    error: 'Access token expired',
+                                    requiresRefresh: true
+                                });
+                            }
                             debugInfo.push({
                                 accId,
                                 status: `orders failed: ${ordersResponse.status}`,
