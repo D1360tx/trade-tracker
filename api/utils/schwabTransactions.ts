@@ -359,13 +359,20 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
                 const day = parseInt(dateStr.substring(4, 6));
                 const expirationDate = new Date(year, month, day);
 
-                // Compare dates only (not times) - options expire at market close, not midnight
-                // Only mark as expired if expiration date is strictly BEFORE today
+                // Options stop trading at expiration (~4:00 PM ET). Book any still-open
+                // option as expired-worthless once that cutoff has passed -- INCLUDING
+                // same-day (0DTE) expirations. Schwab reports a worthless expiration as a
+                // RECEIVE_AND_DELIVER (filtered out above), never a TRADE, so without this a
+                // 0DTE loss is silently dropped until the next calendar day.
                 const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                 const expirationDay = new Date(year, month, day);
+                // ~4:00 PM ET cutoff in UTC. 21:00 UTC == 4pm EST / 5pm EDT, so a still-live
+                // option is never booked before the close in either DST season.
+                const expirationCutoffUtc = Date.UTC(year, month, day, 21, 0, 0);
 
-                // If expired (expiration date is before today), create a loss trade
-                if (expirationDay < today) {
+                // Book the loss once the contract can no longer trade (prior days, or today
+                // after the cutoff). Strictly-future expirations stay open.
+                if (expirationDay < today || now.getTime() >= expirationCutoffUtc) {
                     const strike = parseInt(strikeStr) / 1000; // Strike is in thousandths
                     const putCallLabel = putCall === 'C' ? 'CALL' : 'PUT';
 
