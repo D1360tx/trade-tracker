@@ -27,6 +27,7 @@ export interface TradeContextType {
     isLoading: boolean;
     lastUpdated: number | null;
     lastDebugData?: SyncDebugData;
+    syncWarning?: string | null;
     schwabAccountSnapshot: SchwabAccountSnapshot | null;
     schwabBalanceUpdatedAt: number | null;
     refreshSchwabAccountBalance: () => Promise<SchwabAccountSnapshot | null>;

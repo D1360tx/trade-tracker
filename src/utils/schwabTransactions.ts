@@ -64,6 +64,22 @@ const extractExpirationDate = (fullSymbol: string): string | null => {
     return `${mm}/${dd}/${year}`;
 };
 
+export interface SchwabOrphanedClosing {
+    symbol: string;
+    date: string;
+    activityId: number;
+}
+
+let lastOrphanedClosings: SchwabOrphanedClosing[] = [];
+
+/**
+ * Orphaned closing trades (a close with no matching open position) from the most
+ * recent mapSchwabTransactionsToTrades() run. These are skipped during mapping;
+ * exposing them lets the UI surface that some trades were dropped instead of
+ * failing silently. Typically caused by positions opened before the sync window.
+ */
+export const getLastSchwabOrphanedClosings = (): SchwabOrphanedClosing[] => lastOrphanedClosings;
+
 /**
  * Map Schwab API transactions to Trade objects
  * Uses FIFO matching to pair opening and closing transactions
@@ -449,6 +465,8 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
     } else {
         console.log('[Schwab Mapper] ✅ All closing trades successfully matched with opening positions.');
     }
+
+    lastOrphanedClosings = orphanedTrades;
 
     return aggregatedTrades;
 };

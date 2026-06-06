@@ -6,7 +6,7 @@ import { useTrades } from '../context/useTrades';
 import { useAuth } from '../context/useAuth';
 
 const Layout = () => {
-    const { lastUpdated, fetchTradesFromAPI, isLoading } = useTrades();
+    const { lastUpdated, fetchTradesFromAPI, isLoading, syncWarning } = useTrades();
     const { user, signOut } = useAuth();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
     const [isCollapsed, setIsCollapsed] = React.useState(() => {
@@ -262,6 +262,11 @@ const Layout = () => {
                     {syncMessage && (
                         <div className="mb-4 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/10 px-4 py-3 text-sm text-[var(--danger)]">
                             {syncMessage}
+                        </div>
+                    )}
+                    {syncWarning && (
+                        <div className="mb-4 rounded-lg border border-[var(--warning)]/30 bg-[var(--warning)]/10 px-4 py-3 text-sm text-[var(--warning)]">
+                            {syncWarning}
                         </div>
                     )}
                     <Outlet />

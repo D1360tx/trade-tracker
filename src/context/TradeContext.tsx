@@ -320,6 +320,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
     const [trades, setTrades] = useState<Trade[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [lastDebugData, setLastDebugData] = useState<SyncDebugData>(null);
+    const [syncWarning, setSyncWarning] = useState<string | null>(null);
     const [schwabAccountSnapshot, setSchwabAccountSnapshot] = useState<SchwabAccountSnapshot | null>(() => loadStoredSchwabSnapshot());
     const [lastUpdated, setLastUpdated] = useState<number | null>(() => {
         // Load last sync timestamp from localStorage on mount
@@ -804,7 +805,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             } else if (exchange === 'Schwab') {
                 // Dynamically import Schwab utils
                 const { fetchSchwabTransactions } = await import('../utils/schwabAuth');
-                const { mapSchwabTransactionsToTrades } = await import('../utils/schwabTransactions');
+                const { mapSchwabTransactionsToTrades, getLastSchwabOrphanedClosings } = await import('../utils/schwabTransactions');
 
                 // Use 180 day window (extended to capture all opening positions)
                 const endDate = new Date().toISOString().split('T')[0];
@@ -812,6 +813,22 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
 
                 const transactions = await fetchSchwabTransactions(startDate, endDate);
                 const mappedTrades = mapSchwabTransactionsToTrades(transactions);
+
+                // Surface any closing trades that couldn't be matched to an opening
+                // position (skipped during mapping) so dropped trades aren't silent.
+                const orphans = getLastSchwabOrphanedClosings();
+                if (orphans.length > 0) {
+                    const symbols = [...new Set(orphans.map(o => o.symbol))];
+                    const shown = symbols.slice(0, 8).join(', ');
+                    setSyncWarning(
+                        `${orphans.length} Schwab closing trade${orphans.length === 1 ? '' : 's'} ` +
+                        `couldn't be matched to an opening position and were skipped ` +
+                        `(likely opened before the 180-day sync window): ${shown}` +
+                        `${symbols.length > 8 ? `, +${symbols.length - 8} more` : ''}`
+                    );
+                } else {
+                    setSyncWarning(null);
+                }
                 await refreshSchwabAccountBalance();
 
                 // Add exchange field if missing (mapper should handle it but safety first)
@@ -887,6 +904,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             isLoading,
             lastUpdated,
             lastDebugData,
+            syncWarning,
             schwabAccountSnapshot,
             schwabBalanceUpdatedAt: getSnapshotTimestamp(schwabAccountSnapshot),
             refreshSchwabAccountBalance
