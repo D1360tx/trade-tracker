@@ -144,7 +144,6 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
 
         const symbol = tradeItem.instrument.underlyingSymbol || tradeItem.instrument.symbol;
         const positionEffect = tradeItem.positionEffect;
-        const isOpening = positionEffect === 'OPENING';
 
         // Get precise price from transaction netAmount (most accurate field)
         // netAmount includes fees, so subtract them to get actual cost/proceeds
@@ -160,6 +159,24 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
         // For position tracking, we MUST use the unique instrument symbol match specific options contracts
         // ignoring underlyingSymbol for the key, otherwise COIN calls and puts get mixed in the same FIFO queue!
         const positionKey = tradeItem.instrument.symbol || symbol;
+
+        // Determine whether this fill opens or closes a position.
+        // Schwab populates positionEffect for options (BUY_TO_OPEN, SELL_TO_CLOSE, ...) but
+        // NOT for equities (plain BUY/SELL), and same-day fills pulled from the orders endpoint
+        // never carry it. When it's missing, infer from the running net position for this
+        // instrument: a fill that increases absolute exposure opens, one that reduces it closes.
+        // Without this, untagged equity day-trades become orphaned closings and get dropped.
+        let isOpening: boolean;
+        if (positionEffect === 'OPENING') {
+            isOpening = true;
+        } else if (positionEffect === 'CLOSING') {
+            isOpening = false;
+        } else {
+            const existing = openPositions.get(positionKey) || [];
+            const netSigned = existing.reduce((sum, p) => sum + (p.direction === 'LONG' ? p.quantity : -p.quantity), 0);
+            const fillSign = tradeItem.amount >= 0 ? 1 : -1;
+            isOpening = netSigned === 0 ? true : Math.sign(netSigned) === fillSign;
+        }
 
         console.log('[Schwab Mapper] Processing:', {
             activityId: tx.activityId,
