@@ -189,7 +189,7 @@ const BotDashboard = () => {
                             <Tooltip
                                 contentStyle={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                                 itemStyle={{ color: 'var(--text-primary)' }}
-                                formatter={(value?: number | string) => [`$${parseFloat(String(value ?? 0)).toFixed(2)}`, 'Calculated Equity']}
+                                formatter={(value) => [`$${parseFloat(String(value ?? 0)).toFixed(2)}`, 'Calculated Equity']}
                             />
                             <Line
                                 type="monotone"

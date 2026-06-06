@@ -23,15 +23,15 @@ const Analytics = () => {
     // 1. Cumulative P&L Over Time
     const cumulativeData = useMemo(() => {
         const sorted = [...closedTrades].sort((a, b) => new Date(a.exitDate).getTime() - new Date(b.exitDate).getTime());
-        let cumulative = 0;
-        return sorted.map(t => {
-            cumulative += t.pnl;
-            return {
+        return sorted.reduce<Array<{ date: string; pnl: number; tradePnl: number }>>((acc, t) => {
+            const cumulative = (acc.length ? acc[acc.length - 1].pnl : 0) + t.pnl;
+            acc.push({
                 date: format(parseISO(t.exitDate), 'MMM dd'),
                 pnl: cumulative,
                 tradePnl: t.pnl
-            };
-        });
+            });
+            return acc;
+        }, []);
     }, [closedTrades]);
 
     // 2. Daily P&L Distribution (Histogram)
@@ -160,27 +160,25 @@ const Analytics = () => {
 
     const shadowPnLData = useMemo(() => {
         const sorted = [...closedTrades].sort((a, b) => new Date(a.exitDate).getTime() - new Date(b.exitDate).getTime());
-        let actualCum = 0;
-        let shadowCum = 0;
 
-        return sorted.map(t => {
-            actualCum += t.pnl;
+        return sorted.reduce<Array<{ date: string; actual: number; shadow: number; difference: number }>>((acc, t) => {
+            const prev = acc.length ? acc[acc.length - 1] : null;
+            const actualCum = (prev ? prev.actual : 0) + t.pnl;
 
             // If trade has mistakes, we exclude it from Shadow PnL (as if we didn't take it)
             // So if it was a loss of -100, Shadow PnL doesn't change (saved 100).
             // If it was a win of +100, Shadow PnL doesn't change (missed 100 - shouldn't have taken it).
             const hasMistakes = t.mistakes && t.mistakes.length > 0;
-            if (!hasMistakes) {
-                shadowCum += t.pnl;
-            }
+            const shadowCum = (prev ? prev.shadow : 0) + (hasMistakes ? 0 : t.pnl);
 
-            return {
+            acc.push({
                 date: format(parseISO(t.exitDate), 'MMM dd'),
                 actual: actualCum,
                 shadow: shadowCum,
                 difference: shadowCum - actualCum
-            };
-        });
+            });
+            return acc;
+        }, []);
     }, [closedTrades]);
 
     const totalMistakeCost = useMemo(() => {

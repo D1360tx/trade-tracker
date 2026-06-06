@@ -36,14 +36,13 @@ export const saveAPICredentials = async (exchange: string, apiKey: string, apiSe
     // Upsert (insert or update)
     const { error } = await supabase
         .from('api_credentials')
-        // @ts-expect-error - Supabase type inference issue
         .upsert({
             user_id: user.id,
             exchange,
             api_key: apiKey,
             api_secret: apiSecret,
             is_active: true
-        }, {
+        } as never, {
             onConflict: 'user_id,exchange'
         });
 

@@ -264,14 +264,14 @@ const OverviewPage = () => {
         closedTrades = closedTrades.sort((a, b) => new Date(a.exitDate).getTime() - new Date(b.exitDate).getTime());
 
         // Cumulative P&L
-        let cumulative = 0;
-        const cumulativeData = closedTrades.map(t => {
-            cumulative += t.pnl;
-            return {
+        const cumulativeData = closedTrades.reduce<Array<{ date: string; pnl: number }>>((acc, t) => {
+            const cumulative = (acc.length ? acc[acc.length - 1].pnl : 0) + t.pnl;
+            acc.push({
                 date: format(parseISO(t.exitDate), 'MM/dd/yy'),
                 pnl: cumulative
-            };
-        });
+            });
+            return acc;
+        }, []);
 
         // Daily P&L
         const byDay = new Map<string, number>();
