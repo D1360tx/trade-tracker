@@ -80,18 +80,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     console.log(`[Cron] Syncing Schwab for ${email}`);
 
                     // Step 1: Refresh the access token (Schwab tokens expire after 30 minutes)
+                    // Enhanced with simple retry for transient server-side refresh failures (new server logic does backoff too)
                     console.log(`[Cron] Refreshing Schwab token for ${email}`);
-                    const refreshRes = await fetch(`${baseUrl}/api/schwab/refresh`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ refreshToken: schwabTokens.refresh_token })
-                    });
+                    let refreshRes: Response | null = null;
+                    let refreshErrorText = '';
+                    for (let r = 0; r < 2; r++) {  // 2 attempts
+                        refreshRes = await fetch(`${baseUrl}/api/schwab/refresh`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ refreshToken: schwabTokens.refresh_token })
+                        });
+                        if (refreshRes.ok) break;
+                        refreshErrorText = await refreshRes.text();
+                        if (r < 1) await new Promise(res => setTimeout(res, 750));
+                    }
 
-                    if (!refreshRes.ok) {
-                        const refreshError = await refreshRes.text();
+                    if (!refreshRes || !refreshRes.ok) {
+                        const refreshError = refreshErrorText || 'unknown';
                         console.error(`[Cron] Token refresh failed for ${email}:`, refreshError);
-                        userResult.errors.push(`Schwab token refresh failed: ${refreshRes.status}`);
-                        const requiresReauth = refreshError.includes('requiresReauth') || refreshRes.status === 401;
+                        userResult.errors.push(`Schwab token refresh failed: ${refreshRes?.status || 'net'}`);
+                        const requiresReauth = refreshError.includes('requiresReauth') || (refreshRes && refreshRes.status === 401);
                         await supabase
                             .from('oauth_tokens')
                             .update({

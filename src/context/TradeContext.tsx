@@ -421,6 +421,82 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
     const lastUpdatedRef = useRef(lastUpdated);
     useEffect(() => { lastUpdatedRef.current = lastUpdated; }, [lastUpdated]);
 
+    // Keep-alive for Schwab connection: proactive refresh + lightweight pings
+    // Reduces "disconnects" by keeping access/refresh tokens fresh during active sessions
+    // and on tab lifecycle events. Uses existing schwabAuth helpers (no full syncs for pings).
+    useEffect(() => {
+        if (!user) return;
+
+        let pingInterval: ReturnType<typeof setInterval> | null = null;
+        let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const triggerSchwabKeepAlive = async () => {
+            try {
+                const { getValidAccessToken, getSchwabConnectionHealth } = await import('../utils/schwabAuth');
+                // This will refresh access if near expiry (per buffer) or force if needed
+                await getValidAccessToken(false);
+                // Also refresh health (updates lastRefreshed etc in DB/cache)
+                await getSchwabConnectionHealth();
+                debugLog('[TradeContext] Schwab keep-alive ping/refresh triggered');
+            } catch (e) {
+                debugLog('[TradeContext] Schwab keep-alive skipped (not connected or transient):', e);
+            }
+        };
+
+        const scheduleExpiryBasedRefresh = async () => {
+            try {
+                const { getSchwabTokens } = await import('../utils/schwabAuth');
+                const tokens = getSchwabTokens();
+                if (!tokens?.expiresAt) return;
+
+                const now = Date.now();
+                const msUntilRefresh = Math.max(0, tokens.expiresAt - now - (5 * 60 * 1000)); // 5min buffer
+                if (expiryTimer) clearTimeout(expiryTimer);
+                expiryTimer = setTimeout(() => {
+                    triggerSchwabKeepAlive();
+                    // Reschedule for next cycle if still connected
+                    scheduleExpiryBasedRefresh();
+                }, msUntilRefresh || 5 * 60 * 1000);
+            } catch {}
+        };
+
+        // On mount + visibility/focus: immediate lightweight keep-alive
+        const onVisibilityOrFocus = () => {
+            if (document.visibilityState === 'visible') {
+                triggerSchwabKeepAlive();
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibilityOrFocus);
+        window.addEventListener('focus', onVisibilityOrFocus);
+
+        // Cross-tab sync: if another tab performed a token refresh (wrote localStorage), react immediately
+        const onStorage = (e: StorageEvent) => {
+            if (e.key === 'schwab_tokens' || e.key === null) {
+                triggerSchwabKeepAlive();
+            }
+        };
+        window.addEventListener('storage', onStorage);
+
+        // Initial on mount (after load)
+        triggerSchwabKeepAlive();
+        scheduleExpiryBasedRefresh();
+
+        // Lightweight periodic ping while tab active (every ~12min; avoids rate limits & heavy syncs)
+        pingInterval = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                triggerSchwabKeepAlive();
+            }
+        }, 12 * 60 * 1000);
+
+        return () => {
+            document.removeEventListener('visibilitychange', onVisibilityOrFocus);
+            window.removeEventListener('focus', onVisibilityOrFocus);
+            window.removeEventListener('storage', onStorage);
+            if (pingInterval) clearInterval(pingInterval);
+            if (expiryTimer) clearTimeout(expiryTimer);
+        };
+    }, [user]);
+
     // Hourly & Scheduled Auto-Sync - DISABLED FOR NOW
     // TODO: Re-enable with proper safeguards (user preference, better state management)
     // useEffect(() => {

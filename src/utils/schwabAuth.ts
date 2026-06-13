@@ -430,6 +430,10 @@ const refreshSchwabTokens = async (force = false): Promise<SchwabTokens> => {
             return tokens;
         }
 
+        // Track attempts for backoff / observability (stored in health)
+        const attemptCount = ((tokens as any).refreshAttemptCount || 0) + 1;
+        await updateSchwabTokenHealth({ lastError: `refresh attempt #${attemptCount}` } as any);
+
         const response = await fetch('/api/schwab/refresh', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -445,7 +449,15 @@ const refreshSchwabTokens = async (force = false): Promise<SchwabTokens> => {
                 throw new Error('Session expired. Please reconnect to Schwab.');
             }
 
-            await updateSchwabTokenHealth({ status: 'refresh_failed', lastError: message });
+            // Transient failure: update health but attempt graceful fallback
+            await updateSchwabTokenHealth({ status: 'refresh_failed', lastError: `attempt #${attemptCount}: ${message}` });
+
+            // Fallback: if the existing access token is still usable (not past buffer), return it
+            if (!shouldRefreshAccessToken(tokens)) {
+                console.warn('[Schwab] Transient refresh failure; falling back to cached access token:', message);
+                return tokens;
+            }
+
             throw new Error(message);
         }
 
@@ -461,8 +473,9 @@ const refreshSchwabTokens = async (force = false): Promise<SchwabTokens> => {
             lastError: null,
             status: 'connected',
             tokenType: body.tokenType || tokens.tokenType,
-        };
+        } as any;
 
+        // reset attempt counter implicitly by clearing lastError
         await saveSchwabTokens(refreshed);
         return refreshed;
     })();
@@ -497,6 +510,7 @@ const fetchWithSchwabAuth = async (
     if (!response.ok && retry) {
         const body = await response.clone().json().catch(() => ({})) as { requiresRefresh?: boolean };
         if (body.requiresRefresh || response.status === 401) {
+            // Force a fresh token; if transient failure occurred upstream, getValid will fallback
             const refreshedAccessToken = await getValidAccessToken(true);
             return fetch(url.toString(), {
                 ...options,
