@@ -320,6 +320,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
     const [trades, setTrades] = useState<Trade[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [lastDebugData, setLastDebugData] = useState<SyncDebugData>(null);
+    const [syncWarning, setSyncWarning] = useState<string | null>(null);
     const [schwabAccountSnapshot, setSchwabAccountSnapshot] = useState<SchwabAccountSnapshot | null>(() => loadStoredSchwabSnapshot());
     const [lastUpdated, setLastUpdated] = useState<number | null>(() => {
         // Load last sync timestamp from localStorage on mount
@@ -419,6 +420,82 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
     // Ref for auto-sync to avoid stale closures
     const lastUpdatedRef = useRef(lastUpdated);
     useEffect(() => { lastUpdatedRef.current = lastUpdated; }, [lastUpdated]);
+
+    // Keep-alive for Schwab connection: proactive refresh + lightweight pings
+    // Reduces "disconnects" by keeping access/refresh tokens fresh during active sessions
+    // and on tab lifecycle events. Uses existing schwabAuth helpers (no full syncs for pings).
+    useEffect(() => {
+        if (!user) return;
+
+        let pingInterval: ReturnType<typeof setInterval> | null = null;
+        let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const triggerSchwabKeepAlive = async () => {
+            try {
+                const { getValidAccessToken, getSchwabConnectionHealth } = await import('../utils/schwabAuth');
+                // This will refresh access if near expiry (per buffer) or force if needed
+                await getValidAccessToken(false);
+                // Also refresh health (updates lastRefreshed etc in DB/cache)
+                await getSchwabConnectionHealth();
+                debugLog('[TradeContext] Schwab keep-alive ping/refresh triggered');
+            } catch (e) {
+                debugLog('[TradeContext] Schwab keep-alive skipped (not connected or transient):', e);
+            }
+        };
+
+        const scheduleExpiryBasedRefresh = async () => {
+            try {
+                const { getSchwabTokens } = await import('../utils/schwabAuth');
+                const tokens = getSchwabTokens();
+                if (!tokens?.expiresAt) return;
+
+                const now = Date.now();
+                const msUntilRefresh = Math.max(0, tokens.expiresAt - now - (5 * 60 * 1000)); // 5min buffer
+                if (expiryTimer) clearTimeout(expiryTimer);
+                expiryTimer = setTimeout(() => {
+                    triggerSchwabKeepAlive();
+                    // Reschedule for next cycle if still connected
+                    scheduleExpiryBasedRefresh();
+                }, msUntilRefresh || 5 * 60 * 1000);
+            } catch {}
+        };
+
+        // On mount + visibility/focus: immediate lightweight keep-alive
+        const onVisibilityOrFocus = () => {
+            if (document.visibilityState === 'visible') {
+                triggerSchwabKeepAlive();
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibilityOrFocus);
+        window.addEventListener('focus', onVisibilityOrFocus);
+
+        // Cross-tab sync: if another tab performed a token refresh (wrote localStorage), react immediately
+        const onStorage = (e: StorageEvent) => {
+            if (e.key === 'schwab_tokens' || e.key === null) {
+                triggerSchwabKeepAlive();
+            }
+        };
+        window.addEventListener('storage', onStorage);
+
+        // Initial on mount (after load)
+        triggerSchwabKeepAlive();
+        scheduleExpiryBasedRefresh();
+
+        // Lightweight periodic ping while tab active (every ~12min; avoids rate limits & heavy syncs)
+        pingInterval = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                triggerSchwabKeepAlive();
+            }
+        }, 12 * 60 * 1000);
+
+        return () => {
+            document.removeEventListener('visibilitychange', onVisibilityOrFocus);
+            window.removeEventListener('focus', onVisibilityOrFocus);
+            window.removeEventListener('storage', onStorage);
+            if (pingInterval) clearInterval(pingInterval);
+            if (expiryTimer) clearTimeout(expiryTimer);
+        };
+    }, [user]);
 
     // Hourly & Scheduled Auto-Sync - DISABLED FOR NOW
     // TODO: Re-enable with proper safeguards (user preference, better state management)
@@ -804,7 +881,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             } else if (exchange === 'Schwab') {
                 // Dynamically import Schwab utils
                 const { fetchSchwabTransactions } = await import('../utils/schwabAuth');
-                const { mapSchwabTransactionsToTrades } = await import('../utils/schwabTransactions');
+                const { mapSchwabTransactionsToTrades, getLastSchwabOrphanedClosings } = await import('../utils/schwabTransactions');
 
                 // Use 180 day window (extended to capture all opening positions)
                 const endDate = new Date().toISOString().split('T')[0];
@@ -812,6 +889,22 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
 
                 const transactions = await fetchSchwabTransactions(startDate, endDate);
                 const mappedTrades = mapSchwabTransactionsToTrades(transactions);
+
+                // Surface any closing trades that couldn't be matched to an opening
+                // position (skipped during mapping) so dropped trades aren't silent.
+                const orphans = getLastSchwabOrphanedClosings();
+                if (orphans.length > 0) {
+                    const symbols = [...new Set(orphans.map(o => o.symbol))];
+                    const shown = symbols.slice(0, 8).join(', ');
+                    setSyncWarning(
+                        `${orphans.length} Schwab closing trade${orphans.length === 1 ? '' : 's'} ` +
+                        `couldn't be matched to an opening position and were skipped ` +
+                        `(likely opened before the 180-day sync window): ${shown}` +
+                        `${symbols.length > 8 ? `, +${symbols.length - 8} more` : ''}`
+                    );
+                } else {
+                    setSyncWarning(null);
+                }
                 await refreshSchwabAccountBalance();
 
                 // Add exchange field if missing (mapper should handle it but safety first)
@@ -887,6 +980,7 @@ export const TradeProvider = ({ children }: { children: ReactNode }) => {
             isLoading,
             lastUpdated,
             lastDebugData,
+            syncWarning,
             schwabAccountSnapshot,
             schwabBalanceUpdatedAt: getSnapshotTimestamp(schwabAccountSnapshot),
             refreshSchwabAccountBalance

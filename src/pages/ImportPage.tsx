@@ -294,6 +294,24 @@ const SchwabImportPanel = ({
                             <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''} />
                             {isSyncing ? 'Syncing trades...' : 'Sync Schwab trades'}
                         </button>
+                        <button
+                            onClick={async () => {
+                                try {
+                                    const { getValidAccessToken, getSchwabConnectionHealth } = await import('../utils/schwabAuth');
+                                    await getValidAccessToken(true); // force refresh path (will fallback gracefully on transient)
+                                    await getSchwabConnectionHealth();
+                                    // parent can refresh health via its state if wired
+                                    (window as any).__refreshSchwabHealth?.();
+                                } catch (e) {
+                                    console.warn('Force refresh failed (may need reconnect):', e);
+                                }
+                            }}
+                            disabled={isSyncing}
+                            className="flex w-full items-center justify-center gap-2 rounded-lg border border-green-600 py-2 text-sm font-medium text-green-600 hover:bg-green-50 disabled:opacity-50"
+                            title="Silently refresh tokens without full re-auth (uses fallback on transient errors)"
+                        >
+                            Force Refresh Tokens (no popup)
+                        </button>
                     </div>
                 ) : (
                     <button

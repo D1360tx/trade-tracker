@@ -74,6 +74,8 @@ Trade Tracker is a trading journal and analytics application that syncs trades f
 | Schwab Refresh Token | 7 days | User must re-authenticate if expired |
 | MEXC API Keys | No expiration | Until manually revoked |
 
+**2026 Hardening (refresh + keep-alive)**: Server refresh now retries transients (backoff); client falls back to stale access on non-reauth errors + tracks attempts; keep-alive on visibility/focus + periodic pings (expiry-timed) + proactive refresh-token extension while active. See schwabAuth.ts, TradeContext keep-alive effect, updated refresh.ts. UI has "Force Refresh Tokens (no popup)". Reduces full re-auths significantly. Cron (syncusers) also benefits from server retries.
+
 ## Environment Variables (Vercel)
 
 | Variable | Purpose |

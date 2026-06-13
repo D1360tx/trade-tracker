@@ -64,6 +64,22 @@ const extractExpirationDate = (fullSymbol: string): string | null => {
     return `${mm}/${dd}/${year}`;
 };
 
+export interface SchwabOrphanedClosing {
+    symbol: string;
+    date: string;
+    activityId: number;
+}
+
+let lastOrphanedClosings: SchwabOrphanedClosing[] = [];
+
+/**
+ * Orphaned closing trades (a close with no matching open position) from the most
+ * recent mapSchwabTransactionsToTrades() run. These are skipped during mapping;
+ * exposing them lets the UI surface that some trades were dropped instead of
+ * failing silently. Typically caused by positions opened before the sync window.
+ */
+export const getLastSchwabOrphanedClosings = (): SchwabOrphanedClosing[] => lastOrphanedClosings;
+
 /**
  * Map Schwab API transactions to Trade objects
  * Uses FIFO matching to pair opening and closing transactions
@@ -114,7 +130,6 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
 
         const symbol = tradeItem.instrument.underlyingSymbol || tradeItem.instrument.symbol;
         const positionEffect = tradeItem.positionEffect;
-        const isOpening = positionEffect === 'OPENING';
 
         // Get precise price from transaction netAmount (most accurate field)
         // netAmount includes fees, so subtract them to get actual cost/proceeds
@@ -130,6 +145,24 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
         // For position tracking, we MUST use the unique instrument symbol match specific options contracts
         // ignoring underlyingSymbol for the key, otherwise COIN calls and puts get mixed in the same FIFO queue!
         const positionKey = tradeItem.instrument.symbol || symbol;
+
+        // Determine whether this fill opens or closes a position.
+        // Schwab populates positionEffect for options (BUY_TO_OPEN, SELL_TO_CLOSE, ...) but
+        // NOT for equities (plain BUY/SELL), and same-day fills pulled from the orders endpoint
+        // never carry it. When it's missing, infer from the running net position for this
+        // instrument: a fill that increases absolute exposure opens, one that reduces it closes.
+        // Without this, untagged equity day-trades become orphaned closings and get dropped.
+        let isOpening: boolean;
+        if (positionEffect === 'OPENING') {
+            isOpening = true;
+        } else if (positionEffect === 'CLOSING') {
+            isOpening = false;
+        } else {
+            const existing = openPositions.get(positionKey) || [];
+            const netSigned = existing.reduce((sum, p) => sum + (p.direction === 'LONG' ? p.quantity : -p.quantity), 0);
+            const fillSign = tradeItem.amount >= 0 ? 1 : -1;
+            isOpening = netSigned === 0 ? true : Math.sign(netSigned) === fillSign;
+        }
 
         console.log('[Schwab Mapper] Processing:', {
             activityId: tx.activityId,
@@ -312,13 +345,20 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
                 const day = parseInt(dateStr.substring(4, 6));
                 const expirationDate = new Date(year, month, day);
 
-                // Compare dates only (not times) - options expire at market close, not midnight
-                // Only mark as expired if expiration date is strictly BEFORE today
+                // Options stop trading at expiration (~4:00 PM ET). Book any still-open
+                // option as expired-worthless once that cutoff has passed -- INCLUDING
+                // same-day (0DTE) expirations. Schwab reports a worthless expiration as a
+                // RECEIVE_AND_DELIVER (filtered out above), never a TRADE, so without this a
+                // 0DTE loss is silently dropped until the next calendar day.
                 const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                 const expirationDay = new Date(year, month, day);
+                // ~4:00 PM ET cutoff in UTC. 21:00 UTC == 4pm EST / 5pm EDT, so a still-live
+                // option is never booked before the close in either DST season.
+                const expirationCutoffUtc = Date.UTC(year, month, day, 21, 0, 0);
 
-                // If expired (expiration date is before today), create a loss trade
-                if (expirationDay < today) {
+                // Book the loss once the contract can no longer trade (prior days, or today
+                // after the cutoff). Strictly-future expirations stay open.
+                if (expirationDay < today || now.getTime() >= expirationCutoffUtc) {
                     const strike = parseInt(strikeStr) / 1000; // Strike is in thousandths
                     const putCallLabel = putCall === 'C' ? 'CALL' : 'PUT';
 
@@ -432,6 +472,8 @@ export const mapSchwabTransactionsToTrades = (transactions: SchwabTransaction[])
     } else {
         console.log('[Schwab Mapper] ✅ All closing trades successfully matched with opening positions.');
     }
+
+    lastOrphanedClosings = orphanedTrades;
 
     return aggregatedTrades;
 };
