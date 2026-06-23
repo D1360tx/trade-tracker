@@ -245,15 +245,15 @@ const Dashboard = () => {
 
     const chartData = useMemo(() => {
         const sorted = [...filteredTrades].sort((a, b) => new Date(a.exitDate).getTime() - new Date(b.exitDate).getTime());
-        let cumulative = 0;
-        return sorted.map(t => {
-            cumulative += t.pnl;
-            return {
+        return sorted.reduce<Array<{ date: string; value: number; pnl: number }>>((acc, t) => {
+            const cumulative = (acc.length ? acc[acc.length - 1].value : 0) + t.pnl;
+            acc.push({
                 date: format(parseISO(t.exitDate), 'MMM dd'),
                 value: cumulative,
                 pnl: t.pnl
-            };
-        });
+            });
+            return acc;
+        }, []);
     }, [filteredTrades]);
 
     // Format duration for display
@@ -709,7 +709,7 @@ const Dashboard = () => {
                                         color: 'var(--text-primary)'
                                     }}
                                     itemStyle={{ color: 'var(--text-primary)' }}
-                                    formatter={(val: number | undefined) => [val !== undefined ? `$${val.toFixed(2)}` : '', 'Equity']}
+                                    formatter={(val) => [typeof val === 'number' ? `$${val.toFixed(2)}` : '', 'Equity']}
                                 />
                                 <Area
                                     type="monotone"

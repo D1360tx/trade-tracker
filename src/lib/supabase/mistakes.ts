@@ -24,13 +24,12 @@ export const insertMistake = async (mistake: Omit<Mistake, 'id'>): Promise<Mista
 
     const { data, error } = await supabase
         .from('mistakes')
-        // @ts-expect-error - Supabase type inference issue
         .insert({
             user_id: user.id,
             name: mistake.name,
             description: mistake.description || null,
             color: mistake.color
-        })
+        } as never)
         .select()
         .single();
 
